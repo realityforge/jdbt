@@ -86,6 +86,7 @@ public final class JdbtCommand implements Callable<Integer> {
         private String driver = "sqlserver";
     }
 
+    @SuppressWarnings("FieldCanBeFinal")
     private static final class TargetConnectionOptions {
         @CommandLine.Option(names = "--target-host", required = true, description = "Target database host")
         private String host = "";
@@ -135,6 +136,7 @@ public final class JdbtCommand implements Callable<Integer> {
         }
     }
 
+    @SuppressWarnings("FieldCanBeFinal")
     private static final class SourceConnectionOptions {
         @CommandLine.Option(names = "--source-host", required = true, description = "Source database host")
         private String host = "";
@@ -196,6 +198,7 @@ public final class JdbtCommand implements Callable<Integer> {
     }
 
     @CommandLine.Command(name = "create", description = "Create database structures")
+    @SuppressWarnings("FieldCanBeFinal")
     static final class CreateCommand extends BaseCommand {
         @CommandLine.Mixin
         private TargetConnectionOptions target = new TargetConnectionOptions();
@@ -211,6 +214,7 @@ public final class JdbtCommand implements Callable<Integer> {
     }
 
     @CommandLine.Command(name = "drop", description = "Drop the target database")
+    @SuppressWarnings("FieldCanBeFinal")
     static final class DropCommand extends BaseCommand {
         @CommandLine.Mixin
         private TargetConnectionOptions target = new TargetConnectionOptions();
@@ -223,6 +227,7 @@ public final class JdbtCommand implements Callable<Integer> {
     }
 
     @CommandLine.Command(name = "migrate", description = "Run migrations")
+    @SuppressWarnings("FieldCanBeFinal")
     static final class MigrateCommand extends BaseCommand {
         @CommandLine.Mixin
         private TargetConnectionOptions target = new TargetConnectionOptions();
@@ -235,6 +240,7 @@ public final class JdbtCommand implements Callable<Integer> {
     }
 
     @CommandLine.Command(name = "import", description = "Import data from source to target")
+    @SuppressWarnings("FieldCanBeFinal")
     static final class ImportCommand extends BaseCommand {
         @CommandLine.Option(names = "--import", description = "Import key from jdbt.yml")
         private @Nullable String importKey;
@@ -266,6 +272,7 @@ public final class JdbtCommand implements Callable<Integer> {
     }
 
     @CommandLine.Command(name = "create-by-import", description = "Create database and import data")
+    @SuppressWarnings("FieldCanBeFinal")
     static final class CreateByImportCommand extends BaseCommand {
         @CommandLine.Option(names = "--import", description = "Import key from jdbt.yml")
         private @Nullable String importKey;
@@ -297,6 +304,7 @@ public final class JdbtCommand implements Callable<Integer> {
     }
 
     @CommandLine.Command(name = "load-dataset", description = "Load fixtures for a dataset")
+    @SuppressWarnings("FieldCanBeFinal")
     static final class LoadDatasetCommand extends BaseCommand {
         @CommandLine.Parameters(index = "0", paramLabel = "DATASET", description = "Dataset key")
         private String dataset = "";
@@ -312,6 +320,7 @@ public final class JdbtCommand implements Callable<Integer> {
     }
 
     @CommandLine.Command(name = "up-module-group", description = "Create objects for module group")
+    @SuppressWarnings("FieldCanBeFinal")
     static final class UpModuleGroupCommand extends BaseCommand {
         @CommandLine.Parameters(index = "0", paramLabel = "MODULE_GROUP", description = "Module group key")
         private String moduleGroup = "";
@@ -327,6 +336,7 @@ public final class JdbtCommand implements Callable<Integer> {
     }
 
     @CommandLine.Command(name = "down-module-group", description = "Drop objects for module group")
+    @SuppressWarnings("FieldCanBeFinal")
     static final class DownModuleGroupCommand extends BaseCommand {
         @CommandLine.Parameters(index = "0", paramLabel = "MODULE_GROUP", description = "Module group key")
         private String moduleGroup = "";
@@ -354,6 +364,7 @@ public final class JdbtCommand implements Callable<Integer> {
     }
 
     @CommandLine.Command(name = "dump-fixtures", description = "Dump fixtures from live database")
+    @SuppressWarnings("FieldCanBeFinal")
     static final class DumpFixturesCommand extends BaseCommand {
         @CommandLine.Mixin
         private TargetConnectionOptions target = new TargetConnectionOptions();

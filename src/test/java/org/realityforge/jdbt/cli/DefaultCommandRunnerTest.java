@@ -27,10 +27,10 @@ final class DefaultCommandRunnerTest {
         writeFile(tempDir, "jdbt.yml", projectConfig(true));
         writeFile(tempDir, "repository.yml", repositoryConfig());
 
-        final DefaultCommandRunner runner = createRunner(tempDir);
+        final var runner = createRunner(tempDir);
 
-        final PrintStream originalOut = System.out;
-        final ByteArrayOutputStream output = new ByteArrayOutputStream();
+        final var originalOut = System.out;
+        final var output = new ByteArrayOutputStream();
         try {
             System.setOut(new PrintStream(output, true, StandardCharsets.UTF_8));
             runner.status("default", "sqlserver");
@@ -58,8 +58,8 @@ final class DefaultCommandRunnerTest {
         writeFile(tempDir, "repository.yml", repositoryConfig());
         writeFile(tempDir, "MyModule/a.sql", "SELECT 1");
 
-        final DefaultCommandRunner runner = createRunner(tempDir);
-        final Path output = tempDir.resolve("out.zip");
+        final var runner = createRunner(tempDir);
+        final var output = tempDir.resolve("out.zip");
         runner.packageData("default", output);
 
         assertThat(output).exists();
@@ -70,7 +70,7 @@ final class DefaultCommandRunnerTest {
     void dumpFixturesIsNotYetImplemented(@TempDir final Path tempDir) throws IOException {
         writeFile(tempDir, "jdbt.yml", projectConfig(false));
         writeFile(tempDir, "repository.yml", repositoryConfig());
-        final DefaultCommandRunner runner = createRunner(tempDir);
+        final var runner = createRunner(tempDir);
 
         assertThatThrownBy(() -> runner.dumpFixtures("default", "sqlserver", target))
                 .isInstanceOf(RuntimeExecutionException.class)
@@ -81,14 +81,14 @@ final class DefaultCommandRunnerTest {
     void databaseImportRequiresDefaultImportWhenImportNotProvided(@TempDir final Path tempDir) throws IOException {
         writeFile(tempDir, "jdbt.yml", projectConfigWithoutImports());
         writeFile(tempDir, "repository.yml", repositoryConfig());
-        final DefaultCommandRunner runner = createRunner(tempDir);
+        final var runner = createRunner(tempDir);
 
         assertThatThrownBy(() -> runner.databaseImport("default", "sqlserver", null, null, target, source, null))
                 .isInstanceOf(RuntimeExecutionException.class)
                 .hasMessageContaining("Unable to locate import definition by key");
     }
 
-    private String projectConfig(final boolean withMigrations) {
+    private static String projectConfig(final boolean withMigrations) {
         return """
             databases:
               default:
@@ -103,7 +103,7 @@ final class DefaultCommandRunnerTest {
             """.formatted(withMigrations);
     }
 
-    private String projectConfigWithoutImports() {
+    private static String projectConfigWithoutImports() {
         return """
             databases:
               default:
@@ -115,7 +115,7 @@ final class DefaultCommandRunnerTest {
             """;
     }
 
-    private String repositoryConfig() {
+    private static String repositoryConfig() {
         return """
             modules:
               MyModule:
@@ -124,13 +124,13 @@ final class DefaultCommandRunnerTest {
             """;
     }
 
-    private void writeFile(final Path root, final String relativePath, final String content) throws IOException {
-        final Path file = root.resolve(relativePath);
+    private static void writeFile(final Path root, final String relativePath, final String content) throws IOException {
+        final var file = root.resolve(relativePath);
         Files.createDirectories(file.getParent());
         Files.writeString(file, content, StandardCharsets.UTF_8);
     }
 
-    private DefaultCommandRunner createRunner(final Path tempDir) {
+    private static DefaultCommandRunner createRunner(final Path tempDir) {
         return new DefaultCommandRunner(new ProjectRuntimeLoader(tempDir), new TestDriverFactory(), new FileResolver());
     }
 

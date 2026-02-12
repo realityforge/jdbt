@@ -41,7 +41,7 @@ final class ProjectRuntimeLoaderTest {
                     sequences: []
                 """);
 
-        final ProjectRuntimeLoader.LoadedRuntime runtime = new ProjectRuntimeLoader(tempDir).load(null);
+        final var runtime = new ProjectRuntimeLoader(tempDir).load(null);
 
         assertThat(runtime.database().repository().modules()).containsExactly("Pre", "Local", "Post");
         assertThat(runtime.database().preDbArtifacts()).hasSize(1);
@@ -81,7 +81,7 @@ final class ProjectRuntimeLoaderTest {
                     sequences: []
                 """);
 
-        final ProjectRuntimeLoader.LoadedRuntime runtime = new ProjectRuntimeLoader(tempDir).load(null);
+        final var runtime = new ProjectRuntimeLoader(tempDir).load(null);
         assertThat(runtime.database().key()).isEqualTo("default");
         assertThat(runtime.database().searchDirs()).containsExactly(tempDir);
     }
@@ -124,13 +124,13 @@ final class ProjectRuntimeLoaderTest {
                 .hasMessageContaining("does not contain data/repository.yml");
     }
 
-    private void writeFile(final Path root, final String relativePath, final String content) throws IOException {
-        final Path file = root.resolve(relativePath);
+    private static void writeFile(final Path root, final String relativePath, final String content) throws IOException {
+        final var file = root.resolve(relativePath);
         Files.createDirectories(file.getParent());
         Files.writeString(file, content, StandardCharsets.UTF_8);
     }
 
-    private void writeArtifact(final Path zip, final String entryName, final String content) throws IOException {
+    private static void writeArtifact(final Path zip, final String entryName, final String content) throws IOException {
         try (var output = new ZipOutputStream(Files.newOutputStream(zip), StandardCharsets.UTF_8)) {
             output.putNextEntry(new ZipEntry(entryName));
             output.write(content.getBytes(StandardCharsets.UTF_8));

@@ -14,12 +14,12 @@ import org.realityforge.jdbt.repository.RepositoryConfig;
 final class RuntimeDatabaseTest {
     @Test
     void delegatesOrderingAndSchemaLookupsToRepository() {
-        final RepositoryConfig repository = new RepositoryConfig(
+        final var repository = new RepositoryConfig(
                 List.of("Core"),
                 Map.of("Core", "C"),
                 Map.of("Core", List.of("[C].[tblA]")),
                 Map.of("Core", List.of("[C].[seqA]")));
-        final RuntimeDatabase database = runtimeDatabase(repository, List.of(), List.of());
+        final var database = runtimeDatabase(repository, List.of(), List.of());
 
         assertThat(database.schemaNameForModule("Core")).isEqualTo("C");
         assertThat(database.tableOrdering("Core")).containsExactly("[C].[tblA]");
@@ -29,9 +29,9 @@ final class RuntimeDatabaseTest {
 
     @Test
     void artifactByIdPrefersPostThenPreAndReturnsNullWhenMissing() {
-        final ArtifactContent pre = new StaticArtifact("pre");
-        final ArtifactContent post = new StaticArtifact("post");
-        final RuntimeDatabase database = runtimeDatabase(
+        final var pre = new StaticArtifact("pre");
+        final var post = new StaticArtifact("post");
+        final var database = runtimeDatabase(
                 new RepositoryConfig(List.of("Core"), Map.of(), Map.of("Core", List.of()), Map.of("Core", List.of())),
                 List.of(pre),
                 List.of(post));
@@ -41,7 +41,7 @@ final class RuntimeDatabaseTest {
         assertThat(database.artifactById("missing")).isNull();
     }
 
-    private RuntimeDatabase runtimeDatabase(
+    private static RuntimeDatabase runtimeDatabase(
             final RepositoryConfig repository,
             final List<ArtifactContent> preArtifacts,
             final List<ArtifactContent> postArtifacts) {

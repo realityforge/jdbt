@@ -39,7 +39,7 @@ public final class RepositoryConfigLoader {
         return new RepositoryConfig(modules, schemaOverrides, tableMap, sequenceMap);
     }
 
-    private List<ModuleEntry> parseModuleEntries(final Object modulesValue, final String path) {
+    private static List<ModuleEntry> parseModuleEntries(final Object modulesValue, final String path) {
         if (modulesValue instanceof List<?> list) {
             final List<ModuleEntry> entries = new ArrayList<>(list.size());
             for (int i = 0; i < list.size(); i++) {
@@ -70,7 +70,7 @@ public final class RepositoryConfigLoader {
         throw new ConfigException("Expected list or map for " + path + '.');
     }
 
-    private ModuleEntry parseModule(final String moduleName, final Object moduleBody, final String path) {
+    private static ModuleEntry parseModule(final String moduleName, final Object moduleBody, final String path) {
         if (!(moduleBody instanceof Map<?, ?> map)) {
             throw new ConfigException("Expected map body for module '" + moduleName + "' at " + path + '.');
         }

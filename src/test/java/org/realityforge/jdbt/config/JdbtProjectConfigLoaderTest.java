@@ -16,7 +16,7 @@ final class JdbtProjectConfigLoaderTest {
 
     @Test
     void loadAppliesHardcodedDefaultsAndBuildsDatabaseConfig() {
-        final JdbtProjectConfig config = loader.load("""
+        final var config = loader.load("""
             databases:
               default:
                 imports:
@@ -28,7 +28,7 @@ final class JdbtProjectConfigLoaderTest {
                     importEnabled: true
             """, "jdbt.yml", repository);
 
-        final DatabaseConfig database = config.databases().get("default");
+        final var database = config.databases().get("default");
         assertThat(database.upDirs()).containsExactly(".", "types", "views", "functions", "stored-procedures", "misc");
         assertThat(database.imports().get("default").modules()).containsExactly("Core");
         assertThat(database.imports().get("default").dir()).isEqualTo("import");
@@ -38,22 +38,21 @@ final class JdbtProjectConfigLoaderTest {
 
     @Test
     void loadUsesRepositoryModulesWhenImportModulesMissing() {
-        final JdbtProjectConfig config = loader.load("""
+        final var config = loader.load("""
             databases:
               default:
                 imports:
                   default: {}
             """, "jdbt.yml", repository);
 
-        final ImportConfig importConfig =
-                config.databases().get("default").imports().get("default");
+        final var importConfig = config.databases().get("default").imports().get("default");
         assertThat(importConfig.modules()).containsExactly("Core", "Geo");
         assertThat(importConfig.dir()).isEqualTo("import");
     }
 
     @Test
     void loadDefaultsMigrationsAppliedAtCreateToMigrationsValue() {
-        final JdbtProjectConfig config = loader.load("""
+        final var config = loader.load("""
             databases:
               default:
                 migrations: true

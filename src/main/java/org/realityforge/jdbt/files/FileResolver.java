@@ -120,7 +120,7 @@ public final class FileResolver {
         return findFromArtifacts(filename, postArtifacts, preArtifacts);
     }
 
-    private @Nullable String findFromArtifacts(
+    private static @Nullable String findFromArtifacts(
             final String filename,
             final List<ArtifactContent> postArtifacts,
             final List<ArtifactContent> preArtifacts) {
@@ -137,7 +137,7 @@ public final class FileResolver {
         return null;
     }
 
-    private void validateIndexEntries(final List<String> entries, final List<Path> directories) {
+    private static void validateIndexEntries(final List<String> entries, final List<Path> directories) {
         for (final String entry : entries) {
             final boolean exists = directories.stream().anyMatch(dir -> Files.exists(dir.resolve(entry)));
             if (!exists) {
@@ -146,7 +146,7 @@ public final class FileResolver {
         }
     }
 
-    private List<String> readIndexEntries(final Path indexFile) {
+    private static List<String> readIndexEntries(final Path indexFile) {
         if (!Files.exists(indexFile)) {
             return List.of();
         }
@@ -158,7 +158,7 @@ public final class FileResolver {
         }
     }
 
-    private List<String> readFiles(final Path directory, final String extension) {
+    private static List<String> readFiles(final Path directory, final String extension) {
         if (!Files.isDirectory(directory)) {
             return List.of();
         }
@@ -173,7 +173,7 @@ public final class FileResolver {
         }
     }
 
-    private void addArtifactFiles(
+    private static void addArtifactFiles(
             final List<String> files,
             final List<String> index,
             final List<ArtifactContent> artifacts,
@@ -196,7 +196,7 @@ public final class FileResolver {
         }
     }
 
-    private Comparator<String> indexComparator(final List<String> index) {
+    private static Comparator<String> indexComparator(final List<String> index) {
         return (left, right) -> {
             final String leftBasename = basename(left);
             final String rightBasename = basename(right);
@@ -215,9 +215,9 @@ public final class FileResolver {
         };
     }
 
-    private void failIfDuplicateBasenames(final List<String> files) {
-        final Map<String, List<String>> groups =
-                files.stream().collect(Collectors.groupingBy(this::basename, LinkedHashMap::new, Collectors.toList()));
+    private static void failIfDuplicateBasenames(final List<String> files) {
+        final Map<String, List<String>> groups = files.stream()
+                .collect(Collectors.groupingBy(FileResolver::basename, LinkedHashMap::new, Collectors.toList()));
         final List<List<String>> duplicates =
                 groups.values().stream().filter(values -> values.size() > 1).toList();
         if (!duplicates.isEmpty()) {
@@ -228,21 +228,21 @@ public final class FileResolver {
         }
     }
 
-    private boolean containsBasename(final List<String> files, final String basename) {
+    private static boolean containsBasename(final List<String> files, final String basename) {
         return files.stream().anyMatch(file -> basename(file).equals(basename));
     }
 
-    private String basename(final String value) {
+    private static String basename(final String value) {
         final int slash = Math.max(value.lastIndexOf('/'), value.lastIndexOf('\\'));
         return slash == -1 ? value : value.substring(slash + 1);
     }
 
-    private String moduleFilename(
+    private static String moduleFilename(
             final String moduleName, final String subdir, final String tableName, final String extension) {
         return moduleName + '/' + subdir + '/' + cleanObjectName(tableName) + '.' + extension;
     }
 
-    private String cleanObjectName(final String tableName) {
+    private static String cleanObjectName(final String tableName) {
         return tableName
                 .replace("[", "")
                 .replace("]", "")
@@ -251,7 +251,7 @@ public final class FileResolver {
                 .replace(" ", "");
     }
 
-    private String normalizeRelativeDir(final String relativeDir) {
+    private static String normalizeRelativeDir(final String relativeDir) {
         String value = relativeDir.replace("/./", "/");
         if (value.endsWith("/.")) {
             value = value.substring(0, value.length() - 2);
@@ -259,14 +259,14 @@ public final class FileResolver {
         return value;
     }
 
-    private List<String> splitIndexContent(final String content) {
+    private static List<String> splitIndexContent(final String content) {
         return Pattern.compile("\\s+")
                 .splitAsStream(content)
                 .filter(token -> !token.isEmpty())
                 .toList();
     }
 
-    private String toArtifactLocation(final ArtifactContent artifact, final String candidate) {
+    private static String toArtifactLocation(final ArtifactContent artifact, final String candidate) {
         return "zip:" + artifact.id() + ':' + candidate;
     }
 }

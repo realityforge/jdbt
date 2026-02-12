@@ -11,7 +11,7 @@ final class RepositoryConfigLoaderTest {
 
     @Test
     void loadSupportsOmapListStyle() {
-        final RepositoryConfig config = loader.load("""
+        final var config = loader.load("""
             modules:
               - Core:
                   schema: Core
@@ -35,7 +35,7 @@ final class RepositoryConfigLoaderTest {
 
     @Test
     void loadSupportsMapStyle() {
-        final RepositoryConfig config = loader.load("""
+        final var config = loader.load("""
             modules:
               Core:
                 schema: Core
@@ -61,7 +61,7 @@ final class RepositoryConfigLoaderTest {
 
     @Test
     void loadAllowsMissingModulesKeyAsEmptyRepository() {
-        final RepositoryConfig config = loader.load("{}", "repository.yml");
+        final var config = loader.load("{}", "repository.yml");
 
         assertThat(config.modules()).isEmpty();
         assertThat(config.tableMap()).isEmpty();

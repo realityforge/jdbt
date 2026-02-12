@@ -8,9 +8,9 @@ import org.junit.jupiter.api.Test;
 final class DefaultsConfigTest {
     @Test
     void mergeRetainsExistingValuesWhenOverridesAreNull() {
-        final DefaultsConfig defaults = DefaultsConfig.rubyCompatibleDefaults();
+        final var defaults = DefaultsConfig.rubyCompatibleDefaults();
 
-        final DefaultsConfig merged = defaults.merge(
+        final var merged = defaults.merge(
                 null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 
         assertThat(merged).isEqualTo(defaults);
@@ -18,7 +18,7 @@ final class DefaultsConfigTest {
 
     @Test
     void mergeAppliesEveryOverrideValue() {
-        final DefaultsConfig merged = DefaultsConfig.rubyCompatibleDefaults()
+        final var merged = DefaultsConfig.rubyCompatibleDefaults()
                 .merge(
                         List.of("b"),
                         List.of("c"),

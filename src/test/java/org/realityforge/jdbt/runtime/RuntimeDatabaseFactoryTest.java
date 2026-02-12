@@ -14,10 +14,10 @@ import org.realityforge.jdbt.repository.RepositoryConfig;
 final class RuntimeDatabaseFactoryTest {
     @Test
     void fromCreatesRuntimeDatabaseWithExpectedFields() {
-        final RuntimeDatabaseFactory factory = new RuntimeDatabaseFactory();
-        final RepositoryConfig repository = new RepositoryConfig(
+        final var factory = new RuntimeDatabaseFactory();
+        final var repository = new RepositoryConfig(
                 List.of("Core"), Map.of(), Map.of("Core", List.of("[Core].[tblA]")), Map.of("Core", List.of()));
-        final DatabaseConfig database = new DatabaseConfig(
+        final var database = new DatabaseConfig(
                 "default",
                 List.of("."),
                 List.of("down"),
@@ -39,7 +39,7 @@ final class RuntimeDatabaseFactoryTest {
                 Map.of("default", new ImportConfig("default", List.of("Core"), "import", List.of(), List.of())),
                 Map.of("g", new ModuleGroupConfig("g", List.of("Core"), false)));
 
-        final RuntimeDatabase runtimeDatabase = factory.from(
+        final var runtimeDatabase = factory.from(
                 database,
                 DefaultsConfig.rubyCompatibleDefaults(),
                 repository,

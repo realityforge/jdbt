@@ -25,7 +25,7 @@ final class YamlMapSupportTest {
 
     @Test
     void mapReadersValidateTypesAndPresence() {
-        final Map<String, Object> map = Map.of("s", "x", "m", Map.of("k", "v"), "l", List.of("a"), "b", true);
+        final var map = Map.of("s", "x", "m", Map.of("k", "v"), "l", List.of("a"), "b", true);
 
         assertThat(YamlMapSupport.requireMap(map, "m", "root")).containsEntry("k", "v");
         assertThat(YamlMapSupport.optionalMap(map, "m", "root")).containsEntry("k", "v");
@@ -39,7 +39,7 @@ final class YamlMapSupportTest {
 
     @Test
     void mapReadersRejectInvalidInputs() {
-        final Map<String, Object> map = Map.of("s", 1, "m", 1, "l", List.of(1), "b", "x");
+        final var map = Map.of("s", 1, "m", 1, "l", List.of(1), "b", "x");
 
         assertThatThrownBy(() -> YamlMapSupport.requireMap(Map.of(), "missing", "root"))
                 .isInstanceOf(ConfigException.class)

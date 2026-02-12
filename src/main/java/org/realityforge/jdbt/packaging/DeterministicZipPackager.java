@@ -28,7 +28,7 @@ public final class DeterministicZipPackager {
         }
     }
 
-    private List<Path> collectFiles(final Path sourceDirectory) {
+    private static List<Path> collectFiles(final Path sourceDirectory) {
         if (!Files.isDirectory(sourceDirectory)) {
             return List.of();
         }
@@ -42,7 +42,7 @@ public final class DeterministicZipPackager {
         }
     }
 
-    private void createParentDirectory(final Path zipFile) {
+    private static void createParentDirectory(final Path zipFile) {
         final Path parent = zipFile.getParent();
         if (null == parent) {
             return;
@@ -54,13 +54,14 @@ public final class DeterministicZipPackager {
         }
     }
 
-    private void writeEntry(final Path sourceDirectory, final Path file, final ZipOutputStream zip) throws IOException {
+    private static void writeEntry(final Path sourceDirectory, final Path file, final ZipOutputStream zip)
+            throws IOException {
         final String entryName = entryName(sourceDirectory, file);
         final byte[] content = Files.readAllBytes(file);
-        final CRC32 crc = new CRC32();
+        final var crc = new CRC32();
         crc.update(content);
 
-        final ZipEntry entry = new ZipEntry(entryName);
+        final var entry = new ZipEntry(entryName);
         entry.setMethod(ZipEntry.STORED);
         entry.setSize(content.length);
         entry.setCompressedSize(content.length);
@@ -71,7 +72,7 @@ public final class DeterministicZipPackager {
         zip.closeEntry();
     }
 
-    private String entryName(final Path sourceDirectory, final Path file) {
+    private static String entryName(final Path sourceDirectory, final Path file) {
         return sourceDirectory.relativize(file).toString().replace('\\', '/');
     }
 }

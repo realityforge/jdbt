@@ -37,9 +37,9 @@ final class DbDriverFactoryTest {
 
     @Test
     void noOpDriverMethodsAreSafe() {
-        final NoOpDbDriver driver = new NoOpDbDriver();
-        final DatabaseConnection connection = new DatabaseConnection("127.0.0.1", 1433, "db", "sa", "secret");
-        final RuntimeDatabase database = new RuntimeDatabase(
+        final var driver = new NoOpDbDriver();
+        final var connection = new DatabaseConnection("127.0.0.1", 1433, "db", "sa", "secret");
+        final var database = new RuntimeDatabase(
                 "default",
                 new org.realityforge.jdbt.repository.RepositoryConfig(
                         List.of("MyModule"),

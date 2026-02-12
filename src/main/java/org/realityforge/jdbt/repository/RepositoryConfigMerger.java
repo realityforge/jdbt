@@ -11,7 +11,7 @@ public final class RepositoryConfigMerger {
             final List<RepositoryConfig> preArtifacts,
             final RepositoryConfig localRepository,
             final List<RepositoryConfig> postArtifacts) {
-        final MergeAccumulator accumulator = new MergeAccumulator();
+        final var accumulator = new MergeAccumulator();
         preArtifacts.forEach(accumulator::merge);
         accumulator.merge(localRepository);
         postArtifacts.forEach(accumulator::merge);

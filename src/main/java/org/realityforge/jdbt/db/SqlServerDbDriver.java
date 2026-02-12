@@ -111,7 +111,7 @@ public final class SqlServerDbDriver implements DbDriver {
     public void insert(final String tableName, final Map<String, Object> record) {
         final List<String> columns = new ArrayList<>(record.keySet());
         final String columnSql =
-                String.join(", ", columns.stream().map(this::quote).toList());
+                String.join(", ", columns.stream().map(SqlServerDbDriver::quote).toList());
         final String placeholderSql =
                 String.join(", ", columns.stream().map(column -> "?").toList());
         final String sql = "INSERT INTO " + tableName + " (" + columnSql + ") VALUES (" + placeholderSql + ")";
@@ -251,7 +251,7 @@ public final class SqlServerDbDriver implements DbDriver {
                 + " RESTART WITH ' + @Next );";
     }
 
-    private boolean databaseExists(final Connection connection, final String databaseName) {
+    private static boolean databaseExists(final Connection connection, final String databaseName) {
         final String sql = "SELECT COUNT(*) FROM sys.databases WHERE name = ?";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, databaseName);
@@ -327,7 +327,7 @@ public final class SqlServerDbDriver implements DbDriver {
         }
     }
 
-    private void executeSql(final Connection connection, final String sql) {
+    private static void executeSql(final Connection connection, final String sql) {
         try (Statement statement = connection.createStatement()) {
             statement.execute(sql);
         } catch (final SQLException sqle) {
@@ -335,7 +335,7 @@ public final class SqlServerDbDriver implements DbDriver {
         }
     }
 
-    private String quote(final String value) {
+    private static String quote(final String value) {
         return '[' + value.replace("]", "]]") + ']';
     }
 
@@ -352,7 +352,7 @@ public final class SqlServerDbDriver implements DbDriver {
         return DriverManager.getConnection(jdbcUrl, config.username(), config.password());
     }
 
-    private void closeQuietly(final @Nullable Connection connection) {
+    private static void closeQuietly(final @Nullable Connection connection) {
         if (null == connection) {
             return;
         }

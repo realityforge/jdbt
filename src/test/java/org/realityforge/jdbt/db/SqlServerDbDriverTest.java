@@ -24,10 +24,9 @@ final class SqlServerDbDriverTest {
 
     @Test
     void openAndCloseLifecycleManagesConnections() throws Exception {
-        final Connection target = mock(Connection.class);
-        final Connection control = mock(Connection.class);
-        final SqlServerDbDriver driver =
-                new SqlServerDbDriver((connection, controlDatabase) -> controlDatabase ? control : target);
+        final var target = mock(Connection.class);
+        final var control = mock(Connection.class);
+        final var driver = new SqlServerDbDriver((connection, controlDatabase) -> controlDatabase ? control : target);
 
         driver.open(config, false);
         driver.close();
@@ -37,14 +36,13 @@ final class SqlServerDbDriverTest {
 
     @Test
     void executeUsesControlConnectionWhenRequested() throws Exception {
-        final Connection target = mock(Connection.class);
-        final Connection control = mock(Connection.class);
-        final Statement targetStatement = mock(Statement.class);
-        final Statement controlStatement = mock(Statement.class);
+        final var target = mock(Connection.class);
+        final var control = mock(Connection.class);
+        final var targetStatement = mock(Statement.class);
+        final var controlStatement = mock(Statement.class);
         when(target.createStatement()).thenReturn(targetStatement);
         when(control.createStatement()).thenReturn(controlStatement);
-        final SqlServerDbDriver driver =
-                new SqlServerDbDriver((connection, controlDatabase) -> controlDatabase ? control : target);
+        final var driver = new SqlServerDbDriver((connection, controlDatabase) -> controlDatabase ? control : target);
         driver.open(config, false);
 
         driver.execute("SELECT 1", false);
@@ -56,21 +54,21 @@ final class SqlServerDbDriverTest {
 
     @Test
     void createAndDropDatabaseUseControlConnection() throws Exception {
-        final Connection control = mock(Connection.class);
-        final PreparedStatement exists = mock(PreparedStatement.class);
-        final ResultSet existsResult = mock(ResultSet.class);
+        final var control = mock(Connection.class);
+        final var exists = mock(PreparedStatement.class);
+        final var existsResult = mock(ResultSet.class);
         when(control.prepareStatement("SELECT COUNT(*) FROM sys.databases WHERE name = ?"))
                 .thenReturn(exists);
         when(exists.executeQuery()).thenReturn(existsResult);
         when(existsResult.next()).thenReturn(true, true);
         when(existsResult.getLong(1)).thenReturn(0L, 1L);
 
-        final Statement statement = mock(Statement.class);
+        final var statement = mock(Statement.class);
         when(control.createStatement()).thenReturn(statement);
 
-        final SqlServerDbDriver driver = new SqlServerDbDriver((connection, controlDatabase) -> control);
+        final var driver = new SqlServerDbDriver((connection, controlDatabase) -> control);
         driver.open(config, true);
-        final RuntimeDatabase database = runtimeDatabase();
+        final var database = runtimeDatabase();
 
         driver.createDatabase(database, config);
         driver.drop(database, config);
@@ -82,25 +80,25 @@ final class SqlServerDbDriverTest {
 
     @Test
     void insertAndColumnNamesUsePreparedStatements() throws Exception {
-        final Connection target = mock(Connection.class);
-        final PreparedStatement insert = mock(PreparedStatement.class);
-        final PreparedStatement columns = mock(PreparedStatement.class);
-        final ResultSet columnResult = mock(ResultSet.class);
+        final var target = mock(Connection.class);
+        final var insert = mock(PreparedStatement.class);
+        final var columns = mock(PreparedStatement.class);
+        final var columnResult = mock(ResultSet.class);
         when(target.prepareStatement(anyString())).thenAnswer(invocation -> {
-            final String sql = invocation.getArgument(0);
+            final var sql = invocation.<String>getArgument(0);
             return sql.startsWith("INSERT INTO") ? insert : columns;
         });
         when(columns.executeQuery()).thenReturn(columnResult);
         when(columnResult.next()).thenReturn(true, true, false);
         when(columnResult.getString(1)).thenReturn("ID", "NAME");
-        final SqlServerDbDriver driver = new SqlServerDbDriver((connection, controlDatabase) -> target);
+        final var driver = new SqlServerDbDriver((connection, controlDatabase) -> target);
         driver.open(config, false);
 
-        final Map<String, Object> record = new LinkedHashMap<>();
+        final var record = new LinkedHashMap<String, Object>();
         record.put("ID", 1);
         record.put("NAME", "A");
         driver.insert("[dbo].[tbl]", record);
-        final List<String> columnNames = driver.columnNamesForTable("[dbo].[tbl]");
+        final var columnNames = driver.columnNamesForTable("[dbo].[tbl]");
 
         verify(insert).setObject(1, 1);
         verify(insert).setObject(2, "A");
@@ -110,9 +108,9 @@ final class SqlServerDbDriverTest {
 
     @Test
     void fixtureImportTogglesIdentityInsertWhenIdentityPresent() throws Exception {
-        final Connection target = mock(Connection.class);
-        final PreparedStatement identityQuery = mock(PreparedStatement.class);
-        final ResultSet identityResult = mock(ResultSet.class);
+        final var target = mock(Connection.class);
+        final var identityQuery = mock(PreparedStatement.class);
+        final var identityResult = mock(ResultSet.class);
         when(target.prepareStatement(
                         "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMNPROPERTY(OBJECT_ID(?), COLUMN_NAME, 'IsIdentity') = 1"))
                 .thenReturn(identityQuery);
@@ -120,10 +118,10 @@ final class SqlServerDbDriverTest {
         when(identityResult.next()).thenReturn(true, true);
         when(identityResult.getLong(1)).thenReturn(1L, 1L);
 
-        final Statement statement = mock(Statement.class);
+        final var statement = mock(Statement.class);
         when(target.createStatement()).thenReturn(statement);
 
-        final SqlServerDbDriver driver = new SqlServerDbDriver((connection, controlDatabase) -> target);
+        final var driver = new SqlServerDbDriver((connection, controlDatabase) -> target);
         driver.open(config, false);
         driver.preFixtureImport("[dbo].[tbl]");
         driver.postFixtureImport("[dbo].[tbl]");
@@ -136,14 +134,14 @@ final class SqlServerDbDriverTest {
 
     @Test
     void migrationMethodsCreateAndQueryMigrationTable() throws Exception {
-        final Connection target = mock(Connection.class);
-        final PreparedStatement tableExists = mock(PreparedStatement.class);
-        final ResultSet tableExistsResult = mock(ResultSet.class);
-        final PreparedStatement shouldMigrate = mock(PreparedStatement.class);
-        final ResultSet shouldMigrateResult = mock(ResultSet.class);
-        final PreparedStatement markMigration = mock(PreparedStatement.class);
+        final var target = mock(Connection.class);
+        final var tableExists = mock(PreparedStatement.class);
+        final var tableExistsResult = mock(ResultSet.class);
+        final var shouldMigrate = mock(PreparedStatement.class);
+        final var shouldMigrateResult = mock(ResultSet.class);
+        final var markMigration = mock(PreparedStatement.class);
         when(target.prepareStatement(anyString())).thenAnswer(invocation -> {
-            final String sql = invocation.getArgument(0);
+            final var sql = invocation.<String>getArgument(0);
             if (sql.contains("INFORMATION_SCHEMA.TABLES")) {
                 return tableExists;
             }
@@ -162,7 +160,7 @@ final class SqlServerDbDriverTest {
         when(shouldMigrateResult.next()).thenReturn(true);
         when(shouldMigrateResult.getLong(1)).thenReturn(0L);
 
-        final SqlServerDbDriver driver = new SqlServerDbDriver((connection, controlDatabase) -> target);
+        final var driver = new SqlServerDbDriver((connection, controlDatabase) -> target);
         driver.open(config, false);
 
         assertThat(driver.shouldMigrate("default", "001_init")).isTrue();
@@ -173,7 +171,7 @@ final class SqlServerDbDriverTest {
         verify(markMigration).executeUpdate();
     }
 
-    private RuntimeDatabase runtimeDatabase() {
+    private static RuntimeDatabase runtimeDatabase() {
         return new RuntimeDatabase(
                 "default",
                 new RepositoryConfig(

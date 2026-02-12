@@ -90,8 +90,8 @@ public final class PostgresDbDriver implements DbDriver {
     @Override
     public void insert(final String tableName, final Map<String, Object> record) {
         final List<String> columns = new ArrayList<>(record.keySet());
-        final String columnSql =
-                String.join(", ", columns.stream().map(this::quoteIdentifier).toList());
+        final String columnSql = String.join(
+                ", ", columns.stream().map(PostgresDbDriver::quoteIdentifier).toList());
         final String placeholderSql =
                 String.join(", ", columns.stream().map(column -> "?").toList());
         final String sql = "INSERT INTO " + tableName + " (" + columnSql + ") VALUES (" + placeholderSql + ")";
@@ -241,7 +241,7 @@ public final class PostgresDbDriver implements DbDriver {
         }
     }
 
-    private SchemaAndTable parseTableName(final String tableName) {
+    private static SchemaAndTable parseTableName(final String tableName) {
         String value = tableName.trim().replace("[", "").replace("]", "").replace("\"", "");
         final int separator = value.lastIndexOf('.');
         if (-1 == separator) {
@@ -276,7 +276,7 @@ public final class PostgresDbDriver implements DbDriver {
         }
     }
 
-    private void executeSql(final Connection connection, final String sql) {
+    private static void executeSql(final Connection connection, final String sql) {
         try (Statement statement = connection.createStatement()) {
             statement.execute(sql);
         } catch (final SQLException sqle) {
@@ -284,7 +284,7 @@ public final class PostgresDbDriver implements DbDriver {
         }
     }
 
-    private String quoteIdentifier(final String value) {
+    private static String quoteIdentifier(final String value) {
         return '"' + value.replace("\"", "\"\"") + '"';
     }
 
@@ -295,7 +295,7 @@ public final class PostgresDbDriver implements DbDriver {
         return DriverManager.getConnection(jdbcUrl, config.username(), config.password());
     }
 
-    private void closeQuietly(final @Nullable Connection connection) {
+    private static void closeQuietly(final @Nullable Connection connection) {
         if (null == connection) {
             return;
         }

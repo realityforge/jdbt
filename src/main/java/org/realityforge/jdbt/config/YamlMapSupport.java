@@ -13,7 +13,7 @@ public final class YamlMapSupport {
     private YamlMapSupport() {}
 
     public static Map<String, Object> parseRoot(final String yaml, final String sourceName) {
-        final LoadSettings settings = LoadSettings.builder()
+        final var settings = LoadSettings.builder()
                 .setAllowDuplicateKeys(false)
                 .setLabel(sourceName)
                 .build();

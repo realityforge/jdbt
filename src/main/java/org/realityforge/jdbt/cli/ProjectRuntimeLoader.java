@@ -75,7 +75,7 @@ public final class ProjectRuntimeLoader {
         return new LoadedRuntime(runtimeDatabase, projectConfig.defaults());
     }
 
-    private BootstrapProject loadBootstrap(final String yaml) {
+    private static BootstrapProject loadBootstrap(final String yaml) {
         final Map<String, Object> root = YamlMapSupport.parseRoot(yaml, PROJECT_CONFIG_FILE);
         YamlMapSupport.assertKeys(root, Set.of("databases"), PROJECT_CONFIG_FILE);
 
@@ -104,7 +104,8 @@ public final class ProjectRuntimeLoader {
         return new BootstrapProject(defaults.defaultDatabase(), Map.copyOf(databases));
     }
 
-    private String resolveDatabaseKey(final @Nullable String selectedDatabaseKey, final BootstrapProject bootstrap) {
+    private static String resolveDatabaseKey(
+            final @Nullable String selectedDatabaseKey, final BootstrapProject bootstrap) {
         return null != selectedDatabaseKey ? selectedDatabaseKey : bootstrap.defaultDatabase();
     }
 
@@ -160,7 +161,7 @@ public final class ProjectRuntimeLoader {
         return List.copyOf(artifacts);
     }
 
-    private String readFile(final Path path) {
+    private static String readFile(final Path path) {
         try {
             return Files.readString(path, StandardCharsets.UTF_8);
         } catch (final IOException ioe) {
@@ -169,12 +170,12 @@ public final class ProjectRuntimeLoader {
     }
 
     private Path resolvePath(final String path) {
-        final Path value = Path.of(path);
+        final var value = Path.of(path);
         return value.isAbsolute() ? value : baseDirectory.resolve(value);
     }
 
-    private String schemaHash(final RepositoryConfig repository) {
-        final StringBuilder buffer = new StringBuilder();
+    private static String schemaHash(final RepositoryConfig repository) {
+        final var buffer = new StringBuilder();
         for (final String module : repository.modules()) {
             buffer.append(module).append('|');
             buffer.append(repository.schemaNameForModule(module)).append('|');

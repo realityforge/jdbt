@@ -555,6 +555,42 @@ tasks:
       hash: f58afe0
       message: NullMark all test packages
 
+  - id: T21
+    title: Enable requested Error Prone checks and remediate violations
+    status: completed
+    priority: medium
+    depends_on:
+      - T20
+    acceptance_criteria:
+      - requested Error Prone checks are enabled in Gradle configuration
+      - invalid checker ids are removed to match toolchain capabilities
+      - production and test sources compile with enabled checks
+      - required full gates pass
+    files_touched:
+      - build.gradle.kts
+      - src/main/java/org/realityforge/jdbt/cli/*
+      - src/main/java/org/realityforge/jdbt/config/*
+      - src/main/java/org/realityforge/jdbt/db/*
+      - src/main/java/org/realityforge/jdbt/files/*
+      - src/main/java/org/realityforge/jdbt/packaging/*
+      - src/main/java/org/realityforge/jdbt/repository/*
+      - src/main/java/org/realityforge/jdbt/runtime/*
+      - src/test/java/org/realityforge/jdbt/cli/*
+      - src/test/java/org/realityforge/jdbt/config/*
+      - src/test/java/org/realityforge/jdbt/db/*
+      - src/test/java/org/realityforge/jdbt/files/*
+      - src/test/java/org/realityforge/jdbt/packaging/*
+      - src/test/java/org/realityforge/jdbt/repository/*
+      - src/test/java/org/realityforge/jdbt/runtime/*
+      - plans/jdbt/10-implementation-plan.md
+      - plans/jdbt/20-task-board.yaml
+    evidence:
+      - command: ./gradlew clean spotlessCheck check fatJar
+        result: pass
+    commit:
+      hash: pending
+      message: Enable requested Error Prone checks and fix violations
+
 history:
   - timestamp: 2026-02-12
     task: T01
@@ -636,3 +672,7 @@ history:
     task: T20
     commit: f58afe0
     note: Added package-level NullMarked annotations to all test packages.
+  - timestamp: 2026-02-12
+    task: T21
+    commit: pending
+    note: Enabled requested Error Prone checks and remediated production and test findings.

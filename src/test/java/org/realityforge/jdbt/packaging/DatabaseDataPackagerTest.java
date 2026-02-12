@@ -42,7 +42,7 @@ final class DatabaseDataPackagerTest {
         createFile(tempDir, "db/datasets/seed/post/post.sql", "DSPOST");
         createFile(tempDir, "db/migrations/001_a.sql", "M1");
 
-        final RuntimeDatabase database = runtimeDatabase(
+        final var database = runtimeDatabase(
                 List.of(tempDir.resolve("db")),
                 List.of(),
                 List.of(),
@@ -54,7 +54,7 @@ final class DatabaseDataPackagerTest {
                         List.of("import-hooks/pre"),
                         List.of("import-hooks/post")));
 
-        final Path output = tempDir.resolve("package");
+        final var output = tempDir.resolve("package");
         new DatabaseDataPackager(new FileResolver()).packageDatabaseData(database, output);
 
         assertThat(Files.readString(output.resolve("MyModule/index.txt"))).isEqualTo("b.sql\na.sql");
@@ -83,14 +83,14 @@ final class DatabaseDataPackagerTest {
                 .isEqualTo("post.sql");
         assertThat(Files.readString(output.resolve("migrations/index.txt"))).isEqualTo("001_a.sql");
 
-        final String repositoryYaml = Files.readString(output.resolve("repository.yml"));
-        final RepositoryConfig loaded = new RepositoryConfigLoader().load(repositoryYaml, "repository.yml");
+        final var repositoryYaml = Files.readString(output.resolve("repository.yml"));
+        final var loaded = new RepositoryConfigLoader().load(repositoryYaml, "repository.yml");
         assertThat(loaded).isEqualTo(database.repository());
     }
 
     @Test
     void packageDatabaseDataReadsFromArtifacts(@TempDir final Path tempDir) throws IOException {
-        final ArtifactContent artifact = new InMemoryArtifact(
+        final var artifact = new InMemoryArtifact(
                 "post",
                 Map.of(
                         "MyModule/a.sql", "A",
@@ -100,7 +100,7 @@ final class DatabaseDataPackagerTest {
                         "migrations/001_a.sql", "M1",
                         "migrations/index.txt", "001_a.sql"));
 
-        final RuntimeDatabase database = runtimeDatabase(
+        final var database = runtimeDatabase(
                 List.of(tempDir.resolve("db")),
                 List.of(),
                 List.of(artifact),
@@ -112,7 +112,7 @@ final class DatabaseDataPackagerTest {
                         List.of("import-hooks/pre"),
                         List.of("import-hooks/post")));
 
-        final Path output = tempDir.resolve("package");
+        final var output = tempDir.resolve("package");
         new DatabaseDataPackager(new FileResolver()).packageDatabaseData(database, output);
 
         assertThat(Files.readString(output.resolve("MyModule/a.sql"))).isEqualTo("A");
@@ -125,7 +125,7 @@ final class DatabaseDataPackagerTest {
         createFile(tempDir, "db/MyModule/a.sql", "A");
         createFile(tempDir, "db/migrations/001_a.sql", "M1");
 
-        final RuntimeDatabase database = runtimeDatabase(
+        final var database = runtimeDatabase(
                 repositoryConfig(),
                 List.of(tempDir.resolve("db")),
                 List.of(),
@@ -133,7 +133,7 @@ final class DatabaseDataPackagerTest {
                 false,
                 Map.of("default", new ImportConfig("default", List.of("MyModule"), "import", List.of(), List.of())));
 
-        final Path output = tempDir.resolve("package");
+        final var output = tempDir.resolve("package");
         new DatabaseDataPackager(new FileResolver()).packageDatabaseData(database, output);
 
         assertThat(output.resolve("migrations")).doesNotExist();
@@ -147,19 +147,19 @@ final class DatabaseDataPackagerTest {
         createFile(tempDir, "db/import-hooks/pre/b.sql", "B");
         createFile(tempDir, "db/import-hooks/post/c.sql", "C");
 
-        final ImportConfig alpha = new ImportConfig(
+        final var alpha = new ImportConfig(
                 "alpha", List.of("MyModule"), "import", List.of("import-hooks/pre"), List.of("import-hooks/post"));
-        final ImportConfig beta =
+        final var beta =
                 new ImportConfig("beta", List.of("MyModule"), "import", List.of("import-hooks/pre"), List.of());
 
-        final RuntimeDatabase first = runtimeDatabase(
+        final var first = runtimeDatabase(
                 repositoryConfig(),
                 List.of(tempDir.resolve("db")),
                 List.of(),
                 List.of(),
                 true,
                 Map.of("alpha", alpha, "beta", beta));
-        final RuntimeDatabase second = runtimeDatabase(
+        final var second = runtimeDatabase(
                 repositoryConfig(),
                 List.of(tempDir.resolve("db")),
                 List.of(),
@@ -167,15 +167,15 @@ final class DatabaseDataPackagerTest {
                 true,
                 Map.of("beta", beta, "alpha", alpha));
 
-        final Path output1 = tempDir.resolve("package-a");
-        final Path output2 = tempDir.resolve("package-b");
-        final DatabaseDataPackager packager = new DatabaseDataPackager(new FileResolver());
+        final var output1 = tempDir.resolve("package-a");
+        final var output2 = tempDir.resolve("package-b");
+        final var packager = new DatabaseDataPackager(new FileResolver());
         packager.packageDatabaseData(first, output1);
         packager.packageDatabaseData(second, output2);
 
-        final Path zip1 = tempDir.resolve("a.zip");
-        final Path zip2 = tempDir.resolve("b.zip");
-        final DeterministicZipPackager zipPackager = new DeterministicZipPackager();
+        final var zip1 = tempDir.resolve("a.zip");
+        final var zip2 = tempDir.resolve("b.zip");
+        final var zipPackager = new DeterministicZipPackager();
         zipPackager.write(output1, zip1);
         zipPackager.write(output2, zip2);
 
@@ -185,12 +185,12 @@ final class DatabaseDataPackagerTest {
     @Test
     void packageDatabaseDataPreservesSchemaOverridesInRepositoryYaml(@TempDir final Path tempDir) throws IOException {
         createFile(tempDir, "db/MyModule/a.sql", "A");
-        final RepositoryConfig repository = new RepositoryConfig(
+        final var repository = new RepositoryConfig(
                 List.of("MyModule"),
                 Map.of("MyModule", "CustomSchema"),
                 Map.of("MyModule", List.of("[CustomSchema].[foo]")),
                 Map.of("MyModule", List.of("[CustomSchema].[foo_seq]")));
-        final RuntimeDatabase database = runtimeDatabase(
+        final var database = runtimeDatabase(
                 repository,
                 List.of(tempDir.resolve("db")),
                 List.of(),
@@ -198,15 +198,15 @@ final class DatabaseDataPackagerTest {
                 false,
                 Map.of("default", new ImportConfig("default", List.of("MyModule"), "import", List.of(), List.of())));
 
-        final Path output = tempDir.resolve("package");
+        final var output = tempDir.resolve("package");
         new DatabaseDataPackager(new FileResolver()).packageDatabaseData(database, output);
 
-        final String repositoryYaml = Files.readString(output.resolve("repository.yml"));
-        final RepositoryConfig loaded = new RepositoryConfigLoader().load(repositoryYaml, "repository.yml");
+        final var repositoryYaml = Files.readString(output.resolve("repository.yml"));
+        final var loaded = new RepositoryConfigLoader().load(repositoryYaml, "repository.yml");
         assertThat(loaded).isEqualTo(repository);
     }
 
-    private RuntimeDatabase runtimeDatabase(
+    private static RuntimeDatabase runtimeDatabase(
             final List<Path> searchDirs,
             final List<ArtifactContent> preArtifacts,
             final List<ArtifactContent> postArtifacts,
@@ -221,7 +221,7 @@ final class DatabaseDataPackagerTest {
                 Map.of("default", importConfig));
     }
 
-    private RuntimeDatabase runtimeDatabase(
+    private static RuntimeDatabase runtimeDatabase(
             final RepositoryConfig repository,
             final List<Path> searchDirs,
             final List<ArtifactContent> preArtifacts,
@@ -254,7 +254,7 @@ final class DatabaseDataPackagerTest {
                 Map.of("group", new ModuleGroupConfig("group", List.of("MyModule"), false)));
     }
 
-    private RepositoryConfig repositoryConfig() {
+    private static RepositoryConfig repositoryConfig() {
         return new RepositoryConfig(
                 List.of("MyModule"),
                 Map.of(),
@@ -262,8 +262,9 @@ final class DatabaseDataPackagerTest {
                 Map.of("MyModule", List.of()));
     }
 
-    private void createFile(final Path root, final String relativePath, final String content) throws IOException {
-        final Path file = root.resolve(relativePath);
+    private static void createFile(final Path root, final String relativePath, final String content)
+            throws IOException {
+        final var file = root.resolve(relativePath);
         Files.createDirectories(file.getParent());
         Files.writeString(file, content, StandardCharsets.UTF_8);
     }
@@ -276,7 +277,7 @@ final class DatabaseDataPackagerTest {
 
         @Override
         public String readText(final String path) {
-            final String value = entries.get(path);
+            final var value = entries.get(path);
             if (null == value) {
                 throw new RuntimeExecutionException("Missing artifact entry " + path);
             }

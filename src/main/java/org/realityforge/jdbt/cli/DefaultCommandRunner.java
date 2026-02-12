@@ -141,7 +141,7 @@ public final class DefaultCommandRunner implements CommandRunner {
         throw new RuntimeExecutionException("dump-fixtures command is not yet implemented.");
     }
 
-    private String resolveImportKey(
+    private static String resolveImportKey(
             final ProjectRuntimeLoader.LoadedRuntime runtime, final @Nullable String importKey) {
         if (null != importKey) {
             return importKey;
@@ -158,7 +158,7 @@ public final class DefaultCommandRunner implements CommandRunner {
         return new RuntimeEngine(dbDriver, fileResolver);
     }
 
-    private void deleteRecursively(final Path directory) {
+    private static void deleteRecursively(final Path directory) {
         if (!Files.exists(directory)) {
             return;
         }

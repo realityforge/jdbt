@@ -123,7 +123,7 @@ public final class DatabaseDataPackager {
         }
     }
 
-    private List<String> databaseWideDirs(final RuntimeDatabase database) {
+    private static List<String> databaseWideDirs(final RuntimeDatabase database) {
         final List<String> directories = new ArrayList<>();
         directories.addAll(database.preCreateDirs());
         directories.addAll(database.postCreateDirs());
@@ -151,13 +151,13 @@ public final class DatabaseDataPackager {
         return List.copyOf(directories);
     }
 
-    private List<String> filesForKnownElements(
+    private static List<String> filesForKnownElements(
             final RuntimeDatabase database,
             final String moduleName,
             final List<String> files,
             final @Nullable String fixedExtension) {
         final Set<String> knownElementNames = database.orderedElementsForModule(moduleName).stream()
-                .map(this::cleanObjectName)
+                .map(DatabaseDataPackager::cleanObjectName)
                 .collect(java.util.stream.Collectors.toUnmodifiableSet());
         final List<String> output = new ArrayList<>();
         for (final String file : files) {
@@ -174,7 +174,7 @@ public final class DatabaseDataPackager {
         return List.copyOf(output);
     }
 
-    private void copyFilesToDir(final RuntimeDatabase database, final List<String> files, final Path targetDir) {
+    private static void copyFilesToDir(final RuntimeDatabase database, final List<String> files, final Path targetDir) {
         if (files.isEmpty()) {
             return;
         }
@@ -184,17 +184,17 @@ public final class DatabaseDataPackager {
         }
     }
 
-    private void generateIndex(final String indexFileName, final Path targetDir, final List<String> files) {
+    private static void generateIndex(final String indexFileName, final Path targetDir, final List<String> files) {
         if (files.isEmpty()) {
             return;
         }
-        final String index =
-                String.join("\n", files.stream().map(this::basename).toList());
+        final String index = String.join(
+                "\n", files.stream().map(DatabaseDataPackager::basename).toList());
         writeText(targetDir.resolve(indexFileName), index);
     }
 
-    private void writeRepository(final RuntimeDatabase database, final Path path) {
-        final StringBuilder yaml = new StringBuilder();
+    private static void writeRepository(final RuntimeDatabase database, final Path path) {
+        final var yaml = new StringBuilder();
         yaml.append("modules:\n");
         for (final String module : database.repository().modules()) {
             yaml.append("  ").append(toYamlScalar(module)).append(":\n");
@@ -210,7 +210,7 @@ public final class DatabaseDataPackager {
         writeText(path, yaml.toString());
     }
 
-    private void appendYamlList(final StringBuilder yaml, final String key, final List<String> values) {
+    private static void appendYamlList(final StringBuilder yaml, final String key, final List<String> values) {
         if (values.isEmpty()) {
             yaml.append("    ").append(key).append(": []\n");
             return;
@@ -221,7 +221,7 @@ public final class DatabaseDataPackager {
         }
     }
 
-    private String readText(final RuntimeDatabase database, final String location) {
+    private static String readText(final RuntimeDatabase database, final String location) {
         final Matcher matcher = ARTIFACT_FILE_PATTERN.matcher(location);
         if (matcher.matches()) {
             final String artifactId = matcher.group(1);
@@ -239,11 +239,11 @@ public final class DatabaseDataPackager {
         }
     }
 
-    private String toYamlScalar(final String value) {
+    private static String toYamlScalar(final String value) {
         return '\'' + value.replace("'", "''") + '\'';
     }
 
-    private String cleanObjectName(final String value) {
+    private static String cleanObjectName(final String value) {
         return value.replace("[", "")
                 .replace("]", "")
                 .replace("\"", "")
@@ -251,24 +251,24 @@ public final class DatabaseDataPackager {
                 .replace(" ", "");
     }
 
-    private String basename(final String value) {
+    private static String basename(final String value) {
         final Matcher matcher = ARTIFACT_FILE_PATTERN.matcher(value);
         final String candidate = matcher.matches() ? matcher.group(2) : value;
         final int slash = Math.max(candidate.lastIndexOf('/'), candidate.lastIndexOf('\\'));
         return -1 == slash ? candidate : candidate.substring(slash + 1);
     }
 
-    private String fileExtension(final String filename) {
+    private static String fileExtension(final String filename) {
         final int dot = filename.lastIndexOf('.');
         return -1 == dot ? "" : filename.substring(dot + 1);
     }
 
-    private String basenameWithoutExtension(final String filename) {
+    private static String basenameWithoutExtension(final String filename) {
         final int dot = filename.lastIndexOf('.');
         return -1 == dot ? filename : filename.substring(0, dot);
     }
 
-    private void createDirectories(final Path directory) {
+    private static void createDirectories(final Path directory) {
         try {
             Files.createDirectories(directory);
         } catch (final IOException ioe) {
@@ -276,7 +276,7 @@ public final class DatabaseDataPackager {
         }
     }
 
-    private void writeText(final Path path, final String content) {
+    private static void writeText(final Path path, final String content) {
         try {
             final Path parent = path.getParent();
             if (null != parent) {

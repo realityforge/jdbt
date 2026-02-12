@@ -35,7 +35,7 @@ public final class JdbtProjectConfigLoader {
         return new JdbtProjectConfig(defaults, databases);
     }
 
-    private DatabaseConfig loadDatabase(
+    private static DatabaseConfig loadDatabase(
             final String key,
             final Map<String, Object> body,
             final DefaultsConfig defaults,
@@ -103,7 +103,7 @@ public final class JdbtProjectConfigLoader {
                 moduleGroups);
     }
 
-    private Map<String, ImportConfig> loadImports(
+    private static Map<String, ImportConfig> loadImports(
             final String databaseKey,
             final Map<String, Object> body,
             final DefaultsConfig defaults,
@@ -146,7 +146,7 @@ public final class JdbtProjectConfigLoader {
         return Map.copyOf(imports);
     }
 
-    private Map<String, ModuleGroupConfig> loadModuleGroups(
+    private static Map<String, ModuleGroupConfig> loadModuleGroups(
             final String databaseKey,
             final Map<String, Object> body,
             final RepositoryConfig repository,
@@ -176,7 +176,7 @@ public final class JdbtProjectConfigLoader {
         return Map.copyOf(groups);
     }
 
-    private void validateModulesExist(
+    private static void validateModulesExist(
             final List<String> modules,
             final RepositoryConfig repository,
             final String context,

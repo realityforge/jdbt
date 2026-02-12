@@ -182,7 +182,7 @@ public final class RuntimeEngine {
             final boolean shouldPerformDelete,
             final @Nullable ModuleGroupConfig moduleGroup,
             final @Nullable String resumeAtInput) {
-        final ResumeState resumeAt = new ResumeState(resumeAtInput);
+        final var resumeAt = new ResumeState(resumeAtInput);
         final List<String> selectedModules = selectedImportModules(database, importConfig, moduleGroup);
 
         if (null == moduleGroup && null == resumeAt.value) {
@@ -224,7 +224,7 @@ public final class RuntimeEngine {
         db.postDatabaseImport(importConfig);
     }
 
-    private List<String> selectedImportModules(
+    private static List<String> selectedImportModules(
             final RuntimeDatabase database,
             final ImportConfig importConfig,
             final @Nullable ModuleGroupConfig moduleGroup) {
@@ -419,7 +419,7 @@ public final class RuntimeEngine {
         }
     }
 
-    private void verifyNoUnexpectedImportFiles(
+    private static void verifyNoUnexpectedImportFiles(
             final RuntimeDatabase database, final String moduleName, final String importDir) {
         final List<String> expected = new ArrayList<>();
         final List<String> orderedElements = new ArrayList<>(database.tableOrdering(moduleName));
@@ -459,7 +459,7 @@ public final class RuntimeEngine {
         }
     }
 
-    private String cleanObjectName(final String value) {
+    private static String cleanObjectName(final String value) {
         return value.replace("[", "")
                 .replace("]", "")
                 .replace("\"", "")
@@ -467,13 +467,13 @@ public final class RuntimeEngine {
                 .replace(" ", "");
     }
 
-    private String basenameWithoutExtension(final String value, final String extension) {
+    private static String basenameWithoutExtension(final String value, final String extension) {
         final int slash = Math.max(value.lastIndexOf('/'), value.lastIndexOf('\\'));
         final String basename = -1 == slash ? value : value.substring(slash + 1);
         return basename.endsWith(extension) ? basename.substring(0, basename.length() - extension.length()) : basename;
     }
 
-    private ImportConfig importByKey(final RuntimeDatabase database, final String importKey) {
+    private static ImportConfig importByKey(final RuntimeDatabase database, final String importKey) {
         final ImportConfig importConfig = database.imports().get(importKey);
         if (null == importConfig) {
             throw new RuntimeExecutionException("Unable to locate import definition by key '" + importKey + "'");
@@ -526,7 +526,7 @@ public final class RuntimeEngine {
         }
     }
 
-    private @Nullable Integer releaseVersionIndex(final RuntimeDatabase database, final List<String> files) {
+    private static @Nullable Integer releaseVersionIndex(final RuntimeDatabase database, final List<String> files) {
         if (null == database.version()) {
             return null;
         }
@@ -716,7 +716,7 @@ public final class RuntimeEngine {
         db.updateSequence(sequenceName, value);
     }
 
-    private List<Map<String, Object>> toFixtureGroupList(final Object parsed, final String tableName) {
+    private static List<Map<String, Object>> toFixtureGroupList(final Object parsed, final String tableName) {
         if (parsed instanceof Map<?, ?> map) {
             return List.of(toStringObjectMap(map));
         }
@@ -733,7 +733,7 @@ public final class RuntimeEngine {
         throw new RuntimeExecutionException("Bad data for " + tableName + " fixture payload " + parsed);
     }
 
-    private Map<String, Object> toStringObjectMap(final Map<?, ?> data) {
+    private static Map<String, Object> toStringObjectMap(final Map<?, ?> data) {
         final Map<String, Object> values = new LinkedHashMap<>();
         for (final Map.Entry<?, ?> entry : data.entrySet()) {
             values.put(String.valueOf(entry.getKey()), entry.getValue());
@@ -741,13 +741,12 @@ public final class RuntimeEngine {
         return Map.copyOf(values);
     }
 
-    private Object parseYaml(final String content) {
-        final LoadSettings settings =
-                LoadSettings.builder().setAllowDuplicateKeys(false).build();
+    private static Object parseYaml(final String content) {
+        final var settings = LoadSettings.builder().setAllowDuplicateKeys(false).build();
         return new Load(settings).loadFromString(content);
     }
 
-    private String loadData(final RuntimeDatabase database, final String location) {
+    private static String loadData(final RuntimeDatabase database, final String location) {
         final Matcher matcher = ARTIFACT_FILE_PATTERN.matcher(location);
         if (matcher.matches()) {
             final String artifactId = matcher.group(1);
@@ -774,7 +773,7 @@ public final class RuntimeEngine {
         }
     }
 
-    private ModuleGroupConfig moduleGroup(final RuntimeDatabase database, final String moduleGroupKey) {
+    private static ModuleGroupConfig moduleGroup(final RuntimeDatabase database, final String moduleGroupKey) {
         final ModuleGroupConfig moduleGroup = database.moduleGroups().get(moduleGroupKey);
         if (null == moduleGroup) {
             throw new RuntimeExecutionException(
@@ -783,7 +782,7 @@ public final class RuntimeEngine {
         return moduleGroup;
     }
 
-    private void ensureDatasetExists(final RuntimeDatabase database, final String datasetName) {
+    private static void ensureDatasetExists(final RuntimeDatabase database, final String datasetName) {
         if (!database.datasets().contains(datasetName)) {
             throw new RuntimeExecutionException("Unknown dataset '" + datasetName + "'");
         }

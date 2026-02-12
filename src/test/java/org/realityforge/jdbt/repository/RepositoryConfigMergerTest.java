@@ -13,11 +13,11 @@ final class RepositoryConfigMergerTest {
 
     @Test
     void mergePreservesPreLocalPostOrder() {
-        final RepositoryConfig pre = repository("Pre", "PreSchema", "[Pre].[tblA]", "[Pre].[seqA]");
-        final RepositoryConfig local = repository("Local", "Local", "[Local].[tblB]", "[Local].[seqB]");
-        final RepositoryConfig post = repository("Post", "P", "[P].[tblC]", "[P].[seqC]");
+        final var pre = repository("Pre", "PreSchema", "[Pre].[tblA]", "[Pre].[seqA]");
+        final var local = repository("Local", "Local", "[Local].[tblB]", "[Local].[seqB]");
+        final var post = repository("Post", "P", "[P].[tblC]", "[P].[seqC]");
 
-        final RepositoryConfig merged = merger.merge(List.of(pre), local, List.of(post));
+        final var merged = merger.merge(List.of(pre), local, List.of(post));
 
         assertThat(merged.modules()).containsExactly("Pre", "Local", "Post");
         assertThat(merged.schemaOverrides()).containsEntry("Pre", "PreSchema").containsEntry("Post", "P");
@@ -27,8 +27,8 @@ final class RepositoryConfigMergerTest {
 
     @Test
     void mergeRejectsDuplicateModulesAcrossSources() {
-        final RepositoryConfig pre = repository("Core", "Core", "[Core].[tblA]", "[Core].[seqA]");
-        final RepositoryConfig local = repository("Core", "Core", "[Core].[tblB]", "[Core].[seqB]");
+        final var pre = repository("Core", "Core", "[Core].[tblA]", "[Core].[seqA]");
+        final var local = repository("Core", "Core", "[Core].[tblB]", "[Core].[seqB]");
 
         assertThatThrownBy(() -> merger.merge(List.of(pre), local, List.of()))
                 .isInstanceOf(ConfigException.class)
@@ -37,14 +37,14 @@ final class RepositoryConfigMergerTest {
 
     @Test
     void mergeSupportsEmptyArtifacts() {
-        final RepositoryConfig local = repository("Core", "Core", "[Core].[tblA]", "[Core].[seqA]");
+        final var local = repository("Core", "Core", "[Core].[tblA]", "[Core].[seqA]");
 
-        final RepositoryConfig merged = merger.merge(List.of(), local, List.of());
+        final var merged = merger.merge(List.of(), local, List.of());
 
         assertThat(merged.modules()).containsExactly("Core");
     }
 
-    private RepositoryConfig repository(
+    private static RepositoryConfig repository(
             final String module, final String schema, final String table, final String sequence) {
         return new RepositoryConfig(
                 List.of(module),

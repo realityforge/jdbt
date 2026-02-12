@@ -26,7 +26,7 @@ final class FileResolverTest {
         createFile(tempDir, "db/MyModule/Dir1/e.sql", "");
         createFile(tempDir, "db/MyModule/Dir1/f.sql", "");
 
-        final List<String> files = resolver.collectFiles(
+        final var files = resolver.collectFiles(
                 List.of(tempDir.resolve("db")), "MyModule/Dir1", "sql", "index.txt", List.of(), List.of());
 
         assertThat(basenames(files)).containsExactly("d.sql", "e.sql", "c.sql", "f.sql");
@@ -61,10 +61,10 @@ final class FileResolverTest {
 
     @Test
     void collectFilesPrefersPostOverPreArtifacts(@TempDir final Path tempDir) throws IOException {
-        final ArtifactContent post = artifact(tempDir, "post", Map.of("MyModule/base.sql", "--post"));
-        final ArtifactContent pre = artifact(tempDir, "pre", Map.of("MyModule/base.sql", "--pre"));
+        final var post = artifact(tempDir, "post", Map.of("MyModule/base.sql", "--post"));
+        final var pre = artifact(tempDir, "pre", Map.of("MyModule/base.sql", "--pre"));
 
-        final List<String> files = resolver.collectFiles(
+        final var files = resolver.collectFiles(
                 List.of(tempDir.resolve("db")), "MyModule", "sql", "index.txt", List.of(post), List.of(pre));
 
         assertThat(files).containsExactly("zip:post:MyModule/base.sql");
@@ -73,9 +73,9 @@ final class FileResolverTest {
     @Test
     void collectFilesPrefersDiskOverArtifacts(@TempDir final Path tempDir) throws IOException {
         createFile(tempDir, "db/MyModule/base.sql", "--disk");
-        final ArtifactContent post = artifact(tempDir, "post", Map.of("MyModule/base.sql", "--post"));
+        final var post = artifact(tempDir, "post", Map.of("MyModule/base.sql", "--post"));
 
-        final List<String> files = resolver.collectFiles(
+        final var files = resolver.collectFiles(
                 List.of(tempDir.resolve("db")), "MyModule", "sql", "index.txt", List.of(post), List.of());
 
         assertThat(basenames(files)).containsExactly("base.sql");
@@ -84,14 +84,14 @@ final class FileResolverTest {
 
     @Test
     void collectFilesUsesArtifactIndexForOrdering(@TempDir final Path tempDir) throws IOException {
-        final Map<String, String> entries = new LinkedHashMap<>();
+        final var entries = new LinkedHashMap<String, String>();
         entries.put("MyModule/index.txt", "b.sql a.sql");
         entries.put("MyModule/a.sql", "");
         entries.put("MyModule/b.sql", "");
         entries.put("MyModule/c.sql", "");
-        final ArtifactContent post = artifact(tempDir, "post", entries);
+        final var post = artifact(tempDir, "post", entries);
 
-        final List<String> files = resolver.collectFiles(
+        final var files = resolver.collectFiles(
                 List.of(tempDir.resolve("db")), "MyModule", "sql", "index.txt", List.of(post), List.of());
 
         assertThat(basenames(files)).containsExactly("b.sql", "a.sql", "c.sql");
@@ -130,10 +130,10 @@ final class FileResolverTest {
 
     @Test
     void collectFixturesPrefersPostArtifactOverPreArtifact(@TempDir final Path tempDir) throws IOException {
-        final ArtifactContent post = artifact(tempDir, "post", Map.of("MyModule/fixtures/MyModule.foo.yml", "x"));
-        final ArtifactContent pre = artifact(tempDir, "pre", Map.of("MyModule/fixtures/MyModule.foo.yml", "x"));
+        final var post = artifact(tempDir, "post", Map.of("MyModule/fixtures/MyModule.foo.yml", "x"));
+        final var pre = artifact(tempDir, "pre", Map.of("MyModule/fixtures/MyModule.foo.yml", "x"));
 
-        final Map<String, String> fixtures = resolver.collectFixtures(
+        final var fixtures = resolver.collectFixtures(
                 List.of(tempDir.resolve("db")),
                 "MyModule",
                 "fixtures",
@@ -146,10 +146,10 @@ final class FileResolverTest {
 
     @Test
     void findFileInModulePrefersDiskThenPostThenPre(@TempDir final Path tempDir) throws IOException {
-        final ArtifactContent post = artifact(tempDir, "post", Map.of("MyModule/import/MyModule.foo.sql", "x"));
-        final ArtifactContent pre = artifact(tempDir, "pre", Map.of("MyModule/import/MyModule.foo.sql", "x"));
+        final var post = artifact(tempDir, "post", Map.of("MyModule/import/MyModule.foo.sql", "x"));
+        final var pre = artifact(tempDir, "pre", Map.of("MyModule/import/MyModule.foo.sql", "x"));
 
-        final String fromPost = resolver.findFileInModule(
+        final var fromPost = resolver.findFileInModule(
                 List.of(tempDir.resolve("db")),
                 "MyModule",
                 "import",
@@ -160,7 +160,7 @@ final class FileResolverTest {
         assertThat(fromPost).isEqualTo("zip:post:MyModule/import/MyModule.foo.sql");
 
         createFile(tempDir, "db/MyModule/import/MyModule.foo.sql", "x");
-        final String fromDisk = resolver.findFileInModule(
+        final var fromDisk = resolver.findFileInModule(
                 List.of(tempDir.resolve("db")),
                 "MyModule",
                 "import",
@@ -172,21 +172,22 @@ final class FileResolverTest {
         assertThat(fromDisk).doesNotContain("zip:");
     }
 
-    private List<String> basenames(final List<String> files) {
+    private static List<String> basenames(final List<String> files) {
         return files.stream()
                 .map(file -> file.substring(file.lastIndexOf('/') + 1))
                 .toList();
     }
 
-    private void createFile(final Path root, final String relativePath, final String content) throws IOException {
-        final Path target = root.resolve(relativePath);
+    private static void createFile(final Path root, final String relativePath, final String content)
+            throws IOException {
+        final var target = root.resolve(relativePath);
         Files.createDirectories(target.getParent());
         Files.writeString(target, content, StandardCharsets.UTF_8);
     }
 
-    private ArtifactContent artifact(final Path root, final String id, final Map<String, String> entries)
+    private static ArtifactContent artifact(final Path root, final String id, final Map<String, String> entries)
             throws IOException {
-        final Path zip = root.resolve(id + ".zip");
+        final var zip = root.resolve(id + ".zip");
         Files.createDirectories(zip.getParent());
         try (var output = new ZipOutputStream(Files.newOutputStream(zip), StandardCharsets.UTF_8)) {
             for (final Map.Entry<String, String> entry : entries.entrySet()) {

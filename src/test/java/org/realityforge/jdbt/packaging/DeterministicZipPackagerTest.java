@@ -17,15 +17,15 @@ import org.junit.jupiter.api.io.TempDir;
 final class DeterministicZipPackagerTest {
     @Test
     void writesStoredEntriesInStableLexicalOrder(@TempDir final Path tempDir) throws IOException {
-        final Path source = tempDir.resolve("source");
+        final var source = tempDir.resolve("source");
         writeFile(source, "z/2.sql", "two");
         writeFile(source, "a/1.sql", "one");
         writeFile(source, "a/0.sql", "zero");
 
-        final Path zipFile = tempDir.resolve("out.zip");
+        final var zipFile = tempDir.resolve("out.zip");
         new DeterministicZipPackager().write(source, zipFile);
 
-        final List<ZipEntry> entries = readEntries(zipFile);
+        final var entries = readEntries(zipFile);
         assertThat(entries.stream().map(ZipEntry::getName).toList()).containsExactly("a/0.sql", "a/1.sql", "z/2.sql");
         assertThat(entries.stream().map(ZipEntry::getMethod).toList()).allMatch(method -> method == ZipEntry.STORED);
         assertThat(entries.stream().map(ZipEntry::getTime).toList()).containsOnly(0L);
@@ -33,13 +33,13 @@ final class DeterministicZipPackagerTest {
 
     @Test
     void producesByteForByteReproducibleOutput(@TempDir final Path tempDir) throws IOException {
-        final Path source = tempDir.resolve("source");
+        final var source = tempDir.resolve("source");
         writeFile(source, "a.sql", "A");
         writeFile(source, "b.sql", "B");
 
-        final Path zip1 = tempDir.resolve("one.zip");
-        final Path zip2 = tempDir.resolve("two.zip");
-        final DeterministicZipPackager packager = new DeterministicZipPackager();
+        final var zip1 = tempDir.resolve("one.zip");
+        final var zip2 = tempDir.resolve("two.zip");
+        final var packager = new DeterministicZipPackager();
         packager.write(source, zip1);
 
         Files.setLastModifiedTime(source.resolve("a.sql"), FileTime.fromMillis(System.currentTimeMillis()));
@@ -51,8 +51,8 @@ final class DeterministicZipPackagerTest {
 
     @Test
     void writesEmptyZipWhenSourceDirectoryMissing(@TempDir final Path tempDir) throws IOException {
-        final Path missing = tempDir.resolve("missing");
-        final Path zipFile = tempDir.resolve("out.zip");
+        final var missing = tempDir.resolve("missing");
+        final var zipFile = tempDir.resolve("out.zip");
 
         new DeterministicZipPackager().write(missing, zipFile);
 
@@ -60,14 +60,14 @@ final class DeterministicZipPackagerTest {
         assertThat(readEntries(zipFile)).isEmpty();
     }
 
-    private void writeFile(final Path root, final String relativePath, final String content) throws IOException {
-        final Path file = root.resolve(relativePath);
+    private static void writeFile(final Path root, final String relativePath, final String content) throws IOException {
+        final var file = root.resolve(relativePath);
         Files.createDirectories(file.getParent());
         Files.writeString(file, content, StandardCharsets.UTF_8);
     }
 
-    private List<ZipEntry> readEntries(final Path zipFile) throws IOException {
-        final List<ZipEntry> entries = new ArrayList<>();
+    private static List<ZipEntry> readEntries(final Path zipFile) throws IOException {
+        final var entries = new ArrayList<ZipEntry>();
         try (var input = Files.newInputStream(zipFile);
                 var zip = new ZipInputStream(input, StandardCharsets.UTF_8)) {
             ZipEntry entry = zip.getNextEntry();
