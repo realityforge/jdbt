@@ -657,7 +657,7 @@ tasks:
       - command: ./gradlew clean spotlessCheck check fatJar
         result: pass
     commit:
-      hash: pending
+      hash: 04452eb
       message: Enable additional Error Prone checks and fix fully-qualified references
 
 history:
@@ -751,5 +751,5 @@ history:
     note: Flattened jdbt.yml to top-level single-database configuration semantics.
   - timestamp: 2026-02-12
     task: T23
-    commit: pending
+    commit: 04452eb
     note: Enabled additional valid Error Prone checks and remediated fully-qualified-name diagnostics.
