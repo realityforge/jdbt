@@ -160,8 +160,8 @@ tasks:
       - command: ./gradlew clean spotlessCheck check fatJar
         result: pass
     commit:
-      hash: pending
-      message: pending
+      hash: e2726a9
+      message: Implement file resolution with artifact overlay precedence
 
   - id: T07
     title: Implement runtime core commands and flow orchestration
@@ -238,5 +238,5 @@ history:
     note: Repository merge semantics implemented with duplicate-module safety.
   - timestamp: 2026-02-12
     task: T06
-    commit: pending
+    commit: e2726a9
     note: File resolution and artifact overlay semantics implemented with strict validation.
