@@ -752,7 +752,7 @@ tasks:
       - command: ./gradlew clean spotlessCheck check fatJar
         result: pass
     commit:
-      hash: pending
+      hash: 709cacb
       message: Use var in foreach and try-with-resources declarations
 
 history:
@@ -858,5 +858,5 @@ history:
     note: Added Picnic Error Prone contrib, enabled JUnitClassModifiers, and disabled StaticImport diagnostics.
   - timestamp: 2026-02-12
     task: T26
-    commit: pending
+    commit: 709cacb
     note: Updated foreach and try-with-resources declarations to prefer var.
