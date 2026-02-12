@@ -524,8 +524,8 @@ tasks:
       - command: ./gradlew clean spotlessCheck check fatJar
         result: pass
     commit:
-      hash: pending
-      message: pending
+      hash: f5374eb
+      message: Fix search root to jdbt.yml directory
 
 history:
   - timestamp: 2026-02-12
@@ -602,5 +602,5 @@ history:
     note: Added standalone skill packaging utility and adoption guide.
   - timestamp: 2026-02-12
     task: T19
-    commit: pending
+    commit: f5374eb
     note: Removed searchDirs config and fixed search root to jdbt.yml directory.
