@@ -407,8 +407,8 @@ tasks:
       - command: ./gradlew clean spotlessCheck check fatJar
         result: pass
     commit:
-      hash: pending
-      message: pending
+      hash: 38c790a
+      message: Default empty CLI invocation to help output
 
 history:
   - timestamp: 2026-02-12
@@ -469,5 +469,5 @@ history:
     note: Added README and user guide documenting configuration, commands, and usage.
   - timestamp: 2026-02-12
     task: T15
-    commit: pending
+    commit: 38c790a
     note: Updated CLI no-arg behavior to default to help output.
