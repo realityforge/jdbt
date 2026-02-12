@@ -11,6 +11,17 @@ import org.realityforge.jdbt.db.DatabaseConnection;
 
 final class JdbtCommandTest {
     @Test
+    void noArgsBehavesLikeHelpAndDoesNotDispatchToRunner() {
+        final RecordingRunner runner = new RecordingRunner();
+
+        final int exitCode = JdbtCommand.execute(
+                new String[0], runner, new PasswordResolver(java.util.Map.of(), new ByteArrayInputStream(new byte[0])));
+
+        assertThat(exitCode).isZero();
+        assertThat(runner.lastCall).isEmpty();
+    }
+
+    @Test
     void statusDispatchesToRunnerWithDefaultDriver() {
         final RecordingRunner runner = new RecordingRunner();
 

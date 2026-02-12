@@ -11,7 +11,7 @@ final class MainTest {
     }
 
     @Test
-    void runReturnsUsageCodeWhenCommandMissing() {
-        assertThat(Main.run(new String[0])).isEqualTo(2);
+    void runWithoutArgsBehavesLikeHelp() {
+        assertThat(Main.run(new String[0])).isZero();
     }
 }
