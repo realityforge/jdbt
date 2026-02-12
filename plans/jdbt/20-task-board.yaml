@@ -439,8 +439,8 @@ tasks:
       - command: ./gradlew clean spotlessCheck check fatJar
         result: pass
     commit:
-      hash: pending
-      message: pending
+      hash: 373c3e1
+      message: Remove top-level defaults from jdbt config
 
 history:
   - timestamp: 2026-02-12
@@ -505,5 +505,5 @@ history:
     note: Updated CLI no-arg behavior to default to help output.
   - timestamp: 2026-02-12
     task: T16
-    commit: pending
+    commit: 373c3e1
     note: Removed top-level defaults key from jdbt.yml and switched to hardcoded defaults.
