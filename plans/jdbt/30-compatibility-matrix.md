@@ -30,7 +30,7 @@ This matrix tracks parity against Ruby `dbt` implementation and tests.
 | --- | --- | --- | --- | --- |
 | Project config parsing | `config.rb`, definition classes | `JdbtProjectConfigLoader` | done | Strict key validation and Ruby-compatible defaults model. |
 | Repository config parsing | `repository_definition.rb#from_yaml` | `RepositoryConfigLoader` | done | Supports omap-style list and map-style module declarations. |
-| Repository merge order | `runtime.rb#perform_load_database_config` + `repository_definition.rb#merge!` | Config load pipeline | pending | Must preserve pre/local/post ordering. |
+| Repository merge order | `runtime.rb#perform_load_database_config` + `repository_definition.rb#merge!` | Config load pipeline | in_progress | Merge semantics implemented; runtime loading integration pending. |
 | Index ordering | `runtime.rb#collect_files` | File resolver | pending | Index entries first, then lexical fallback. |
 | Duplicate basename rejection | `runtime.rb#collect_files` | File resolver | pending | Error message should identify collisions. |
 | Fixture resolution | `runtime.rb#collect_fixtures_from_dirs` | Fixture loader | pending | Strict rejection of unexpected fixture/sql files. |

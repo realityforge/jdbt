@@ -9,7 +9,7 @@ meta:
     - completed
     - cancelled
 
-current_focus: T05
+current_focus: T06
 
 tasks:
   - id: T01
@@ -117,14 +117,30 @@ tasks:
 
   - id: T05
     title: Implement repository merge and ordering semantics
-    status: pending
+    status: completed
     priority: high
     depends_on:
       - T04
+    acceptance_criteria:
+      - Pre/local/post merge order behavior encoded
+      - Duplicate module definitions rejected with diagnostics
+      - merge result preserves module order and map content
+      - required full gates pass
+    files_touched:
+      - src/main/java/org/realityforge/jdbt/repository/RepositoryConfigMerger.java
+      - src/test/java/org/realityforge/jdbt/repository/RepositoryConfigMergerTest.java
+      - plans/jdbt/20-task-board.yaml
+      - plans/jdbt/30-compatibility-matrix.md
+    evidence:
+      - command: ./gradlew clean spotlessCheck check fatJar
+        result: pass
+    commit:
+      hash: pending
+      message: pending
 
   - id: T06
     title: Implement file resolution and artifact overlay semantics
-    status: pending
+    status: in_progress
     priority: high
     depends_on:
       - T05
@@ -198,3 +214,7 @@ history:
     task: T04
     commit: e1edd4b
     note: Strict jdbt.yml and repository.yml parsing with validation and tests added.
+  - timestamp: 2026-02-12
+    task: T05
+    commit: pending
+    note: Repository merge semantics implemented with duplicate-module safety.
