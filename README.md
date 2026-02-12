@@ -76,6 +76,7 @@ modules:
 ## Documentation
 
 - User guide: `docs/user-guide.md`
+- Skill adoption guide: `skills/ADOPTION.md`
 - Planning and parity tracking: `plans/jdbt/`
 - Agent workflow constraints: `AGENTS.md`
 

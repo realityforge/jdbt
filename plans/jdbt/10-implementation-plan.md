@@ -18,6 +18,7 @@
 14. End-user documentation (`README.md` and usage guide).
 15. Remove top-level `defaults` from `jdbt.yml`; use hardcoded runtime defaults.
 16. Publish reusable Agent Skill for the delivery workflow.
+17. Package skill for standalone distribution and document adoption.
 
 ## Delivery Approach
 
