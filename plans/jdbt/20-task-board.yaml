@@ -488,8 +488,8 @@ tasks:
       - command: ./gradlew clean spotlessCheck check fatJar
         result: pass
     commit:
-      hash: pending
-      message: pending
+      hash: f37f841
+      message: Add standalone packaging for workflow skill
 
 history:
   - timestamp: 2026-02-12
@@ -562,5 +562,5 @@ history:
     note: Published reusable Agent Skill for structured delivery workflow.
   - timestamp: 2026-02-12
     task: T18
-    commit: pending
+    commit: f37f841
     note: Added standalone skill packaging utility and adoption guide.
