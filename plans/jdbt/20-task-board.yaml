@@ -215,8 +215,8 @@ tasks:
       - command: ./gradlew clean spotlessCheck check fatJar
         result: pass
     commit:
-      hash: pending
-      message: pending
+      hash: d56a308
+      message: Implement import orchestration with resume-at semantics
 
   - id: T09
     title: Implement migration flow and migration tracking
@@ -287,5 +287,5 @@ history:
     note: Runtime core orchestration implemented with no-DB execution tests.
   - timestamp: 2026-02-12
     task: T08
-    commit: pending
+    commit: d56a308
     note: Import and resume runtime flow implemented with module-group delete-first behavior.
