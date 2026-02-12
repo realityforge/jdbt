@@ -1,0 +1,166 @@
+meta:
+  project: jdbt
+  last_updated: 2026-02-12
+  required_full_gates:
+    - ./gradlew clean spotlessCheck check fatJar
+  statuses:
+    - pending
+    - in_progress
+    - completed
+    - cancelled
+
+current_focus: T03
+
+tasks:
+  - id: T01
+    title: Bootstrap single-module Gradle Java 17 project
+    status: completed
+    priority: high
+    depends_on: []
+    acceptance_criteria:
+      - Gradle wrapper present and functional
+      - Java 17 toolchain configured
+      - Error Prone and NullAway enabled
+      - palantir-java-format enforced
+      - fatJar task produces runnable archive
+      - required full gates pass
+    files_touched:
+      - settings.gradle.kts
+      - build.gradle.kts
+      - gradle/wrapper/gradle-wrapper.properties
+      - gradle/wrapper/gradle-wrapper.jar
+      - gradlew
+      - gradlew.bat
+      - src/main/java/org/realityforge/jdbt/Main.java
+      - src/main/java/org/realityforge/jdbt/cli/JdbtCommand.java
+      - src/test/java/org/realityforge/jdbt/MainTest.java
+    evidence:
+      - command: ./gradlew clean spotlessCheck check fatJar
+        result: pass
+    commit:
+      hash: d6a9846
+      message: Bootstrap Java project with strict quality gates
+
+  - id: T02
+    title: Add GitHub Actions pipeline with early quality gates
+    status: completed
+    priority: high
+    depends_on:
+      - T01
+    acceptance_criteria:
+      - CI runs format check first
+      - CI runs compile and static analysis before tests
+      - CI runs tests plus coverage gates
+      - CI builds fat jar artifact
+      - required full gates pass locally
+    files_touched:
+      - .github/workflows/ci.yml
+    evidence:
+      - command: ./gradlew clean spotlessCheck check fatJar
+        result: pass
+    commit:
+      hash: e6ad841
+      message: Add GitHub Actions quality and verification workflow
+
+  - id: T03
+    title: Persist planning artifacts and agent workflow constraints
+    status: in_progress
+    priority: high
+    depends_on:
+      - T01
+      - T02
+    acceptance_criteria:
+      - plans/jdbt files created and consistent with decisions
+      - AGENTS.md describes architecture and non-negotiable workflow
+      - task board captures execution state and commit evidence
+      - required full gates pass
+    files_touched:
+      - AGENTS.md
+      - plans/jdbt/00-requirements.md
+      - plans/jdbt/10-implementation-plan.md
+      - plans/jdbt/20-task-board.yaml
+      - plans/jdbt/30-compatibility-matrix.md
+      - plans/jdbt/40-test-strategy.md
+
+  - id: T04
+    title: Implement strict jdbt.yml and repository.yml model parsing
+    status: pending
+    priority: high
+    depends_on:
+      - T03
+
+  - id: T05
+    title: Implement repository merge and ordering semantics
+    status: pending
+    priority: high
+    depends_on:
+      - T04
+
+  - id: T06
+    title: Implement file resolution and artifact overlay semantics
+    status: pending
+    priority: high
+    depends_on:
+      - T05
+
+  - id: T07
+    title: Implement runtime core commands and flow orchestration
+    status: pending
+    priority: high
+    depends_on:
+      - T06
+
+  - id: T08
+    title: Implement import flow and --resume-at behavior
+    status: pending
+    priority: high
+    depends_on:
+      - T07
+
+  - id: T09
+    title: Implement migration flow and migration tracking
+    status: pending
+    priority: high
+    depends_on:
+      - T07
+
+  - id: T10
+    title: Implement deterministic packaging and reproducibility tests
+    status: pending
+    priority: high
+    depends_on:
+      - T06
+
+  - id: T11
+    title: Implement CLI commands and argument validation
+    status: pending
+    priority: high
+    depends_on:
+      - T07
+      - T08
+      - T09
+      - T10
+
+  - id: T12
+    title: Final documentation and parity closure
+    status: pending
+    priority: high
+    depends_on:
+      - T11
+
+  - id: T13
+    title: Add PostgreSQL support in phase 2
+    status: pending
+    priority: medium
+    depends_on:
+      - T12
+
+history:
+  - timestamp: 2026-02-12
+    task: T01
+    commit: d6a9846
+    note: Foundation scaffold and build gates established.
+  - timestamp: 2026-02-12
+    task: T02
+    commit: e6ad841
+    note: CI workflow added with early gate ordering.
