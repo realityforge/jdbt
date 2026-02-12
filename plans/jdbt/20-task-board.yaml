@@ -717,7 +717,7 @@ tasks:
       - command: ./gradlew clean spotlessCheck check fatJar
         result: pass
     commit:
-      hash: pending
+      hash: f403584
       message: Enable Picnic JUnitClassModifiers and disable StaticImport
 
 history:
@@ -819,5 +819,5 @@ history:
     note: Refactored local declarations to prefer var while preserving type inference safety.
   - timestamp: 2026-02-12
     task: T25
-    commit: pending
+    commit: f403584
     note: Added Picnic Error Prone contrib, enabled JUnitClassModifiers, and disabled StaticImport diagnostics.
