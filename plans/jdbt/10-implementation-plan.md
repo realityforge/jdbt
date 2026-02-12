@@ -15,6 +15,7 @@
 11. CLI command integration and argument validation.
 12. Documentation and parity closure.
 13. PostgreSQL support (Phase 2).
+14. End-user documentation (`README.md` and usage guide).
 
 ## Delivery Approach
 
