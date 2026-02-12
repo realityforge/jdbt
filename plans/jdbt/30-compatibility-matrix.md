@@ -28,6 +28,8 @@ This matrix tracks parity against Ruby `dbt` implementation and tests.
 
 | Area | Ruby Source | Java Target | Status | Notes |
 | --- | --- | --- | --- | --- |
+| Project config parsing | `config.rb`, definition classes | `JdbtProjectConfigLoader` | done | Strict key validation and Ruby-compatible defaults model. |
+| Repository config parsing | `repository_definition.rb#from_yaml` | `RepositoryConfigLoader` | done | Supports omap-style list and map-style module declarations. |
 | Repository merge order | `runtime.rb#perform_load_database_config` + `repository_definition.rb#merge!` | Config load pipeline | pending | Must preserve pre/local/post ordering. |
 | Index ordering | `runtime.rb#collect_files` | File resolver | pending | Index entries first, then lexical fallback. |
 | Duplicate basename rejection | `runtime.rb#collect_files` | File resolver | pending | Error message should identify collisions. |
