@@ -9,7 +9,7 @@ meta:
     - completed
     - cancelled
 
-current_focus: T10
+current_focus: T11
 
 tasks:
   - id: T01
@@ -244,15 +244,33 @@ tasks:
       - command: ./gradlew clean spotlessCheck check fatJar
         result: pass
     commit:
-      hash: pending
-      message: pending
+      hash: 6c23408
+      message: Implement migration orchestration and tracking semantics
 
   - id: T10
     title: Implement deterministic packaging and reproducibility tests
-    status: pending
+    status: completed
     priority: high
     depends_on:
       - T06
+    acceptance_criteria:
+      - deterministic ZIP writer implemented using JDK ZIP APIs
+      - package-data assembly preserves Ruby directory selection semantics
+      - ZIP entries use STORED method with fixed timestamps
+      - entry ordering is stable and lexical
+      - reproducibility tests verify byte-for-byte identical output
+      - required full gates pass
+    files_touched:
+      - src/main/java/org/realityforge/jdbt/packaging/*
+      - src/test/java/org/realityforge/jdbt/packaging/*
+      - plans/jdbt/20-task-board.yaml
+      - plans/jdbt/30-compatibility-matrix.md
+    evidence:
+      - command: ./gradlew clean spotlessCheck check fatJar
+        result: pass
+    commit:
+      hash: pending
+      message: pending
 
   - id: T11
     title: Implement CLI commands and argument validation
@@ -313,5 +331,9 @@ history:
     note: Import and resume runtime flow implemented with module-group delete-first behavior.
   - timestamp: 2026-02-12
     task: T09
-    commit: pending
+    commit: 6c23408
     note: Migration runtime flow and create-time migration setup implemented.
+  - timestamp: 2026-02-12
+    task: T10
+    commit: pending
+    note: Deterministic package-data assembly and reproducible zip writer implemented.

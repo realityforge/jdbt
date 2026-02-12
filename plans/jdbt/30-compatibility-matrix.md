@@ -22,7 +22,7 @@ This matrix tracks parity against Ruby `dbt` implementation and tests.
 | Load dataset | `runtime.rb#load_dataset` | `load-dataset` | in_progress | Core dataset orchestration implemented; CLI wiring pending. |
 | Module group up/down | `runtime.rb#up_module_group`, `#down_module_group` | `up-module-group`, `down-module-group` | in_progress | Core up/down orchestration implemented with reverse-down semantics. |
 | Dump fixtures | `runtime.rb#dump_database_to_fixtures` | `dump-fixtures` | pending | No live DB required in default tests. |
-| Package data | `runtime.rb#package_database_data` | `package-data` | pending | Deterministic packaging required. |
+| Package data | `runtime.rb#package_database_data` | `package-data` | in_progress | Deterministic ZIP writer and package-data assembly implemented; CLI wiring pending. |
 
 ## Data and File Semantics
 
