@@ -66,4 +66,44 @@ public final class NoOpDbDriver implements DbDriver {
 
     @Override
     public void markMigrationAsRun(final String namespace, final String migrationName) {}
+
+    @Override
+    public String generateStandardImportSql(
+            final String tableName,
+            final String targetDatabase,
+            final String sourceDatabase,
+            final List<String> columns) {
+        return "INSERT INTO ["
+                + targetDatabase
+                + "]."
+                + tableName
+                + '(' + String.join(", ", columns)
+                + ")\n  SELECT "
+                + String.join(", ", columns)
+                + " FROM ["
+                + sourceDatabase
+                + "]."
+                + tableName
+                + "\n";
+    }
+
+    @Override
+    public String generateStandardSequenceImportSql(
+            final String sequenceName, final String targetDatabase, final String sourceDatabase) {
+        return "DECLARE @Next VARCHAR(50);\n"
+                + "SELECT @Next = CAST(current_value AS BIGINT) + 1 FROM ["
+                + sourceDatabase
+                + "].sys.sequences "
+                + "WHERE object_id = OBJECT_ID('["
+                + sourceDatabase
+                + "]."
+                + sequenceName
+                + "');\n"
+                + "SET @Next = COALESCE(@Next,'1');"
+                + "EXEC('USE ["
+                + targetDatabase
+                + "]; ALTER SEQUENCE "
+                + sequenceName
+                + " RESTART WITH ' + @Next );";
+    }
 }

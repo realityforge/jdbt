@@ -59,8 +59,8 @@ Excluded for initial delivery:
 
 ## Database Support Scope
 
-- SQL Server first (`mssql-jdbc`).
-- PostgreSQL planned as Phase 2 in this repository.
+- SQL Server (`mssql-jdbc`).
+- PostgreSQL (`postgresql`) in Phase 2.
 
 ## Compatibility and Divergence
 

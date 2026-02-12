@@ -43,4 +43,9 @@ public interface DbDriver {
     boolean shouldMigrate(String namespace, String migrationName);
 
     void markMigrationAsRun(String namespace, String migrationName);
+
+    String generateStandardImportSql(
+            String tableName, String targetDatabase, String sourceDatabase, List<String> columns);
+
+    String generateStandardSequenceImportSql(String sequenceName, String targetDatabase, String sourceDatabase);
 }

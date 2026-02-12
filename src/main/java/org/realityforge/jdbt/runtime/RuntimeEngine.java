@@ -372,46 +372,18 @@ public final class RuntimeEngine {
         } else {
             runImportSql(
                     sequenceName,
-                    generateStandardSequenceImportSql(sequenceName),
+                    db.generateStandardSequenceImportSql(sequenceName, target.database(), source.database()),
                     target.database(),
                     source.database());
         }
     }
 
-    private String generateStandardImportSql(
-            final String tableName, final String targetDatabase, final String sourceDatabase) {
-        final List<String> columns = db.columnNamesForTable(tableName);
-        return "INSERT INTO ["
-                + targetDatabase
-                + "]."
-                + tableName
-                + '(' + String.join(", ", columns)
-                + ")\n  SELECT "
-                + String.join(", ", columns)
-                + " FROM ["
-                + sourceDatabase
-                + "]."
-                + tableName
-                + "\n";
-    }
-
-    private String generateStandardSequenceImportSql(final String sequenceName) {
-        return "DECLARE @Next VARCHAR(50);\n"
-                + "SELECT @Next = CAST(current_value AS BIGINT) + 1 FROM [__SOURCE__].sys.sequences "
-                + "WHERE object_id = OBJECT_ID('[__SOURCE__]."
-                + sequenceName
-                + "');\n"
-                + "SET @Next = COALESCE(@Next,'1');"
-                + "EXEC('USE [__TARGET__]; ALTER SEQUENCE "
-                + sequenceName
-                + " RESTART WITH ' + @Next );";
-    }
-
     private void performStandardImport(
             final String tableName, final String targetDatabase, final String sourceDatabase) {
+        final List<String> columns = db.columnNamesForTable(tableName);
         runImportSql(
                 tableName,
-                generateStandardImportSql(tableName, targetDatabase, sourceDatabase),
+                db.generateStandardImportSql(tableName, targetDatabase, sourceDatabase, columns),
                 targetDatabase,
                 sourceDatabase);
     }

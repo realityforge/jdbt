@@ -17,7 +17,7 @@ This matrix tracks parity against Ruby `dbt` implementation and tests.
 | Create command | `runtime.rb#create` | `create` | done | Runtime flow and CLI wiring implemented with SQL Server execution path. |
 | Drop command | `runtime.rb#drop` | `drop` | done | Runtime flow and CLI wiring implemented with SQL Server execution path. |
 | Migrate command | `runtime.rb#migrate` | `migrate` | done | Runtime flow and CLI wiring implemented with migration tracking semantics. |
-| Import command | `runtime.rb#database_import` | `import` | done | Runtime flow and CLI wiring implemented with --resume-at behavior. |
+| Import command | `runtime.rb#database_import` | `import` | done | Runtime flow and CLI wiring implemented with --resume-at behavior; PostgreSQL cross-database standard import requires explicit SQL files. |
 | Create by import | `runtime.rb#create_by_import` | `create-by-import` | done | Runtime flow and CLI wiring implemented with resume-aware create-skip semantics. |
 | Load dataset | `runtime.rb#load_dataset` | `load-dataset` | done | Runtime flow and CLI wiring implemented. |
 | Module group up/down | `runtime.rb#up_module_group`, `#down_module_group` | `up-module-group`, `down-module-group` | done | Runtime flow and CLI wiring implemented with reverse-down semantics. |
@@ -38,6 +38,13 @@ This matrix tracks parity against Ruby `dbt` implementation and tests.
 | SQL batch splitting | `runtime.rb#run_sql_batch` | SQL executor | done | `GO` separator behavior implemented in runtime SQL batch execution. |
 | Migration release-cut behavior | `runtime.rb#perform_migration` | Migration engine | done | Release-boundary skip/mark behavior implemented in runtime migration flow. |
 
+## Database Drivers
+
+| Area | Ruby Source | Java Target | Status | Notes |
+| --- | --- | --- | --- | --- |
+| SQL Server driver | `drivers/dialect/sql_server.rb` | `SqlServerDbDriver` | done | JDBC-backed execution path with migration and import support methods. |
+| PostgreSQL driver | `drivers/dialect/postgres.rb` | `PostgresDbDriver` | done | JDBC-backed execution path with migration support and postgres-specific SQL generation. |
+
 ## Intentional Divergences
 
 | Area | Ruby Source | Java Target | Status | Notes |
@@ -47,3 +54,4 @@ This matrix tracks parity against Ruby `dbt` implementation and tests.
 | Module-group delete ordering | TODO noted in `test_runtime_basic.rb` | All deletes before imports | intentional_divergence | Planned behavioral fix. |
 | Query command | `runtime.rb#query` helper | No end-user CLI command | intentional_divergence | Removed from Java CLI command surface. |
 | Backup/restore command surface | Optional Ruby tasks | Excluded from initial Java delivery | intentional_divergence | Candidate future scope if requested. |
+| PostgreSQL cross-database standard import | SQL Server style cross-db default import SQL | Explicit import SQL required | intentional_divergence | PostgreSQL does not support cross-database table access without extensions. |

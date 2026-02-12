@@ -23,8 +23,14 @@ final class DbDriverFactoryTest {
     }
 
     @Test
+    void createsPostgresDriver() {
+        assertThat(new DbDriverFactory().create("postgres")).isInstanceOf(PostgresDbDriver.class);
+        assertThat(new DbDriverFactory().create("POSTGRES")).isInstanceOf(PostgresDbDriver.class);
+    }
+
+    @Test
     void rejectsUnsupportedDriver() {
-        assertThatThrownBy(() -> new DbDriverFactory().create("postgres"))
+        assertThatThrownBy(() -> new DbDriverFactory().create("oracle"))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("Unsupported database driver");
     }

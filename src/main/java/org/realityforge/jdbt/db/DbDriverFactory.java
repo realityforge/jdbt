@@ -7,9 +7,12 @@ public class DbDriverFactory {
         if ("sqlserver".equalsIgnoreCase(driver)) {
             return new SqlServerDbDriver();
         }
+        if ("postgres".equalsIgnoreCase(driver)) {
+            return new PostgresDbDriver();
+        }
         if ("noop".equalsIgnoreCase(driver)) {
             return new NoOpDbDriver();
         }
-        throw new ConfigException("Unsupported database driver '" + driver + "'. Supported: sqlserver, noop");
+        throw new ConfigException("Unsupported database driver '" + driver + "'. Supported: sqlserver, postgres, noop");
     }
 }

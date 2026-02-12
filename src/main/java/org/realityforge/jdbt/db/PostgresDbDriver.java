@@ -16,8 +16,8 @@ import org.realityforge.jdbt.config.ImportConfig;
 import org.realityforge.jdbt.runtime.RuntimeDatabase;
 import org.realityforge.jdbt.runtime.RuntimeExecutionException;
 
-public final class SqlServerDbDriver implements DbDriver {
-    private static final Logger LOGGER = Logger.getLogger(SqlServerDbDriver.class.getName());
+public final class PostgresDbDriver implements DbDriver {
+    private static final Logger LOGGER = Logger.getLogger(PostgresDbDriver.class.getName());
 
     @FunctionalInterface
     interface ConnectionFactory {
@@ -29,11 +29,11 @@ public final class SqlServerDbDriver implements DbDriver {
     private @Nullable Connection targetConnection;
     private @Nullable Connection controlConnection;
 
-    public SqlServerDbDriver() {
-        this(SqlServerDbDriver::openSqlServerConnection);
+    public PostgresDbDriver() {
+        this(PostgresDbDriver::openPostgresConnection);
     }
 
-    SqlServerDbDriver(final ConnectionFactory connectionFactory) {
+    PostgresDbDriver(final ConnectionFactory connectionFactory) {
         this.connectionFactory = connectionFactory;
     }
 
@@ -58,40 +58,24 @@ public final class SqlServerDbDriver implements DbDriver {
 
     @Override
     public void drop(final RuntimeDatabase database, final DatabaseConnection connection) {
-        final Connection control = controlConnection();
-        if (databaseExists(control, connection.database())) {
-            executeSql(
-                    control,
-                    "ALTER DATABASE " + quote(connection.database()) + " SET SINGLE_USER WITH ROLLBACK IMMEDIATE");
-            executeSql(control, "DROP DATABASE " + quote(connection.database()));
-        }
+        executeSql(controlConnection(), "DROP DATABASE IF EXISTS " + quoteIdentifier(connection.database()));
     }
 
     @Override
     public void createDatabase(final RuntimeDatabase database, final DatabaseConnection connection) {
-        final Connection control = controlConnection();
-        if (!databaseExists(control, connection.database())) {
-            executeSql(control, "CREATE DATABASE " + quote(connection.database()));
-        }
+        executeSql(controlConnection(), "CREATE DATABASE " + quoteIdentifier(connection.database()));
     }
 
     @Override
     public void createSchema(final String schemaName) {
         if (!schemaExists(schemaName)) {
-            execute("CREATE SCHEMA " + quote(schemaName), false);
+            execute("CREATE SCHEMA " + quoteIdentifier(schemaName), false);
         }
     }
 
     @Override
     public void dropSchema(final String schemaName, final List<String> tablesInDropOrder) {
-        for (final String table : tablesInDropOrder) {
-            if (tableExists(table)) {
-                execute("DROP TABLE " + table, false);
-            }
-        }
-        if (schemaExists(schemaName)) {
-            execute("DROP SCHEMA " + quote(schemaName), false);
-        }
+        execute("DROP SCHEMA IF EXISTS " + quoteIdentifier(schemaName) + " CASCADE", false);
     }
 
     @Override
@@ -101,17 +85,13 @@ public final class SqlServerDbDriver implements DbDriver {
     }
 
     @Override
-    public void preFixtureImport(final String tableName) {
-        if (hasIdentityColumn(tableName)) {
-            execute("SET IDENTITY_INSERT " + tableName + " ON", false);
-        }
-    }
+    public void preFixtureImport(final String tableName) {}
 
     @Override
     public void insert(final String tableName, final Map<String, Object> record) {
         final List<String> columns = new ArrayList<>(record.keySet());
         final String columnSql =
-                String.join(", ", columns.stream().map(this::quote).toList());
+                String.join(", ", columns.stream().map(this::quoteIdentifier).toList());
         final String placeholderSql =
                 String.join(", ", columns.stream().map(column -> "?").toList());
         final String sql = "INSERT INTO " + tableName + " (" + columnSql + ") VALUES (" + placeholderSql + ")";
@@ -126,11 +106,7 @@ public final class SqlServerDbDriver implements DbDriver {
     }
 
     @Override
-    public void postFixtureImport(final String tableName) {
-        if (hasIdentityColumn(tableName)) {
-            execute("SET IDENTITY_INSERT " + tableName + " OFF", false);
-        }
-    }
+    public void postFixtureImport(final String tableName) {}
 
     @Override
     public void updateSequence(final String sequenceName, final long value) {
@@ -138,14 +114,10 @@ public final class SqlServerDbDriver implements DbDriver {
     }
 
     @Override
-    public void preTableImport(final ImportConfig importConfig, final String tableName) {
-        preFixtureImport(tableName);
-    }
+    public void preTableImport(final ImportConfig importConfig, final String tableName) {}
 
     @Override
-    public void postTableImport(final ImportConfig importConfig, final String tableName) {
-        postFixtureImport(tableName);
-    }
+    public void postTableImport(final ImportConfig importConfig, final String tableName) {}
 
     @Override
     public void postDataModuleImport(final ImportConfig importConfig, final String moduleName) {}
@@ -155,14 +127,16 @@ public final class SqlServerDbDriver implements DbDriver {
 
     @Override
     public List<String> columnNamesForTable(final String tableName) {
+        final SchemaAndTable resolved = parseTableName(tableName);
         final String sql =
-                "SELECT C.name AS column_name FROM sys.syscolumns C WHERE C.id = OBJECT_ID(?) ORDER BY C.colid";
+                "SELECT column_name FROM information_schema.columns WHERE table_schema = ? AND table_name = ? ORDER BY ordinal_position";
         final List<String> columns = new ArrayList<>();
         try (PreparedStatement statement = targetConnection().prepareStatement(sql)) {
-            statement.setString(1, tableName);
+            statement.setString(1, resolved.schema());
+            statement.setString(2, resolved.table());
             try (ResultSet resultSet = statement.executeQuery()) {
                 while (resultSet.next()) {
-                    columns.add(quote(resultSet.getString(1)));
+                    columns.add(quoteIdentifier(resultSet.getString(1)));
                 }
             }
         } catch (final SQLException sqle) {
@@ -173,9 +147,9 @@ public final class SqlServerDbDriver implements DbDriver {
 
     @Override
     public void setupMigrations() {
-        if (!tableExists("[dbo].[tblMigration]")) {
+        if (!tableExists("public", "tblMigration")) {
             execute(
-                    "CREATE TABLE [dbo].[tblMigration]([Namespace] VARCHAR(50),[Migration] VARCHAR(255),[AppliedAt] DATETIME)",
+                    "CREATE TABLE \"tblMigration\"(\"Namespace\" varchar(50),\"Migration\" varchar(255),\"AppliedAt\" timestamp)",
                     false);
         }
     }
@@ -183,7 +157,7 @@ public final class SqlServerDbDriver implements DbDriver {
     @Override
     public boolean shouldMigrate(final String namespace, final String migrationName) {
         setupMigrations();
-        final String sql = "SELECT COUNT(*) FROM [dbo].[tblMigration] WHERE [Namespace] = ? AND [Migration] = ?";
+        final String sql = "SELECT COUNT(*) FROM \"tblMigration\" WHERE \"Namespace\" = ? AND \"Migration\" = ?";
         try (PreparedStatement statement = targetConnection().prepareStatement(sql)) {
             statement.setString(1, namespace);
             statement.setString(2, migrationName);
@@ -201,7 +175,7 @@ public final class SqlServerDbDriver implements DbDriver {
     @Override
     public void markMigrationAsRun(final String namespace, final String migrationName) {
         final String sql =
-                "INSERT INTO [dbo].[tblMigration]([Namespace],[Migration],[AppliedAt]) VALUES (?, ?, GETDATE())";
+                "INSERT INTO \"tblMigration\"(\"Namespace\",\"Migration\",\"AppliedAt\") VALUES (?, ?, current_timestamp)";
         try (PreparedStatement statement = targetConnection().prepareStatement(sql)) {
             statement.setString(1, namespace);
             statement.setString(2, migrationName);
@@ -217,16 +191,16 @@ public final class SqlServerDbDriver implements DbDriver {
             final String targetDatabase,
             final String sourceDatabase,
             final List<String> columns) {
-        return "INSERT INTO ["
-                + targetDatabase
-                + "]."
+        if (!targetDatabase.equals(sourceDatabase)) {
+            throw new RuntimeExecutionException(
+                    "PostgreSQL standard import across databases is not supported. Provide explicit import SQL files.");
+        }
+        return "INSERT INTO "
                 + tableName
                 + '(' + String.join(", ", columns)
                 + ")\n  SELECT "
                 + String.join(", ", columns)
-                + " FROM ["
-                + sourceDatabase
-                + "]."
+                + " FROM "
                 + tableName
                 + "\n";
     }
@@ -234,37 +208,16 @@ public final class SqlServerDbDriver implements DbDriver {
     @Override
     public String generateStandardSequenceImportSql(
             final String sequenceName, final String targetDatabase, final String sourceDatabase) {
-        return "DECLARE @Next VARCHAR(50);\n"
-                + "SELECT @Next = CAST(current_value AS BIGINT) + 1 FROM ["
-                + sourceDatabase
-                + "].sys.sequences "
-                + "WHERE object_id = OBJECT_ID('["
-                + sourceDatabase
-                + "]."
-                + sequenceName
-                + "');\n"
-                + "SET @Next = COALESCE(@Next,'1');"
-                + "EXEC('USE ["
-                + targetDatabase
-                + "]; ALTER SEQUENCE "
-                + sequenceName
-                + " RESTART WITH ' + @Next );";
-    }
-
-    private boolean databaseExists(final Connection connection, final String databaseName) {
-        final String sql = "SELECT COUNT(*) FROM sys.databases WHERE name = ?";
-        try (PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setString(1, databaseName);
-            try (ResultSet resultSet = statement.executeQuery()) {
-                return resultSet.next() && resultSet.getLong(1) > 0;
-            }
-        } catch (final SQLException sqle) {
-            throw new RuntimeExecutionException("Failed to query database metadata", sqle);
+        if (!targetDatabase.equals(sourceDatabase)) {
+            throw new RuntimeExecutionException(
+                    "PostgreSQL standard sequence import across databases is not supported. Provide explicit import SQL files.");
         }
+        return "SELECT setval('" + sequenceName + "', COALESCE((SELECT last_value FROM " + sequenceName
+                + "), 1), true);";
     }
 
     private boolean schemaExists(final String schemaName) {
-        final String sql = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?";
+        final String sql = "SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name = ?";
         try (PreparedStatement statement = targetConnection().prepareStatement(sql)) {
             statement.setString(1, schemaName);
             try (ResultSet resultSet = statement.executeQuery()) {
@@ -275,11 +228,11 @@ public final class SqlServerDbDriver implements DbDriver {
         }
     }
 
-    private boolean tableExists(final String tableName) {
-        final String sql =
-                "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE OBJECT_ID(TABLE_SCHEMA + '.' + TABLE_NAME) = OBJECT_ID(?)";
+    private boolean tableExists(final String schemaName, final String tableName) {
+        final String sql = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = ? AND table_name = ?";
         try (PreparedStatement statement = targetConnection().prepareStatement(sql)) {
-            statement.setString(1, tableName);
+            statement.setString(1, schemaName);
+            statement.setString(2, tableName);
             try (ResultSet resultSet = statement.executeQuery()) {
                 return resultSet.next() && resultSet.getLong(1) > 0;
             }
@@ -288,17 +241,13 @@ public final class SqlServerDbDriver implements DbDriver {
         }
     }
 
-    private boolean hasIdentityColumn(final String tableName) {
-        final String sql =
-                "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMNPROPERTY(OBJECT_ID(?), COLUMN_NAME, 'IsIdentity') = 1";
-        try (PreparedStatement statement = targetConnection().prepareStatement(sql)) {
-            statement.setString(1, tableName);
-            try (ResultSet resultSet = statement.executeQuery()) {
-                return resultSet.next() && resultSet.getLong(1) > 0;
-            }
-        } catch (final SQLException sqle) {
-            throw new RuntimeExecutionException("Failed to query identity metadata", sqle);
+    private SchemaAndTable parseTableName(final String tableName) {
+        String value = tableName.trim().replace("[", "").replace("]", "").replace("\"", "");
+        final int separator = value.lastIndexOf('.');
+        if (-1 == separator) {
+            return new SchemaAndTable("public", value);
         }
+        return new SchemaAndTable(value.substring(0, separator), value.substring(separator + 1));
     }
 
     private Connection targetConnection() {
@@ -323,7 +272,7 @@ public final class SqlServerDbDriver implements DbDriver {
         try {
             return connectionFactory.connect(connectionConfig, controlDatabase);
         } catch (final SQLException sqle) {
-            throw new RuntimeExecutionException("Failed to connect to SQL Server", sqle);
+            throw new RuntimeExecutionException("Failed to connect to PostgreSQL", sqle);
         }
     }
 
@@ -335,20 +284,14 @@ public final class SqlServerDbDriver implements DbDriver {
         }
     }
 
-    private String quote(final String value) {
-        return '[' + value.replace("]", "]]") + ']';
+    private String quoteIdentifier(final String value) {
+        return '"' + value.replace("\"", "\"\"") + '"';
     }
 
-    private static Connection openSqlServerConnection(final DatabaseConnection config, final boolean controlDatabase)
+    private static Connection openPostgresConnection(final DatabaseConnection config, final boolean controlDatabase)
             throws SQLException {
-        final String database = controlDatabase ? "msdb" : config.database();
-        final String jdbcUrl = "jdbc:sqlserver://"
-                + config.host()
-                + ':'
-                + config.port()
-                + ";databaseName="
-                + database
-                + ";encrypt=false;trustServerCertificate=true";
+        final String database = controlDatabase ? "postgres" : config.database();
+        final String jdbcUrl = "jdbc:postgresql://" + config.host() + ':' + config.port() + '/' + database;
         return DriverManager.getConnection(jdbcUrl, config.username(), config.password());
     }
 
@@ -362,4 +305,6 @@ public final class SqlServerDbDriver implements DbDriver {
             LOGGER.log(Level.FINEST, "Ignoring close failure", sqle);
         }
     }
+
+    private record SchemaAndTable(String schema, String table) {}
 }
