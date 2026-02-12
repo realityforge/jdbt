@@ -695,7 +695,7 @@ tasks:
       - command: ./gradlew clean spotlessCheck check fatJar
         result: pass
     commit:
-      hash: pending
+      hash: 70cad5f
       message: Prefer var for local declarations where viable
 
 history:
@@ -793,5 +793,5 @@ history:
     note: Enabled additional valid Error Prone checks and remediated fully-qualified-name diagnostics.
   - timestamp: 2026-02-12
     task: T24
-    commit: pending
+    commit: 70cad5f
     note: Refactored local declarations to prefer var while preserving type inference safety.
