@@ -190,7 +190,7 @@ final class FileResolverTest {
         final var zip = root.resolve(id + ".zip");
         Files.createDirectories(zip.getParent());
         try (var output = new ZipOutputStream(Files.newOutputStream(zip), StandardCharsets.UTF_8)) {
-            for (final Map.Entry<String, String> entry : entries.entrySet()) {
+            for (final var entry : entries.entrySet()) {
                 output.putNextEntry(new ZipEntry("data/" + entry.getKey()));
                 output.write(entry.getValue().getBytes(StandardCharsets.UTF_8));
                 output.closeEntry();

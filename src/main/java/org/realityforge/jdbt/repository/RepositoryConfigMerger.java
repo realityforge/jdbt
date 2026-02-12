@@ -25,7 +25,7 @@ public final class RepositoryConfigMerger {
         private final Map<String, List<String>> sequenceMap = new LinkedHashMap<>();
 
         void merge(final RepositoryConfig source) {
-            for (final String module : source.modules()) {
+            for (final var module : source.modules()) {
                 if (tableMap.containsKey(module)) {
                     throw new ConfigException("Attempting to merge repository with duplicate module definition '"
                             + module + "'. Existing modules: " + modules);

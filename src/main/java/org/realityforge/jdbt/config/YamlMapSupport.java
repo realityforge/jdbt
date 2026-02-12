@@ -25,7 +25,7 @@ public final class YamlMapSupport {
     }
 
     public static void assertKeys(final Map<String, Object> map, final Set<String> allowedKeys, final String path) {
-        for (final String key : map.keySet()) {
+        for (final var key : map.keySet()) {
             if (!allowedKeys.contains(key)) {
                 throw new ConfigException(
                         "Unknown key '" + key + "' at " + path + ". Allowed keys: " + allowedKeys + '.');
@@ -109,7 +109,7 @@ public final class YamlMapSupport {
 
     public static Map<String, Object> toStringMap(final Map<?, ?> map, final String path) {
         final var result = new LinkedHashMap<String, Object>();
-        for (final Map.Entry<?, ?> entry : map.entrySet()) {
+        for (final var entry : map.entrySet()) {
             final var key = entry.getKey();
             if (!(key instanceof String text)) {
                 throw new ConfigException("Expected string map key at " + path + " but got: " + key);
@@ -121,7 +121,7 @@ public final class YamlMapSupport {
 
     public static List<String> toStringList(final List<?> list, final String path) {
         final var result = new ArrayList<String>(list.size());
-        for (final Object value : list) {
+        for (final var value : list) {
             if (!(value instanceof String text)) {
                 throw new ConfigException("Expected string list entry at " + path + " but got: " + value);
             }

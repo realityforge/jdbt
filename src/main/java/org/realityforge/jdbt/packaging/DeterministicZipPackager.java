@@ -1,7 +1,6 @@
 package org.realityforge.jdbt.packaging;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -18,9 +17,9 @@ public final class DeterministicZipPackager {
     public void write(final Path sourceDirectory, final Path zipFile) {
         final var files = collectFiles(sourceDirectory);
         createParentDirectory(zipFile);
-        try (OutputStream output = Files.newOutputStream(zipFile);
-                ZipOutputStream zip = new ZipOutputStream(output)) {
-            for (final Path file : files) {
+        try (var output = Files.newOutputStream(zipFile);
+                var zip = new ZipOutputStream(output)) {
+            for (final var file : files) {
                 writeEntry(sourceDirectory, file, zip);
             }
         } catch (final IOException ioe) {

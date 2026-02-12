@@ -9,7 +9,6 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 public final class ZipArtifactContent implements ArtifactContent {
@@ -43,9 +42,9 @@ public final class ZipArtifactContent implements ArtifactContent {
     private static Map<String, byte[]> loadEntries(final Path zipPath, final String dataPrefix) {
         final var prefix = dataPrefix + '/';
         final var entries = new LinkedHashMap<String, byte[]>();
-        try (ZipFile zipFile = new ZipFile(zipPath.toFile())) {
+        try (var zipFile = new ZipFile(zipPath.toFile())) {
             final var zipEntries = Collections.list(zipFile.entries());
-            for (final ZipEntry entry : zipEntries) {
+            for (final var entry : zipEntries) {
                 if (entry.isDirectory() || !entry.getName().startsWith(prefix)) {
                     continue;
                 }

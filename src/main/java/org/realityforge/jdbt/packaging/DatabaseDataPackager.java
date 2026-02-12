@@ -48,8 +48,8 @@ public final class DatabaseDataPackager {
         moduleDirs.addAll(importDirs);
         moduleDirs.addAll(datasetDirs);
 
-        for (final String moduleName : database.repository().modules()) {
-            for (final String relativeDirName : moduleDirs) {
+        for (final var moduleName : database.repository().modules()) {
+            for (final var relativeDirName : moduleDirs) {
                 final var relativeModuleDir = moduleName + '/' + relativeDirName;
                 final var targetDir = packageDir.resolve(relativeModuleDir);
                 if (fixtureStyleDirs.contains(relativeDirName)) {
@@ -92,7 +92,7 @@ public final class DatabaseDataPackager {
             }
         }
 
-        for (final String databaseWideDir : databaseWideDirs(database)) {
+        for (final var databaseWideDir : databaseWideDirs(database)) {
             final var targetDir = packageDir.resolve(databaseWideDir);
             final var files = fileResolver.collectFiles(
                     database.searchDirs(),
@@ -127,7 +127,7 @@ public final class DatabaseDataPackager {
         directories.addAll(database.postCreateDirs());
 
         final var importKeys = database.imports().keySet().stream().sorted().toList();
-        for (final String importKey : importKeys) {
+        for (final var importKey : importKeys) {
             final var importConfig = database.imports().get(importKey);
             if (null != importConfig) {
                 directories.addAll(importConfig.preImportDirs());
@@ -135,12 +135,12 @@ public final class DatabaseDataPackager {
             }
         }
 
-        for (final String dataset : database.datasets()) {
+        for (final var dataset : database.datasets()) {
             final var root = database.datasetsDirName() + '/' + dataset;
-            for (final String pre : database.preDatasetDirs()) {
+            for (final var pre : database.preDatasetDirs()) {
                 directories.add(root + '/' + pre);
             }
-            for (final String post : database.postDatasetDirs()) {
+            for (final var post : database.postDatasetDirs()) {
                 directories.add(root + '/' + post);
             }
         }
@@ -157,7 +157,7 @@ public final class DatabaseDataPackager {
                 .map(DatabaseDataPackager::cleanObjectName)
                 .collect(Collectors.toUnmodifiableSet());
         final var output = new ArrayList<String>();
-        for (final String file : files) {
+        for (final var file : files) {
             final var basename = basename(file);
             final var extension = fileExtension(basename);
             if (null != fixedExtension && !fixedExtension.equals(extension)) {
@@ -176,7 +176,7 @@ public final class DatabaseDataPackager {
             return;
         }
         createDirectories(targetDir);
-        for (final String file : files) {
+        for (final var file : files) {
             writeText(targetDir.resolve(basename(file)), readText(database, file));
         }
     }
@@ -193,7 +193,7 @@ public final class DatabaseDataPackager {
     private static void writeRepository(final RuntimeDatabase database, final Path path) {
         final var yaml = new StringBuilder();
         yaml.append("modules:\n");
-        for (final String module : database.repository().modules()) {
+        for (final var module : database.repository().modules()) {
             yaml.append("  ").append(toYamlScalar(module)).append(":\n");
 
             final var schemaName = database.repository().schemaNameForModule(module);
@@ -213,7 +213,7 @@ public final class DatabaseDataPackager {
             return;
         }
         yaml.append("    ").append(key).append(":\n");
-        for (final String value : values) {
+        for (final var value : values) {
             yaml.append("      - ").append(toYamlScalar(value)).append('\n');
         }
     }

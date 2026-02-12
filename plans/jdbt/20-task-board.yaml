@@ -720,6 +720,41 @@ tasks:
       hash: f403584
       message: Enable Picnic JUnitClassModifiers and disable StaticImport
 
+  - id: T26
+    title: Use var in foreach and try-with-resources declarations
+    status: completed
+    priority: low
+    depends_on:
+      - T25
+    acceptance_criteria:
+      - foreach loops prefer `final var` where type inference is safe
+      - try-with-resources declarations prefer `var` where type inference is safe
+      - no semantic behavior change beyond declaration style
+      - required full gates pass
+    files_touched:
+      - src/main/java/org/realityforge/jdbt/cli/ProjectRuntimeLoader.java
+      - src/main/java/org/realityforge/jdbt/config/JdbtProjectConfigLoader.java
+      - src/main/java/org/realityforge/jdbt/config/YamlMapSupport.java
+      - src/main/java/org/realityforge/jdbt/db/PostgresDbDriver.java
+      - src/main/java/org/realityforge/jdbt/db/SqlServerDbDriver.java
+      - src/main/java/org/realityforge/jdbt/files/FileResolver.java
+      - src/main/java/org/realityforge/jdbt/files/ZipArtifactContent.java
+      - src/main/java/org/realityforge/jdbt/packaging/DatabaseDataPackager.java
+      - src/main/java/org/realityforge/jdbt/packaging/DeterministicZipPackager.java
+      - src/main/java/org/realityforge/jdbt/repository/RepositoryConfigLoader.java
+      - src/main/java/org/realityforge/jdbt/repository/RepositoryConfigMerger.java
+      - src/main/java/org/realityforge/jdbt/runtime/RuntimeDatabase.java
+      - src/main/java/org/realityforge/jdbt/runtime/RuntimeEngine.java
+      - src/test/java/org/realityforge/jdbt/files/FileResolverTest.java
+      - plans/jdbt/10-implementation-plan.md
+      - plans/jdbt/20-task-board.yaml
+    evidence:
+      - command: ./gradlew clean spotlessCheck check fatJar
+        result: pass
+    commit:
+      hash: pending
+      message: Use var in foreach and try-with-resources declarations
+
 history:
   - timestamp: 2026-02-12
     task: T01
@@ -821,3 +856,7 @@ history:
     task: T25
     commit: f403584
     note: Added Picnic Error Prone contrib, enabled JUnitClassModifiers, and disabled StaticImport diagnostics.
+  - timestamp: 2026-02-12
+    task: T26
+    commit: pending
+    note: Updated foreach and try-with-resources declarations to prefer var.

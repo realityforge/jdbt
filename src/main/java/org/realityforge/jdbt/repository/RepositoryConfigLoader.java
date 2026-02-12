@@ -24,7 +24,7 @@ public final class RepositoryConfigLoader {
         final var tableMap = new LinkedHashMap<String, List<String>>();
         final var sequenceMap = new LinkedHashMap<String, List<String>>();
 
-        for (final ModuleEntry entry : entries) {
+        for (final var entry : entries) {
             if (tableMap.containsKey(entry.name)) {
                 throw new ConfigException("Duplicate repository module '" + entry.name + "' in " + sourceName + '.');
             }
@@ -61,7 +61,7 @@ public final class RepositoryConfigLoader {
         if (modulesValue instanceof Map<?, ?> map) {
             final var moduleMap = YamlMapSupport.toStringMap(map, path);
             final var entries = new ArrayList<ModuleEntry>(moduleMap.size());
-            for (final Map.Entry<String, Object> entry : moduleMap.entrySet()) {
+            for (final var entry : moduleMap.entrySet()) {
                 entries.add(parseModule(entry.getKey(), entry.getValue(), path + '.' + entry.getKey()));
             }
             return entries;

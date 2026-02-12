@@ -67,12 +67,12 @@ public record RuntimeDatabase(
     }
 
     public @Nullable ArtifactContent artifactById(final String id) {
-        for (final ArtifactContent artifact : postDbArtifacts) {
+        for (final var artifact : postDbArtifacts) {
             if (artifact.id().equals(id)) {
                 return artifact;
             }
         }
-        for (final ArtifactContent artifact : preDbArtifacts) {
+        for (final var artifact : preDbArtifacts) {
             if (artifact.id().equals(id)) {
                 return artifact;
             }

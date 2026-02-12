@@ -26,6 +26,7 @@
 22. Enable additional requested Error Prone checks, suppress accepted `UnusedException`, and fix `UnnecessarilyFullyQualified` violations.
 23. Prefer `var` for local declarations where type inference remains clear and safe.
 24. Enable Picnic Error Prone `JUnitClassModifiers` and disable `StaticImport` noise.
+25. Extend `var` preference to try-with-resources and foreach declarations where inference is safe.
 
 ## Delivery Approach
 

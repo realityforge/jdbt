@@ -135,7 +135,7 @@ public final class ProjectRuntimeLoader {
     private List<RepositoryConfig> repositoryFromArtifacts(
             final List<ArtifactContent> artifacts, final String artifactSourceName) {
         final var repositories = new ArrayList<RepositoryConfig>();
-        for (final ArtifactContent artifact : artifacts) {
+        for (final var artifact : artifacts) {
             try {
                 final var content = artifact.readText(REPOSITORY_CONFIG_FILE);
                 repositories.add(repositoryConfigLoader.load(content, artifactSourceName + ':' + artifact.id()));
@@ -152,7 +152,7 @@ public final class ProjectRuntimeLoader {
 
     private List<ArtifactContent> loadArtifacts(final List<String> artifactPaths) {
         final var artifacts = new ArrayList<ArtifactContent>();
-        for (final String artifactPath : artifactPaths) {
+        for (final var artifactPath : artifactPaths) {
             final var path = resolvePath(artifactPath);
             if (!Files.exists(path)) {
                 throw new ConfigException("Unable to locate database artifact " + artifactPath);
@@ -177,7 +177,7 @@ public final class ProjectRuntimeLoader {
 
     private static String schemaHash(final RepositoryConfig repository) {
         final var buffer = new StringBuilder();
-        for (final String module : repository.modules()) {
+        for (final var module : repository.modules()) {
             buffer.append(module).append('|');
             buffer.append(repository.schemaNameForModule(module)).append('|');
             buffer.append(String.join(",", repository.tableOrdering(module))).append('|');

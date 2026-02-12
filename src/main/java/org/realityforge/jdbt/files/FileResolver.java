@@ -27,7 +27,7 @@ public final class FileResolver {
         final var index = new ArrayList<String>();
         final var files = new ArrayList<String>();
 
-        for (final Path directory : directories) {
+        for (final var directory : directories) {
             final var indexEntries = readIndexEntries(directory.resolve(indexFileName));
             validateIndexEntries(indexEntries, directories);
             index.addAll(indexEntries);
@@ -64,9 +64,9 @@ public final class FileResolver {
                 directories.stream().flatMap(d -> readFiles(d, "sql").stream()).toList());
 
         final var fixtures = new LinkedHashMap<String, String>();
-        for (final String element : orderedElements) {
+        for (final var element : orderedElements) {
             final var fixtureBasename = cleanObjectName(element) + ".yml";
-            for (final Path directory : directories) {
+            for (final var directory : directories) {
                 final var filename = directory.resolve(fixtureBasename).toString();
                 filesystemYamlFiles.remove(filename);
                 if (Files.exists(Path.of(filename))) {
@@ -110,7 +110,7 @@ public final class FileResolver {
             final List<ArtifactContent> preArtifacts) {
         final var filename = moduleFilename(moduleName, subdir, tableName, extension);
 
-        for (final Path searchDir : searchDirs) {
+        for (final var searchDir : searchDirs) {
             final var file = searchDir.resolve(filename);
             if (Files.exists(file)) {
                 return file.toString();
@@ -123,12 +123,12 @@ public final class FileResolver {
             final String filename,
             final List<ArtifactContent> postArtifacts,
             final List<ArtifactContent> preArtifacts) {
-        for (final ArtifactContent artifact : postArtifacts) {
+        for (final var artifact : postArtifacts) {
             if (artifact.files().contains(filename)) {
                 return toArtifactLocation(artifact, filename);
             }
         }
-        for (final ArtifactContent artifact : preArtifacts) {
+        for (final var artifact : preArtifacts) {
             if (artifact.files().contains(filename)) {
                 return toArtifactLocation(artifact, filename);
             }
@@ -137,7 +137,7 @@ public final class FileResolver {
     }
 
     private static void validateIndexEntries(final List<String> entries, final List<Path> directories) {
-        for (final String entry : entries) {
+        for (final var entry : entries) {
             final var exists = directories.stream().anyMatch(dir -> Files.exists(dir.resolve(entry)));
             if (!exists) {
                 throw new FileCollectionException("A specified index entry does not exist on the disk " + entry);
@@ -178,7 +178,7 @@ public final class FileResolver {
             final List<ArtifactContent> artifacts,
             final String indexEntryPath,
             final Pattern matcher) {
-        for (final ArtifactContent artifact : artifacts) {
+        for (final var artifact : artifacts) {
             if (artifact.files().contains(indexEntryPath)) {
                 index.addAll(splitIndexContent(artifact.readText(indexEntryPath)));
             }
@@ -186,7 +186,7 @@ public final class FileResolver {
             final var candidates = artifact.files().stream()
                     .filter(file -> matcher.matcher(file).matches())
                     .toList();
-            for (final String candidate : candidates) {
+            for (final var candidate : candidates) {
                 final var location = toArtifactLocation(artifact, candidate);
                 if (!containsBasename(files, basename(location))) {
                     files.add(location);

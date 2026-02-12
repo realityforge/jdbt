@@ -2,10 +2,7 @@ package org.realityforge.jdbt.db;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -95,7 +92,7 @@ public final class PostgresDbDriver implements DbDriver {
         final var placeholderSql =
                 String.join(", ", columns.stream().map(column -> "?").toList());
         final var sql = "INSERT INTO " + tableName + " (" + columnSql + ") VALUES (" + placeholderSql + ")";
-        try (PreparedStatement statement = targetConnection().prepareStatement(sql)) {
+        try (var statement = targetConnection().prepareStatement(sql)) {
             for (int i = 0; i < columns.size(); i++) {
                 statement.setObject(i + 1, record.get(columns.get(i)));
             }
@@ -131,10 +128,10 @@ public final class PostgresDbDriver implements DbDriver {
         final var sql =
                 "SELECT column_name FROM information_schema.columns WHERE table_schema = ? AND table_name = ? ORDER BY ordinal_position";
         final var columns = new ArrayList<String>();
-        try (PreparedStatement statement = targetConnection().prepareStatement(sql)) {
+        try (var statement = targetConnection().prepareStatement(sql)) {
             statement.setString(1, resolved.schema());
             statement.setString(2, resolved.table());
-            try (ResultSet resultSet = statement.executeQuery()) {
+            try (var resultSet = statement.executeQuery()) {
                 while (resultSet.next()) {
                     columns.add(quoteIdentifier(resultSet.getString(1)));
                 }
@@ -158,10 +155,10 @@ public final class PostgresDbDriver implements DbDriver {
     public boolean shouldMigrate(final String namespace, final String migrationName) {
         setupMigrations();
         final var sql = "SELECT COUNT(*) FROM \"tblMigration\" WHERE \"Namespace\" = ? AND \"Migration\" = ?";
-        try (PreparedStatement statement = targetConnection().prepareStatement(sql)) {
+        try (var statement = targetConnection().prepareStatement(sql)) {
             statement.setString(1, namespace);
             statement.setString(2, migrationName);
-            try (ResultSet resultSet = statement.executeQuery()) {
+            try (var resultSet = statement.executeQuery()) {
                 if (!resultSet.next()) {
                     return true;
                 }
@@ -176,7 +173,7 @@ public final class PostgresDbDriver implements DbDriver {
     public void markMigrationAsRun(final String namespace, final String migrationName) {
         final var sql =
                 "INSERT INTO \"tblMigration\"(\"Namespace\",\"Migration\",\"AppliedAt\") VALUES (?, ?, current_timestamp)";
-        try (PreparedStatement statement = targetConnection().prepareStatement(sql)) {
+        try (var statement = targetConnection().prepareStatement(sql)) {
             statement.setString(1, namespace);
             statement.setString(2, migrationName);
             statement.executeUpdate();
@@ -218,9 +215,9 @@ public final class PostgresDbDriver implements DbDriver {
 
     private boolean schemaExists(final String schemaName) {
         final var sql = "SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name = ?";
-        try (PreparedStatement statement = targetConnection().prepareStatement(sql)) {
+        try (var statement = targetConnection().prepareStatement(sql)) {
             statement.setString(1, schemaName);
-            try (ResultSet resultSet = statement.executeQuery()) {
+            try (var resultSet = statement.executeQuery()) {
                 return resultSet.next() && resultSet.getLong(1) > 0;
             }
         } catch (final SQLException sqle) {
@@ -230,10 +227,10 @@ public final class PostgresDbDriver implements DbDriver {
 
     private boolean tableExists(final String schemaName, final String tableName) {
         final var sql = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = ? AND table_name = ?";
-        try (PreparedStatement statement = targetConnection().prepareStatement(sql)) {
+        try (var statement = targetConnection().prepareStatement(sql)) {
             statement.setString(1, schemaName);
             statement.setString(2, tableName);
-            try (ResultSet resultSet = statement.executeQuery()) {
+            try (var resultSet = statement.executeQuery()) {
                 return resultSet.next() && resultSet.getLong(1) > 0;
             }
         } catch (final SQLException sqle) {
@@ -277,7 +274,7 @@ public final class PostgresDbDriver implements DbDriver {
     }
 
     private static void executeSql(final Connection connection, final String sql) {
-        try (Statement statement = connection.createStatement()) {
+        try (var statement = connection.createStatement()) {
             statement.execute(sql);
         } catch (final SQLException sqle) {
             throw new RuntimeExecutionException("Failed to execute SQL", sqle);

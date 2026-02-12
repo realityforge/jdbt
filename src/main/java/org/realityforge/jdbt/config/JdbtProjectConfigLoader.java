@@ -117,7 +117,7 @@ public final class JdbtProjectConfigLoader {
         }
 
         final var imports = new LinkedHashMap<String, ImportConfig>();
-        for (final Map.Entry<String, Object> entry : importsNode.entrySet()) {
+        for (final var entry : importsNode.entrySet()) {
             final var importKey = entry.getKey();
             if (!(entry.getValue() instanceof Map<?, ?> importBody)) {
                 throw new ConfigException(
@@ -158,7 +158,7 @@ public final class JdbtProjectConfigLoader {
         }
 
         final var groups = new LinkedHashMap<String, ModuleGroupConfig>();
-        for (final Map.Entry<String, Object> entry : groupsNode.entrySet()) {
+        for (final var entry : groupsNode.entrySet()) {
             final var groupKey = entry.getKey();
             if (!(entry.getValue() instanceof Map<?, ?> groupBody)) {
                 throw new ConfigException(
@@ -182,7 +182,7 @@ public final class JdbtProjectConfigLoader {
             final String context,
             final String contextKey,
             final String databaseKey) {
-        for (final String module : modules) {
+        for (final var module : modules) {
             if (!repository.modules().contains(module)) {
                 throw new ConfigException("Module '"
                         + module

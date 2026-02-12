@@ -46,12 +46,12 @@ public final class RuntimeEngine {
     public void create(final RuntimeDatabase database, final DatabaseConnection target, final boolean noCreate) {
         createDatabaseIfRequired(database, target, noCreate);
         withDatabaseConnection(target, false, () -> {
-            for (final String dir : database.preCreateDirs()) {
+            for (final var dir : database.preCreateDirs()) {
                 processDirSet(database, dir);
             }
             performCreateAction(database, ModuleMode.UP);
             performCreateAction(database, ModuleMode.FINALIZE);
-            for (final String dir : database.postCreateDirs()) {
+            for (final var dir : database.postCreateDirs()) {
                 processDirSet(database, dir);
             }
             performPostCreateMigrationsSetup(database);
@@ -66,7 +66,7 @@ public final class RuntimeEngine {
         ensureDatasetExists(database, datasetName);
         createDatabaseIfRequired(database, target, noCreate);
         withDatabaseConnection(target, false, () -> {
-            for (final String dir : database.preCreateDirs()) {
+            for (final var dir : database.preCreateDirs()) {
                 processDirSet(database, dir);
             }
             performCreateAction(database, ModuleMode.UP);
@@ -74,7 +74,7 @@ public final class RuntimeEngine {
             performLoadDataset(database, datasetName);
             performPostDatasetHooks(database, datasetName);
             performCreateAction(database, ModuleMode.FINALIZE);
-            for (final String dir : database.postCreateDirs()) {
+            for (final var dir : database.postCreateDirs()) {
                 processDirSet(database, dir);
             }
             performPostCreateMigrationsSetup(database);
@@ -93,7 +93,7 @@ public final class RuntimeEngine {
             final RuntimeDatabase database, final String moduleGroupKey, final DatabaseConnection target) {
         final var moduleGroup = moduleGroup(database, moduleGroupKey);
         withDatabaseConnection(target, false, () -> {
-            for (final String moduleName : database.repository().modules()) {
+            for (final var moduleName : database.repository().modules()) {
                 if (!moduleGroup.modules().contains(moduleName)) {
                     continue;
                 }
@@ -109,7 +109,7 @@ public final class RuntimeEngine {
         withDatabaseConnection(target, false, () -> {
             final var modules = new ArrayList<>(database.repository().modules());
             Collections.reverse(modules);
-            for (final String moduleName : modules) {
+            for (final var moduleName : modules) {
                 if (!moduleGroup.modules().contains(moduleName)) {
                     continue;
                 }
@@ -158,14 +158,14 @@ public final class RuntimeEngine {
         }
         withDatabaseConnection(target, false, () -> {
             if (null == resumeAt) {
-                for (final String dir : database.preCreateDirs()) {
+                for (final var dir : database.preCreateDirs()) {
                     processDirSet(database, dir);
                 }
                 performCreateAction(database, ModuleMode.UP);
             }
             performImportAction(database, importConfig, target, source, false, null, resumeAt);
             performCreateAction(database, ModuleMode.FINALIZE);
-            for (final String dir : database.postCreateDirs()) {
+            for (final var dir : database.postCreateDirs()) {
                 processDirSet(database, dir);
             }
             performPostCreateMigrationsSetup(database);
@@ -184,28 +184,28 @@ public final class RuntimeEngine {
         final var selectedModules = selectedImportModules(database, importConfig, moduleGroup);
 
         if (null == moduleGroup && null == resumeAt.value) {
-            for (final String dir : importConfig.preImportDirs()) {
+            for (final var dir : importConfig.preImportDirs()) {
                 processImportDirSet(database, dir, target, source);
             }
         }
 
-        for (final String moduleName : selectedModules) {
+        for (final var moduleName : selectedModules) {
             verifyNoUnexpectedImportFiles(database, moduleName, importConfig.dir());
         }
 
         if (shouldPerformDelete && null == resumeAt.value) {
             final var deleteOrder = new ArrayList<String>();
-            for (final String moduleName : selectedModules) {
+            for (final var moduleName : selectedModules) {
                 final var tables = new ArrayList<>(database.tableOrdering(moduleName));
                 Collections.reverse(tables);
                 deleteOrder.addAll(tables);
             }
-            for (final String table : deleteOrder) {
+            for (final var table : deleteOrder) {
                 db.execute("DELETE FROM " + table, false);
             }
         }
 
-        for (final String moduleName : selectedModules) {
+        for (final var moduleName : selectedModules) {
             importModule(database, importConfig, target, source, moduleName, resumeAt);
         }
 
@@ -215,7 +215,7 @@ public final class RuntimeEngine {
         }
 
         if (null == moduleGroup) {
-            for (final String dir : importConfig.postImportDirs()) {
+            for (final var dir : importConfig.postImportDirs()) {
                 processImportDirSet(database, dir, target, source);
             }
         }
@@ -227,7 +227,7 @@ public final class RuntimeEngine {
             final ImportConfig importConfig,
             final @Nullable ModuleGroupConfig moduleGroup) {
         final var selectedModules = new ArrayList<String>();
-        for (final String moduleName : database.repository().modules()) {
+        for (final var moduleName : database.repository().modules()) {
             if (!importConfig.modules().contains(moduleName)) {
                 continue;
             }
@@ -250,7 +250,7 @@ public final class RuntimeEngine {
         final var orderedSequences = new ArrayList<>(database.sequenceOrdering(moduleName));
 
         final var tables = new ArrayList<String>();
-        for (final String table : orderedTables) {
+        for (final var table : orderedTables) {
             final var fixture = fileResolver.findFileInModule(
                     database.searchDirs(),
                     moduleName,
@@ -264,7 +264,7 @@ public final class RuntimeEngine {
             }
         }
 
-        for (final String table : tables) {
+        for (final var table : tables) {
             final var cleanName = cleanObjectName(table);
             if (cleanName.equals(resumeAt.value)) {
                 db.execute("DELETE FROM " + table, false);
@@ -277,7 +277,7 @@ public final class RuntimeEngine {
             }
         }
 
-        for (final String sequence : orderedSequences) {
+        for (final var sequence : orderedSequences) {
             if (cleanObjectName(sequence).equals(resumeAt.value)) {
                 resumeAt.value = null;
             }
@@ -412,7 +412,7 @@ public final class RuntimeEngine {
                 database.indexFileName(),
                 database.postDbArtifacts(),
                 database.preDbArtifacts());
-        for (final String file : files) {
+        for (final var file : files) {
             runImportSql(null, loadData(database, file), target.database(), source.database());
         }
     }
@@ -422,14 +422,14 @@ public final class RuntimeEngine {
         final var expected = new ArrayList<>();
         final var orderedElements = new ArrayList<>(database.tableOrdering(moduleName));
         orderedElements.addAll(database.sequenceOrdering(moduleName));
-        for (final String table : orderedElements) {
+        for (final var table : orderedElements) {
             final var clean = cleanObjectName(table);
             expected.add(clean + ".yml");
             expected.add(clean + ".sql");
         }
 
         final var additional = new ArrayList<>();
-        for (final Path searchDir : database.searchDirs()) {
+        for (final var searchDir : database.searchDirs()) {
             final var directory = searchDir.resolve(moduleName).resolve(importDir);
             if (!Files.isDirectory(directory)) {
                 continue;
@@ -553,7 +553,7 @@ public final class RuntimeEngine {
     }
 
     private void performCreateAction(final RuntimeDatabase database, final ModuleMode mode) {
-        for (final String moduleName : database.repository().modules()) {
+        for (final var moduleName : database.repository().modules()) {
             createModule(database, moduleName, mode);
         }
     }
@@ -572,7 +572,7 @@ public final class RuntimeEngine {
                     case DOWN -> database.downDirs();
                     case FINALIZE -> database.finalizeDirs();
                 };
-        for (final String dir : dirs) {
+        for (final var dir : dirs) {
             processDirSet(database, moduleName + '/' + dir);
         }
         if (ModuleMode.UP == mode) {
@@ -588,20 +588,20 @@ public final class RuntimeEngine {
                 database.indexFileName(),
                 database.postDbArtifacts(),
                 database.preDbArtifacts());
-        for (final String file : files) {
+        for (final var file : files) {
             final var sql = loadData(database, file);
             runSqlBatch(sql, false);
         }
     }
 
     private void performPreDatasetHooks(final RuntimeDatabase database, final String datasetName) {
-        for (final String preDir : database.preDatasetDirs()) {
+        for (final var preDir : database.preDatasetDirs()) {
             processDirSet(database, database.datasetsDirName() + '/' + datasetName + '/' + preDir);
         }
     }
 
     private void performPostDatasetHooks(final RuntimeDatabase database, final String datasetName) {
-        for (final String postDir : database.postDatasetDirs()) {
+        for (final var postDir : database.postDatasetDirs()) {
             processDirSet(database, database.datasetsDirName() + '/' + datasetName + '/' + postDir);
         }
     }
@@ -609,17 +609,17 @@ public final class RuntimeEngine {
     private void performLoadDataset(final RuntimeDatabase database, final String datasetName) {
         final var subdir = database.datasetsDirName() + '/' + datasetName;
         final var fixtures = new LinkedHashMap<String, String>();
-        for (final String moduleName : database.repository().modules()) {
+        for (final var moduleName : database.repository().modules()) {
             fixtures.putAll(collectFixtures(database, moduleName, subdir));
         }
 
         final var modules = new ArrayList<>(database.repository().modules());
         final var reversedModules = new ArrayList<>(modules);
         Collections.reverse(reversedModules);
-        for (final String moduleName : reversedModules) {
+        for (final var moduleName : reversedModules) {
             downFixtures(database, moduleName, fixtures);
         }
-        for (final String moduleName : modules) {
+        for (final var moduleName : modules) {
             upFixtures(database, moduleName, fixtures);
         }
     }
@@ -645,7 +645,7 @@ public final class RuntimeEngine {
             final RuntimeDatabase database, final String moduleName, final Map<String, String> fixtures) {
         final var tables = new ArrayList<>(database.tableOrdering(moduleName));
         Collections.reverse(tables);
-        for (final String tableName : tables) {
+        for (final var tableName : tables) {
             if (fixtures.containsKey(tableName)) {
                 db.execute("DELETE FROM " + tableName, false);
             }
@@ -653,7 +653,7 @@ public final class RuntimeEngine {
 
         final var sequences = new ArrayList<>(database.sequenceOrdering(moduleName));
         Collections.reverse(sequences);
-        for (final String sequenceName : sequences) {
+        for (final var sequenceName : sequences) {
             if (fixtures.containsKey(sequenceName)) {
                 db.updateSequence(sequenceName, 1L);
             }
@@ -662,14 +662,14 @@ public final class RuntimeEngine {
 
     private void upFixtures(
             final RuntimeDatabase database, final String moduleName, final Map<String, String> fixtures) {
-        for (final String tableName : database.tableOrdering(moduleName)) {
+        for (final var tableName : database.tableOrdering(moduleName)) {
             final var fixture = fixtures.get(tableName);
             if (null != fixture) {
                 loadFixture(tableName, loadData(database, fixture));
             }
         }
 
-        for (final String sequenceName : database.sequenceOrdering(moduleName)) {
+        for (final var sequenceName : database.sequenceOrdering(moduleName)) {
             final var fixture = fixtures.get(sequenceName);
             if (null != fixture) {
                 loadSequenceFixture(sequenceName, loadData(database, fixture));
@@ -685,8 +685,8 @@ public final class RuntimeEngine {
 
         final var fixtureGroups = toFixtureGroupList(parsed, tableName);
         db.preFixtureImport(tableName);
-        for (final Map<String, Object> fixtureGroup : fixtureGroups) {
-            for (final Map.Entry<String, Object> fixture : fixtureGroup.entrySet()) {
+        for (final var fixtureGroup : fixtureGroups) {
+            for (final var fixture : fixtureGroup.entrySet()) {
                 if (!(fixture.getValue() instanceof Map<?, ?> data)) {
                     throw new RuntimeExecutionException(
                             "Bad data for " + tableName + " fixture named " + fixture.getKey() + " (not map)");
@@ -720,7 +720,7 @@ public final class RuntimeEngine {
         }
         if (parsed instanceof List<?> list) {
             final var groups = new ArrayList<Map<String, Object>>(list.size());
-            for (final Object entry : list) {
+            for (final var entry : list) {
                 if (!(entry instanceof Map<?, ?> map)) {
                     throw new RuntimeExecutionException("Bad data for " + tableName + " fixture group " + entry);
                 }
@@ -733,7 +733,7 @@ public final class RuntimeEngine {
 
     private static Map<String, Object> toStringObjectMap(final Map<?, ?> data) {
         final var values = new LinkedHashMap<String, Object>();
-        for (final Map.Entry<?, ?> entry : data.entrySet()) {
+        for (final var entry : data.entrySet()) {
             values.put(String.valueOf(entry.getKey()), entry.getValue());
         }
         return Map.copyOf(values);
@@ -764,7 +764,7 @@ public final class RuntimeEngine {
 
     private void runSqlBatch(final String sql, final boolean executeInControlDatabase) {
         final var normalizedSql = sql.replace("\r", "");
-        for (final String batch : GO_SPLIT_PATTERN.splitAsStream(normalizedSql).toList()) {
+        for (final var batch : GO_SPLIT_PATTERN.splitAsStream(normalizedSql).toList()) {
             if (!batch.trim().isEmpty()) {
                 db.execute(batch, executeInControlDatabase);
             }
