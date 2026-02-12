@@ -55,6 +55,7 @@ public final class RuntimeEngine {
             for (final String dir : database.postCreateDirs()) {
                 processDirSet(database, dir);
             }
+            performPostCreateMigrationsSetup(database);
         });
     }
 
@@ -77,11 +78,16 @@ public final class RuntimeEngine {
             for (final String dir : database.postCreateDirs()) {
                 processDirSet(database, dir);
             }
+            performPostCreateMigrationsSetup(database);
         });
     }
 
     public void drop(final RuntimeDatabase database, final DatabaseConnection target) {
         withDatabaseConnection(target, true, () -> db.drop(database, target));
+    }
+
+    public void migrate(final RuntimeDatabase database, final DatabaseConnection target) {
+        withDatabaseConnection(target, false, () -> performMigration(database, MigrationAction.PERFORM));
     }
 
     public void upModuleGroup(
@@ -164,6 +170,7 @@ public final class RuntimeEngine {
             for (final String dir : database.postCreateDirs()) {
                 processDirSet(database, dir);
             }
+            performPostCreateMigrationsSetup(database);
         });
     }
 
@@ -488,6 +495,12 @@ public final class RuntimeEngine {
                 .replace(" ", "");
     }
 
+    private String basenameWithoutExtension(final String value, final String extension) {
+        final int slash = Math.max(value.lastIndexOf('/'), value.lastIndexOf('\\'));
+        final String basename = -1 == slash ? value : value.substring(slash + 1);
+        return basename.endsWith(extension) ? basename.substring(0, basename.length() - extension.length()) : basename;
+    }
+
     private ImportConfig importByKey(final RuntimeDatabase database, final String importKey) {
         final ImportConfig importConfig = database.imports().get(importKey);
         if (null == importConfig) {
@@ -505,6 +518,58 @@ public final class RuntimeEngine {
             db.drop(database, target);
             db.createDatabase(database, target);
         });
+    }
+
+    private void performPostCreateMigrationsSetup(final RuntimeDatabase database) {
+        if (!database.migrationsEnabled()) {
+            return;
+        }
+        db.setupMigrations();
+        performMigration(
+                database, database.migrationsAppliedAtCreate() ? MigrationAction.RECORD : MigrationAction.FORCE);
+    }
+
+    private void performMigration(final RuntimeDatabase database, final MigrationAction action) {
+        final List<String> files = fileResolver.collectFiles(
+                database.searchDirs(),
+                database.migrationsDirName(),
+                "sql",
+                database.indexFileName(),
+                database.postDbArtifacts(),
+                database.preDbArtifacts());
+
+        final @Nullable Integer versionIndex = releaseVersionIndex(database, files);
+        for (int i = 0; i < files.size(); i++) {
+            final String filename = files.get(i);
+            final String migrationName = basenameWithoutExtension(filename, ".sql");
+            final boolean shouldCheck = action == MigrationAction.PERFORM;
+            if (!shouldCheck || db.shouldMigrate(database.key(), migrationName)) {
+                final boolean shouldRun =
+                        action != MigrationAction.RECORD && (null == versionIndex || versionIndex < i);
+                if (shouldRun) {
+                    runSqlBatch(loadData(database, filename), false);
+                }
+                db.markMigrationAsRun(database.key(), migrationName);
+            }
+        }
+    }
+
+    private @Nullable Integer releaseVersionIndex(final RuntimeDatabase database, final List<String> files) {
+        if (null == database.version()) {
+            return null;
+        }
+        final String targetRelease = "Release-" + database.version();
+        for (int i = 0; i < files.size(); i++) {
+            final String migrationName = basenameWithoutExtension(files.get(i), ".sql");
+            final int separator = migrationName.indexOf('_');
+            if (-1 != separator) {
+                final String key = migrationName.substring(separator + 1);
+                if (targetRelease.equals(key)) {
+                    return i;
+                }
+            }
+        }
+        return null;
     }
 
     private void withDatabaseConnection(
@@ -756,6 +821,12 @@ public final class RuntimeEngine {
         UP,
         DOWN,
         FINALIZE
+    }
+
+    private enum MigrationAction {
+        PERFORM,
+        RECORD,
+        FORCE
     }
 
     private static final class ResumeState {

@@ -27,6 +27,8 @@ public record RuntimeDatabase(
         List<String> postDatasetDirs,
         List<String> datasets,
         boolean migrationsEnabled,
+        boolean migrationsAppliedAtCreate,
+        String migrationsDirName,
         @Nullable String version,
         @Nullable String schemaHash,
         Map<String, ImportConfig> imports,

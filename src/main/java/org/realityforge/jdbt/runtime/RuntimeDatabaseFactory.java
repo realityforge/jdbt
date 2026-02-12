@@ -34,6 +34,8 @@ public final class RuntimeDatabaseFactory {
                 database.postDatasetDirs(),
                 database.datasets(),
                 database.migrations(),
+                database.migrationsAppliedAtCreate(),
+                database.migrationsDirName(),
                 database.version(),
                 schemaHash,
                 database.imports(),

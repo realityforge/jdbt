@@ -16,7 +16,7 @@ This matrix tracks parity against Ruby `dbt` implementation and tests.
 | Status command | `runtime.rb#status` | `status` | in_progress | Runtime status implemented; CLI integration pending. |
 | Create command | `runtime.rb#create` | `create` | in_progress | Core orchestration implemented with fixture load support. |
 | Drop command | `runtime.rb#drop` | `drop` | in_progress | Control-connection drop flow implemented. |
-| Migrate command | `runtime.rb#migrate` | `migrate` | pending | Migration table semantics preserved. |
+| Migrate command | `runtime.rb#migrate` | `migrate` | in_progress | Runtime migrate flow implemented; CLI wiring and full parity checks pending. |
 | Import command | `runtime.rb#database_import` | `import` | in_progress | Runtime import sequencing and resume behavior implemented; CLI wiring pending. |
 | Create by import | `runtime.rb#create_by_import` | `create-by-import` | in_progress | Runtime flow implemented with resume-aware create-skip semantics. |
 | Load dataset | `runtime.rb#load_dataset` | `load-dataset` | in_progress | Core dataset orchestration implemented; CLI wiring pending. |
@@ -36,7 +36,7 @@ This matrix tracks parity against Ruby `dbt` implementation and tests.
 | Fixture resolution | `runtime.rb#collect_fixtures_from_dirs` | Fixture loader | in_progress | Strict rejection of unexpected fixture/sql files implemented in resolver. |
 | Import file strictness | `runtime.rb#import` | Import resolver | in_progress | Unknown import files now rejected in runtime resolver; broader parity checks pending. |
 | SQL batch splitting | `runtime.rb#run_sql_batch` | SQL executor | pending | `GO` separator behavior preserved. |
-| Migration release-cut behavior | `runtime.rb#perform_migration` | Migration engine | pending | Respect `*_Release-<version>.sql` semantics. |
+| Migration release-cut behavior | `runtime.rb#perform_migration` | Migration engine | in_progress | Release-boundary skip/mark behavior implemented in runtime migration flow. |
 
 ## Intentional Divergences
 

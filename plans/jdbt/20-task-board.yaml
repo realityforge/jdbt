@@ -9,7 +9,7 @@ meta:
     - completed
     - cancelled
 
-current_focus: T09
+current_focus: T10
 
 tasks:
   - id: T01
@@ -220,10 +220,32 @@ tasks:
 
   - id: T09
     title: Implement migration flow and migration tracking
-    status: in_progress
+    status: completed
     priority: high
     depends_on:
       - T07
+    acceptance_criteria:
+      - migrate command runtime flow implemented
+      - migration setup integrated into create/create-with-dataset/create-by-import flows
+      - release-boundary migration semantics implemented
+      - record/force/perform migration modes implemented
+      - required full gates pass
+    files_touched:
+      - src/main/java/org/realityforge/jdbt/runtime/RuntimeEngine.java
+      - src/main/java/org/realityforge/jdbt/runtime/RuntimeDatabase.java
+      - src/main/java/org/realityforge/jdbt/runtime/RuntimeDatabaseFactory.java
+      - src/main/java/org/realityforge/jdbt/db/DbDriver.java
+      - src/test/java/org/realityforge/jdbt/runtime/RuntimeEngineTest.java
+      - src/test/java/org/realityforge/jdbt/runtime/RuntimeDatabaseTest.java
+      - src/test/java/org/realityforge/jdbt/runtime/RuntimeDatabaseFactoryTest.java
+      - plans/jdbt/20-task-board.yaml
+      - plans/jdbt/30-compatibility-matrix.md
+    evidence:
+      - command: ./gradlew clean spotlessCheck check fatJar
+        result: pass
+    commit:
+      hash: pending
+      message: pending
 
   - id: T10
     title: Implement deterministic packaging and reproducibility tests
@@ -289,3 +311,7 @@ history:
     task: T08
     commit: d56a308
     note: Import and resume runtime flow implemented with module-group delete-first behavior.
+  - timestamp: 2026-02-12
+    task: T09
+    commit: pending
+    note: Migration runtime flow and create-time migration setup implemented.

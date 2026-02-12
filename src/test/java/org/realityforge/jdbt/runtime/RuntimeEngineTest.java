@@ -48,6 +48,8 @@ final class RuntimeEngineTest {
                 migrationsOn.postDatasetDirs(),
                 migrationsOn.datasets(),
                 false,
+                false,
+                "migrations",
                 "2",
                 "abc",
                 migrationsOn.imports(),
@@ -93,6 +95,7 @@ final class RuntimeEngineTest {
                         "postFixtureImport([MyModule].[foo])",
                         "execute(false):FINAL",
                         "execute(false):POST",
+                        "setupMigrations",
                         "close");
     }
 
@@ -381,6 +384,8 @@ final class RuntimeEngineTest {
                 List.of("post"),
                 List.of("defaultDataset"),
                 true,
+                false,
+                "migrations",
                 "1",
                 "hash",
                 Map.of("default", new ImportConfig("default", repository.modules(), "import", List.of(), List.of())),
@@ -388,6 +393,87 @@ final class RuntimeEngineTest {
 
         engine.databaseImport(database, "default", null, connection, sourceConnection, null);
         assertThat(driver.calls).contains("execute(true):SELECT IMPORT_DB DBT_TEST");
+    }
+
+    @Test
+    void migrateHonorsShouldMigrateDecisions(@TempDir final Path tempDir) throws IOException {
+        createFile(tempDir, "db/migrations/001_a.sql", "M1");
+        createFile(tempDir, "db/migrations/002_b.sql", "M2");
+
+        final RecordingDriver driver = new RecordingDriver();
+        driver.migrateDecision.put("001_a", false);
+        driver.migrateDecision.put("002_b", true);
+        final RuntimeEngine engine = new RuntimeEngine(driver, new FileResolver());
+        final RuntimeDatabase database =
+                runtimeDatabase("default", RepositoryConfigTestData.singleModule(), List.of(tempDir.resolve("db")));
+
+        engine.migrate(database, connection);
+
+        assertThat(driver.calls)
+                .containsSubsequence(
+                        "open(false)",
+                        "shouldMigrate(default,001_a)",
+                        "shouldMigrate(default,002_b)",
+                        "execute(false):M2",
+                        "markMigrationAsRun(default,002_b)",
+                        "close");
+        assertThat(driver.calls).doesNotContain("markMigrationAsRun(default,001_a)");
+    }
+
+    @Test
+    void migrateSkipsExecutionBeforeReleaseVersionBoundary(@TempDir final Path tempDir) throws IOException {
+        createFile(tempDir, "db/migrations/001_x.sql", "M1");
+        createFile(tempDir, "db/migrations/002_Release-Version_1.sql", "M2");
+        createFile(tempDir, "db/migrations/003_z.sql", "M3");
+
+        final RecordingDriver driver = new RecordingDriver();
+        final RuntimeEngine engine = new RuntimeEngine(driver, new FileResolver());
+        final RuntimeDatabase database = runtimeDatabase(
+                "default",
+                RepositoryConfigTestData.singleModule(),
+                List.of(tempDir.resolve("db")),
+                Map.of(),
+                List.of("defaultDataset"),
+                Map.of("default", new ImportConfig("default", List.of("MyModule"), "import", List.of(), List.of())),
+                true,
+                false,
+                "Version_1");
+
+        engine.migrate(database, connection);
+
+        assertThat(driver.calls)
+                .containsSubsequence(
+                        "shouldMigrate(default,001_x)",
+                        "markMigrationAsRun(default,001_x)",
+                        "shouldMigrate(default,002_Release-Version_1)",
+                        "markMigrationAsRun(default,002_Release-Version_1)",
+                        "shouldMigrate(default,003_z)",
+                        "execute(false):M3",
+                        "markMigrationAsRun(default,003_z)");
+        assertThat(driver.calls).doesNotContain("execute(false):M1", "execute(false):M2");
+    }
+
+    @Test
+    void createUsesMigrationRecordModeWhenConfigured(@TempDir final Path tempDir) throws IOException {
+        createFile(tempDir, "db/migrations/001_x.sql", "M1");
+
+        final RecordingDriver driver = new RecordingDriver();
+        final RuntimeEngine engine = new RuntimeEngine(driver, new FileResolver());
+        final RuntimeDatabase database = runtimeDatabase(
+                "default",
+                RepositoryConfigTestData.singleModule(),
+                List.of(tempDir.resolve("db")),
+                Map.of(),
+                List.of("defaultDataset"),
+                Map.of("default", new ImportConfig("default", List.of("MyModule"), "import", List.of(), List.of())),
+                true,
+                true,
+                "1");
+
+        engine.create(database, connection, false);
+
+        assertThat(driver.calls).containsSubsequence("setupMigrations", "markMigrationAsRun(default,001_x)");
+        assertThat(driver.calls).doesNotContain("execute(false):M1", "shouldMigrate(default,001_x)");
     }
 
     private RuntimeDatabase runtimeDatabase(
@@ -417,6 +503,19 @@ final class RuntimeEngineTest {
             final Map<String, ModuleGroupConfig> moduleGroups,
             final List<String> datasets,
             final Map<String, ImportConfig> imports) {
+        return runtimeDatabase(key, repository, searchDirs, moduleGroups, datasets, imports, true, false, "1");
+    }
+
+    private RuntimeDatabase runtimeDatabase(
+            final String key,
+            final RepositoryConfig repository,
+            final List<Path> searchDirs,
+            final Map<String, ModuleGroupConfig> moduleGroups,
+            final List<String> datasets,
+            final Map<String, ImportConfig> imports,
+            final boolean migrationsEnabled,
+            final boolean migrationsAppliedAtCreate,
+            final String version) {
         return new RuntimeDatabase(
                 key,
                 repository,
@@ -434,8 +533,10 @@ final class RuntimeEngineTest {
                 List.of("pre"),
                 List.of("post"),
                 datasets,
-                true,
-                "1",
+                migrationsEnabled,
+                migrationsAppliedAtCreate,
+                "migrations",
+                version,
                 "hash",
                 imports,
                 moduleGroups);
@@ -458,6 +559,7 @@ final class RuntimeEngineTest {
 
     private static final class RecordingDriver implements DbDriver {
         private final List<String> calls = new ArrayList<>();
+        private final Map<String, Boolean> migrateDecision = new LinkedHashMap<>();
 
         @Override
         public void open(final DatabaseConnection connection, final boolean openControlDatabase) {
@@ -538,6 +640,22 @@ final class RuntimeEngineTest {
         public List<String> columnNamesForTable(final String tableName) {
             calls.add("columnNamesForTable(" + tableName + ")");
             return List.of("[ID]");
+        }
+
+        @Override
+        public void setupMigrations() {
+            calls.add("setupMigrations");
+        }
+
+        @Override
+        public boolean shouldMigrate(final String namespace, final String migrationName) {
+            calls.add("shouldMigrate(" + namespace + ',' + migrationName + ")");
+            return migrateDecision.getOrDefault(migrationName, true);
+        }
+
+        @Override
+        public void markMigrationAsRun(final String namespace, final String migrationName) {
+            calls.add("markMigrationAsRun(" + namespace + ',' + migrationName + ")");
         }
     }
 

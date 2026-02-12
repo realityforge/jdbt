@@ -63,6 +63,8 @@ final class RuntimeDatabaseTest {
                 List.of("post"),
                 List.of("seed"),
                 true,
+                false,
+                "migrations",
                 "1",
                 "hash",
                 Map.of("default", new ImportConfig("default", repository.modules(), "import", List.of(), List.of())),

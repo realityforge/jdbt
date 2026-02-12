@@ -37,4 +37,10 @@ public interface DbDriver {
     void postDatabaseImport(ImportConfig importConfig);
 
     List<String> columnNamesForTable(String tableName);
+
+    void setupMigrations();
+
+    boolean shouldMigrate(String namespace, String migrationName);
+
+    void markMigrationAsRun(String namespace, String migrationName);
 }

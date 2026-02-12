@@ -47,6 +47,8 @@ final class RuntimeDatabaseFactoryTest {
         assertThat(runtimeDatabase.searchDirs()).containsExactly(java.nio.file.Path.of("db"));
         assertThat(runtimeDatabase.indexFileName()).isEqualTo("index.txt");
         assertThat(runtimeDatabase.schemaHash()).isEqualTo("hash");
+        assertThat(runtimeDatabase.migrationsAppliedAtCreate()).isTrue();
+        assertThat(runtimeDatabase.migrationsDirName()).isEqualTo("migrations");
         assertThat(runtimeDatabase.imports()).containsKey("default");
         assertThat(runtimeDatabase.moduleGroups()).containsKey("g");
     }
