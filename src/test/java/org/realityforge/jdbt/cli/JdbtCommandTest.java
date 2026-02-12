@@ -1,6 +1,7 @@
 package org.realityforge.jdbt.cli;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
@@ -149,7 +150,9 @@ final class JdbtCommandTest {
 
         assertThat(exitCode).isZero();
         assertThat(runner.lastCall).isEqualTo("create-by-import");
+        assertNotNull(runner.targetConnection);
         assertThat(runner.targetConnection.password()).isEqualTo("target");
+        assertNotNull(runner.sourceConnection);
         assertThat(runner.sourceConnection.password()).isEqualTo("source");
     }
 
