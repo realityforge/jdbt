@@ -135,8 +135,8 @@ tasks:
       - command: ./gradlew clean spotlessCheck check fatJar
         result: pass
     commit:
-      hash: pending
-      message: pending
+      hash: 006aeba
+      message: Implement repository merge semantics with duplicate checks
 
   - id: T06
     title: Implement file resolution and artifact overlay semantics
@@ -216,5 +216,5 @@ history:
     note: Strict jdbt.yml and repository.yml parsing with validation and tests added.
   - timestamp: 2026-02-12
     task: T05
-    commit: pending
+    commit: 006aeba
     note: Repository merge semantics implemented with duplicate-module safety.
