@@ -13,16 +13,16 @@ This matrix tracks parity against Ruby `dbt` implementation and tests.
 
 | Area | Ruby Source | Java Target | Status | Notes |
 | --- | --- | --- | --- | --- |
-| Status command | `runtime.rb#status` | `status` | in_progress | Runtime status implemented; CLI integration pending. |
-| Create command | `runtime.rb#create` | `create` | in_progress | Core orchestration implemented with fixture load support. |
-| Drop command | `runtime.rb#drop` | `drop` | in_progress | Control-connection drop flow implemented. |
-| Migrate command | `runtime.rb#migrate` | `migrate` | in_progress | Runtime migrate flow implemented; CLI wiring and full parity checks pending. |
-| Import command | `runtime.rb#database_import` | `import` | in_progress | Runtime import sequencing and resume behavior implemented; CLI wiring pending. |
-| Create by import | `runtime.rb#create_by_import` | `create-by-import` | in_progress | Runtime flow implemented with resume-aware create-skip semantics. |
-| Load dataset | `runtime.rb#load_dataset` | `load-dataset` | in_progress | Core dataset orchestration implemented; CLI wiring pending. |
-| Module group up/down | `runtime.rb#up_module_group`, `#down_module_group` | `up-module-group`, `down-module-group` | in_progress | Core up/down orchestration implemented with reverse-down semantics. |
+| Status command | `runtime.rb#status` | `status` | in_progress | Runtime flow and CLI wiring implemented; production SQL driver parity pending. |
+| Create command | `runtime.rb#create` | `create` | in_progress | Runtime flow and CLI wiring implemented; production SQL driver parity pending. |
+| Drop command | `runtime.rb#drop` | `drop` | in_progress | Runtime flow and CLI wiring implemented; production SQL driver parity pending. |
+| Migrate command | `runtime.rb#migrate` | `migrate` | in_progress | Runtime flow and CLI wiring implemented; production SQL driver parity pending. |
+| Import command | `runtime.rb#database_import` | `import` | in_progress | Runtime flow and CLI wiring implemented with --resume-at support. |
+| Create by import | `runtime.rb#create_by_import` | `create-by-import` | in_progress | Runtime flow and CLI wiring implemented with resume-aware create-skip semantics. |
+| Load dataset | `runtime.rb#load_dataset` | `load-dataset` | in_progress | Runtime flow and CLI wiring implemented. |
+| Module group up/down | `runtime.rb#up_module_group`, `#down_module_group` | `up-module-group`, `down-module-group` | in_progress | Runtime flow and CLI wiring implemented with reverse-down semantics. |
 | Dump fixtures | `runtime.rb#dump_database_to_fixtures` | `dump-fixtures` | pending | No live DB required in default tests. |
-| Package data | `runtime.rb#package_database_data` | `package-data` | in_progress | Deterministic ZIP writer and package-data assembly implemented; CLI wiring pending. |
+| Package data | `runtime.rb#package_database_data` | `package-data` | in_progress | Deterministic ZIP writer, package-data assembly, and CLI wiring implemented. |
 
 ## Data and File Semantics
 
@@ -30,12 +30,12 @@ This matrix tracks parity against Ruby `dbt` implementation and tests.
 | --- | --- | --- | --- | --- |
 | Project config parsing | `config.rb`, definition classes | `JdbtProjectConfigLoader` | done | Strict key validation and Ruby-compatible defaults model. |
 | Repository config parsing | `repository_definition.rb#from_yaml` | `RepositoryConfigLoader` | done | Supports omap-style list and map-style module declarations. |
-| Repository merge order | `runtime.rb#perform_load_database_config` + `repository_definition.rb#merge!` | Config load pipeline | in_progress | Merge semantics implemented; runtime loading integration pending. |
+| Repository merge order | `runtime.rb#perform_load_database_config` + `repository_definition.rb#merge!` | Config load pipeline | in_progress | Merge semantics implemented and wired into CLI runtime loading pipeline. |
 | Index ordering | `runtime.rb#collect_files` | File resolver | in_progress | Index entries first, then lexical fallback implemented; runtime integration pending. |
 | Duplicate basename rejection | `runtime.rb#collect_files` | File resolver | in_progress | Duplicate basename checks implemented in resolver with diagnostics. |
 | Fixture resolution | `runtime.rb#collect_fixtures_from_dirs` | Fixture loader | in_progress | Strict rejection of unexpected fixture/sql files implemented in resolver. |
 | Import file strictness | `runtime.rb#import` | Import resolver | in_progress | Unknown import files now rejected in runtime resolver; broader parity checks pending. |
-| SQL batch splitting | `runtime.rb#run_sql_batch` | SQL executor | pending | `GO` separator behavior preserved. |
+| SQL batch splitting | `runtime.rb#run_sql_batch` | SQL executor | in_progress | `GO` separator behavior implemented in runtime SQL batch execution. |
 | Migration release-cut behavior | `runtime.rb#perform_migration` | Migration engine | in_progress | Release-boundary skip/mark behavior implemented in runtime migration flow. |
 
 ## Intentional Divergences

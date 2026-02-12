@@ -9,7 +9,7 @@ meta:
     - completed
     - cancelled
 
-current_focus: T11
+current_focus: T12
 
 tasks:
   - id: T01
@@ -269,18 +269,40 @@ tasks:
       - command: ./gradlew clean spotlessCheck check fatJar
         result: pass
     commit:
-      hash: pending
-      message: pending
+      hash: 66f2d08
+      message: Implement deterministic package-data assembly and zip output
 
   - id: T11
     title: Implement CLI commands and argument validation
-    status: pending
+    status: completed
     priority: high
     depends_on:
       - T07
       - T08
       - T09
       - T10
+    acceptance_criteria:
+      - java-style picocli command surface implemented for initial command set
+      - explicit --target-* and --source-* connection options enforced
+      - --password, --password-env, and --password-stdin modes supported
+      - runtime loader resolves jdbt.yml and repository merge semantics for command execution
+      - package-data command wired to deterministic packaging flow
+      - required full gates pass
+    files_touched:
+      - src/main/java/org/realityforge/jdbt/cli/*
+      - src/main/java/org/realityforge/jdbt/db/DbDriverFactory.java
+      - src/main/java/org/realityforge/jdbt/db/NoOpDbDriver.java
+      - src/main/java/org/realityforge/jdbt/cli/JdbtCommand.java
+      - src/test/java/org/realityforge/jdbt/cli/*
+      - src/test/java/org/realityforge/jdbt/db/DbDriverFactoryTest.java
+      - plans/jdbt/20-task-board.yaml
+      - plans/jdbt/30-compatibility-matrix.md
+    evidence:
+      - command: ./gradlew clean spotlessCheck check fatJar
+        result: pass
+    commit:
+      hash: pending
+      message: pending
 
   - id: T12
     title: Final documentation and parity closure
@@ -335,5 +357,9 @@ history:
     note: Migration runtime flow and create-time migration setup implemented.
   - timestamp: 2026-02-12
     task: T10
-    commit: pending
+    commit: 66f2d08
     note: Deterministic package-data assembly and reproducible zip writer implemented.
+  - timestamp: 2026-02-12
+    task: T11
+    commit: pending
+    note: CLI command surface and argument validation integrated with runtime loading.
