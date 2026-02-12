@@ -9,7 +9,7 @@ meta:
     - completed
     - cancelled
 
-current_focus: T04
+current_focus: T05
 
 tasks:
   - id: T01
@@ -90,10 +90,30 @@ tasks:
 
   - id: T04
     title: Implement strict jdbt.yml and repository.yml model parsing
-    status: in_progress
+    status: completed
     priority: high
     depends_on:
       - T03
+    acceptance_criteria:
+      - Parse jdbt.yml with strict unknown-key rejection
+      - Parse repository.yml with strict unknown-key rejection
+      - Apply Ruby-compatible defaults for config model
+      - Validate import and module-group module references against repository modules
+      - required full gates pass
+    files_touched:
+      - src/main/java/org/realityforge/jdbt/config/*
+      - src/main/java/org/realityforge/jdbt/repository/*
+      - src/test/java/org/realityforge/jdbt/config/*
+      - src/test/java/org/realityforge/jdbt/repository/*
+      - build.gradle.kts
+      - plans/jdbt/20-task-board.yaml
+      - plans/jdbt/30-compatibility-matrix.md
+    evidence:
+      - command: ./gradlew clean spotlessCheck check fatJar
+        result: pass
+    commit:
+      hash: e1edd4b
+      message: Add strict YAML loaders for project and repository config
 
   - id: T05
     title: Implement repository merge and ordering semantics
@@ -174,3 +194,7 @@ history:
     task: T03
     commit: 07ff3f3
     note: Planning artifacts and AGENTS workflow constraints added.
+  - timestamp: 2026-02-12
+    task: T04
+    commit: e1edd4b
+    note: Strict jdbt.yml and repository.yml parsing with validation and tests added.
