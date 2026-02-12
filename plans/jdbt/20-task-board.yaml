@@ -698,6 +698,28 @@ tasks:
       hash: 70cad5f
       message: Prefer var for local declarations where viable
 
+  - id: T25
+    title: Enable Picnic JUnitClassModifiers and disable StaticImport noise
+    status: completed
+    priority: low
+    depends_on:
+      - T24
+    acceptance_criteria:
+      - Picnic Error Prone contrib dependency is added with a version compatible with Error Prone 2.31.0
+      - JUnitClassModifiers is enabled as an error-level check
+      - StaticImport check is disabled to avoid non-actionable style diagnostics
+      - compile and required full gates pass with the checker enabled
+    files_touched:
+      - build.gradle.kts
+      - plans/jdbt/10-implementation-plan.md
+      - plans/jdbt/20-task-board.yaml
+    evidence:
+      - command: ./gradlew clean spotlessCheck check fatJar
+        result: pass
+    commit:
+      hash: pending
+      message: Enable Picnic JUnitClassModifiers and disable StaticImport
+
 history:
   - timestamp: 2026-02-12
     task: T01
@@ -795,3 +817,7 @@ history:
     task: T24
     commit: 70cad5f
     note: Refactored local declarations to prefer var while preserving type inference safety.
+  - timestamp: 2026-02-12
+    task: T25
+    commit: pending
+    note: Added Picnic Error Prone contrib, enabled JUnitClassModifiers, and disabled StaticImport diagnostics.

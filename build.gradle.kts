@@ -30,6 +30,7 @@ dependencies {
 
   errorprone("com.google.errorprone:error_prone_core:2.31.0")
   errorprone("com.uber.nullaway:nullaway:0.10.26")
+  errorprone("tech.picnic.error-prone-support:error-prone-contrib:0.20.0")
 
   testImplementation(platform("org.junit:junit-bom:5.13.4"))
   testImplementation("org.junit.jupiter:junit-jupiter")
@@ -86,6 +87,7 @@ val strictErrorProneChecks = listOf(
   "ClassName",
   "UnusedMethod",
   "UseCorrectAssertInTests",
+  "JUnitClassModifiers",
   "UnnecessaryTestMethodPrefix",
   "ImplementAssertionWithChaining",
   "MockitoDoSetup",
@@ -141,6 +143,7 @@ tasks.withType<JavaCompile>().configureEach {
   options.release.set(17)
   options.errorprone.disableWarningsInGeneratedCode.set(true)
   strictErrorProneChecks.forEach { check -> options.errorprone.error(check) }
+  options.errorprone.disable("StaticImport")
   if (name == "compileJava") {
     options.errorprone.error("NullAway")
     options.errorprone.option("NullAway:AnnotatedPackages", "org.realityforge.jdbt")
