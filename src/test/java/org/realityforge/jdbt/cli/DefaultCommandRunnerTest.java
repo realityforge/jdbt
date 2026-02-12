@@ -12,6 +12,10 @@ import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.realityforge.jdbt.db.DatabaseConnection;
+import org.realityforge.jdbt.db.DbDriver;
+import org.realityforge.jdbt.db.DbDriverFactory;
+import org.realityforge.jdbt.db.NoOpDbDriver;
+import org.realityforge.jdbt.files.FileResolver;
 import org.realityforge.jdbt.runtime.RuntimeExecutionException;
 
 final class DefaultCommandRunnerTest {
@@ -23,7 +27,7 @@ final class DefaultCommandRunnerTest {
         writeFile(tempDir, "jdbt.yml", projectConfig(true));
         writeFile(tempDir, "db/repository.yml", repositoryConfig());
 
-        final DefaultCommandRunner runner = new DefaultCommandRunner(new ProjectRuntimeLoader(tempDir));
+        final DefaultCommandRunner runner = createRunner(tempDir);
 
         final PrintStream originalOut = System.out;
         final ByteArrayOutputStream output = new ByteArrayOutputStream();
@@ -34,14 +38,14 @@ final class DefaultCommandRunnerTest {
             System.setOut(originalOut);
         }
 
-        runner.create("default", "sqlserver", target, true);
-        runner.drop("default", "sqlserver", target);
-        runner.migrate("default", "sqlserver", target);
-        runner.databaseImport("default", "sqlserver", null, null, target, source, null);
-        runner.createByImport("default", "sqlserver", null, target, source, null, true);
-        runner.loadDataset("default", "sqlserver", "seed", target);
-        runner.upModuleGroup("default", "sqlserver", "all", target);
-        runner.downModuleGroup("default", "sqlserver", "all", target);
+        runner.create("default", "noop", target, true);
+        runner.drop("default", "noop", target);
+        runner.migrate("default", "noop", target);
+        runner.databaseImport("default", "noop", null, null, target, source, null);
+        runner.createByImport("default", "noop", null, target, source, null, true);
+        runner.loadDataset("default", "noop", "seed", target);
+        runner.upModuleGroup("default", "noop", "all", target);
+        runner.downModuleGroup("default", "noop", "all", target);
 
         assertThat(output.toString(StandardCharsets.UTF_8))
                 .contains("Database Version")
@@ -54,7 +58,7 @@ final class DefaultCommandRunnerTest {
         writeFile(tempDir, "db/repository.yml", repositoryConfig());
         writeFile(tempDir, "db/MyModule/a.sql", "SELECT 1");
 
-        final DefaultCommandRunner runner = new DefaultCommandRunner(new ProjectRuntimeLoader(tempDir));
+        final DefaultCommandRunner runner = createRunner(tempDir);
         final Path output = tempDir.resolve("out.zip");
         runner.packageData("default", output);
 
@@ -66,7 +70,7 @@ final class DefaultCommandRunnerTest {
     void dumpFixturesIsNotYetImplemented(@TempDir final Path tempDir) throws IOException {
         writeFile(tempDir, "jdbt.yml", projectConfig(false));
         writeFile(tempDir, "db/repository.yml", repositoryConfig());
-        final DefaultCommandRunner runner = new DefaultCommandRunner(new ProjectRuntimeLoader(tempDir));
+        final DefaultCommandRunner runner = createRunner(tempDir);
 
         assertThatThrownBy(() -> runner.dumpFixtures("default", "sqlserver", target))
                 .isInstanceOf(RuntimeExecutionException.class)
@@ -77,7 +81,7 @@ final class DefaultCommandRunnerTest {
     void databaseImportRequiresDefaultImportWhenImportNotProvided(@TempDir final Path tempDir) throws IOException {
         writeFile(tempDir, "jdbt.yml", projectConfigWithoutImports());
         writeFile(tempDir, "db/repository.yml", repositoryConfig());
-        final DefaultCommandRunner runner = new DefaultCommandRunner(new ProjectRuntimeLoader(tempDir));
+        final DefaultCommandRunner runner = createRunner(tempDir);
 
         assertThatThrownBy(() -> runner.databaseImport("default", "sqlserver", null, null, target, source, null))
                 .isInstanceOf(RuntimeExecutionException.class)
@@ -130,5 +134,16 @@ final class DefaultCommandRunnerTest {
         final Path file = root.resolve(relativePath);
         Files.createDirectories(file.getParent());
         Files.writeString(file, content, StandardCharsets.UTF_8);
+    }
+
+    private DefaultCommandRunner createRunner(final Path tempDir) {
+        return new DefaultCommandRunner(new ProjectRuntimeLoader(tempDir), new TestDriverFactory(), new FileResolver());
+    }
+
+    private static final class TestDriverFactory extends DbDriverFactory {
+        @Override
+        public DbDriver create(final String driver) {
+            return new NoOpDbDriver();
+        }
     }
 }

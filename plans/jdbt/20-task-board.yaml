@@ -9,7 +9,7 @@ meta:
     - completed
     - cancelled
 
-current_focus: T12
+current_focus: T13
 
 tasks:
   - id: T01
@@ -301,15 +301,35 @@ tasks:
       - command: ./gradlew clean spotlessCheck check fatJar
         result: pass
     commit:
-      hash: pending
-      message: pending
+      hash: dda8caa
+      message: Integrate CLI command surface with runtime loading
 
   - id: T12
     title: Final documentation and parity closure
-    status: pending
+    status: completed
     priority: high
     depends_on:
       - T11
+    acceptance_criteria:
+      - SQL Server driver implementation added for runtime execution path
+      - CLI/runtime matrix updated to reflect delivered command and data semantics
+      - task board and evidence records aligned with completed steps
+      - required full gates pass
+    files_touched:
+      - build.gradle.kts
+      - src/main/java/org/realityforge/jdbt/db/DbDriverFactory.java
+      - src/main/java/org/realityforge/jdbt/db/SqlServerDbDriver.java
+      - src/test/java/org/realityforge/jdbt/db/SqlServerDbDriverTest.java
+      - src/test/java/org/realityforge/jdbt/db/DbDriverFactoryTest.java
+      - src/test/java/org/realityforge/jdbt/cli/DefaultCommandRunnerTest.java
+      - plans/jdbt/20-task-board.yaml
+      - plans/jdbt/30-compatibility-matrix.md
+    evidence:
+      - command: ./gradlew clean spotlessCheck check fatJar
+        result: pass
+    commit:
+      hash: pending
+      message: pending
 
   - id: T13
     title: Add PostgreSQL support in phase 2
@@ -361,5 +381,9 @@ history:
     note: Deterministic package-data assembly and reproducible zip writer implemented.
   - timestamp: 2026-02-12
     task: T11
-    commit: pending
+    commit: dda8caa
     note: CLI command surface and argument validation integrated with runtime loading.
+  - timestamp: 2026-02-12
+    task: T12
+    commit: pending
+    note: SQL Server execution driver and compatibility closure updates completed.

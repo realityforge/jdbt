@@ -25,6 +25,7 @@ dependencies {
   implementation("info.picocli:picocli:4.7.7")
   implementation("org.snakeyaml:snakeyaml-engine:2.10")
   implementation("org.jspecify:jspecify:1.0.0")
+  implementation("com.microsoft.sqlserver:mssql-jdbc:12.8.1.jre11")
 
   errorprone("com.google.errorprone:error_prone_core:2.31.0")
   errorprone("com.uber.nullaway:nullaway:0.10.26")

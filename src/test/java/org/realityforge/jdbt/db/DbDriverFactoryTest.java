@@ -13,8 +13,13 @@ import org.realityforge.jdbt.runtime.RuntimeDatabase;
 final class DbDriverFactoryTest {
     @Test
     void createsSqlServerDriver() {
-        assertThat(new DbDriverFactory().create("sqlserver")).isInstanceOf(NoOpDbDriver.class);
-        assertThat(new DbDriverFactory().create("SQLSERVER")).isInstanceOf(NoOpDbDriver.class);
+        assertThat(new DbDriverFactory().create("sqlserver")).isInstanceOf(SqlServerDbDriver.class);
+        assertThat(new DbDriverFactory().create("SQLSERVER")).isInstanceOf(SqlServerDbDriver.class);
+    }
+
+    @Test
+    void createsNoOpDriverForInternalTesting() {
+        assertThat(new DbDriverFactory().create("noop")).isInstanceOf(NoOpDbDriver.class);
     }
 
     @Test
