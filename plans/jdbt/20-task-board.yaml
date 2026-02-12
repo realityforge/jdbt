@@ -464,8 +464,8 @@ tasks:
       - command: ./gradlew clean spotlessCheck check fatJar
         result: pass
     commit:
-      hash: pending
-      message: pending
+      hash: c41e6dc
+      message: Add reusable skill for structured delivery workflow
 
 history:
   - timestamp: 2026-02-12
@@ -534,5 +534,5 @@ history:
     note: Removed top-level defaults key from jdbt.yml and switched to hardcoded defaults.
   - timestamp: 2026-02-12
     task: T17
-    commit: pending
+    commit: c41e6dc
     note: Published reusable Agent Skill for structured delivery workflow.
