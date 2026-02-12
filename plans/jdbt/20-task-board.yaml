@@ -442,6 +442,31 @@ tasks:
       hash: 373c3e1
       message: Remove top-level defaults from jdbt config
 
+  - id: T17
+    title: Publish reusable Agent Skill for delivery workflow
+    status: completed
+    priority: medium
+    depends_on:
+      - T14
+      - T16
+    acceptance_criteria:
+      - skill follows Agent Skills SKILL.md frontmatter/body format
+      - skill captures structured requirements/plan/task-board workflow
+      - skill includes templates for feature deep dives and fine-grained task planning
+      - planning artifacts updated to reflect reusable workflow publication
+      - required full gates pass
+    files_touched:
+      - skills/structured-delivery-workflow/SKILL.md
+      - skills/structured-delivery-workflow/references/*
+      - plans/jdbt/10-implementation-plan.md
+      - plans/jdbt/20-task-board.yaml
+    evidence:
+      - command: ./gradlew clean spotlessCheck check fatJar
+        result: pass
+    commit:
+      hash: pending
+      message: pending
+
 history:
   - timestamp: 2026-02-12
     task: T01
@@ -507,3 +532,7 @@ history:
     task: T16
     commit: 373c3e1
     note: Removed top-level defaults key from jdbt.yml and switched to hardcoded defaults.
+  - timestamp: 2026-02-12
+    task: T17
+    commit: pending
+    note: Published reusable Agent Skill for structured delivery workflow.

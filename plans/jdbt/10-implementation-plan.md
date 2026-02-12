@@ -17,6 +17,7 @@
 13. PostgreSQL support (Phase 2).
 14. End-user documentation (`README.md` and usage guide).
 15. Remove top-level `defaults` from `jdbt.yml`; use hardcoded runtime defaults.
+16. Publish reusable Agent Skill for the delivery workflow.
 
 ## Delivery Approach
 
