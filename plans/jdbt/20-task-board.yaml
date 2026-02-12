@@ -187,8 +187,8 @@ tasks:
       - command: ./gradlew clean spotlessCheck check fatJar
         result: pass
     commit:
-      hash: pending
-      message: pending
+      hash: bad3ca8
+      message: Implement core runtime orchestration and driver abstraction
 
   - id: T08
     title: Implement import flow and --resume-at behavior
@@ -262,5 +262,5 @@ history:
     note: File resolution and artifact overlay semantics implemented with strict validation.
   - timestamp: 2026-02-12
     task: T07
-    commit: pending
+    commit: bad3ca8
     note: Runtime core orchestration implemented with no-DB execution tests.
