@@ -588,7 +588,7 @@ tasks:
       - command: ./gradlew clean spotlessCheck check fatJar
         result: pass
     commit:
-      hash: pending
+      hash: 1050d71
       message: Enable requested Error Prone checks and fix violations
 
 history:
@@ -674,5 +674,5 @@ history:
     note: Added package-level NullMarked annotations to all test packages.
   - timestamp: 2026-02-12
     task: T21
-    commit: pending
+    commit: 1050d71
     note: Enabled requested Error Prone checks and remediated production and test findings.
