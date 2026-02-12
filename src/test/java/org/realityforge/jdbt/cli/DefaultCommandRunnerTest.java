@@ -25,7 +25,7 @@ final class DefaultCommandRunnerTest {
     @Test
     void statusCreateDropMigrateImportAndGroupCommandsExecute(@TempDir final Path tempDir) throws IOException {
         writeFile(tempDir, "jdbt.yml", projectConfig(true));
-        writeFile(tempDir, "db/repository.yml", repositoryConfig());
+        writeFile(tempDir, "repository.yml", repositoryConfig());
 
         final DefaultCommandRunner runner = createRunner(tempDir);
 
@@ -55,8 +55,8 @@ final class DefaultCommandRunnerTest {
     @Test
     void packageDataWritesZipOutput(@TempDir final Path tempDir) throws IOException {
         writeFile(tempDir, "jdbt.yml", projectConfig(false));
-        writeFile(tempDir, "db/repository.yml", repositoryConfig());
-        writeFile(tempDir, "db/MyModule/a.sql", "SELECT 1");
+        writeFile(tempDir, "repository.yml", repositoryConfig());
+        writeFile(tempDir, "MyModule/a.sql", "SELECT 1");
 
         final DefaultCommandRunner runner = createRunner(tempDir);
         final Path output = tempDir.resolve("out.zip");
@@ -69,7 +69,7 @@ final class DefaultCommandRunnerTest {
     @Test
     void dumpFixturesIsNotYetImplemented(@TempDir final Path tempDir) throws IOException {
         writeFile(tempDir, "jdbt.yml", projectConfig(false));
-        writeFile(tempDir, "db/repository.yml", repositoryConfig());
+        writeFile(tempDir, "repository.yml", repositoryConfig());
         final DefaultCommandRunner runner = createRunner(tempDir);
 
         assertThatThrownBy(() -> runner.dumpFixtures("default", "sqlserver", target))
@@ -80,7 +80,7 @@ final class DefaultCommandRunnerTest {
     @Test
     void databaseImportRequiresDefaultImportWhenImportNotProvided(@TempDir final Path tempDir) throws IOException {
         writeFile(tempDir, "jdbt.yml", projectConfigWithoutImports());
-        writeFile(tempDir, "db/repository.yml", repositoryConfig());
+        writeFile(tempDir, "repository.yml", repositoryConfig());
         final DefaultCommandRunner runner = createRunner(tempDir);
 
         assertThatThrownBy(() -> runner.databaseImport("default", "sqlserver", null, null, target, source, null))
@@ -92,7 +92,6 @@ final class DefaultCommandRunnerTest {
         return """
             databases:
               default:
-                searchDirs: [db]
                 datasets: [seed]
                 migrations: %s
                 imports:
@@ -108,7 +107,6 @@ final class DefaultCommandRunnerTest {
         return """
             databases:
               default:
-                searchDirs: [db]
                 datasets: [seed]
                 imports: {}
                 moduleGroups:

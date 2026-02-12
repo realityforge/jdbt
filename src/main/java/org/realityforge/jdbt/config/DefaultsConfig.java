@@ -4,7 +4,6 @@ import java.util.List;
 import org.jspecify.annotations.Nullable;
 
 public record DefaultsConfig(
-        List<String> searchDirs,
         List<String> upDirs,
         List<String> downDirs,
         List<String> finalizeDirs,
@@ -23,7 +22,6 @@ public record DefaultsConfig(
         String defaultImport) {
 
     public DefaultsConfig {
-        searchDirs = List.copyOf(searchDirs);
         upDirs = List.copyOf(upDirs);
         downDirs = List.copyOf(downDirs);
         finalizeDirs = List.copyOf(finalizeDirs);
@@ -37,7 +35,6 @@ public record DefaultsConfig(
 
     public static DefaultsConfig rubyCompatibleDefaults() {
         return new DefaultsConfig(
-                List.of(),
                 List.of(".", "types", "views", "functions", "stored-procedures", "misc"),
                 List.of("down"),
                 List.of("triggers", "finalize"),
@@ -57,7 +54,6 @@ public record DefaultsConfig(
     }
 
     public DefaultsConfig merge(
-            final @Nullable List<String> searchDirs,
             final @Nullable List<String> upDirs,
             final @Nullable List<String> downDirs,
             final @Nullable List<String> finalizeDirs,
@@ -75,7 +71,6 @@ public record DefaultsConfig(
             final @Nullable String defaultDatabase,
             final @Nullable String defaultImport) {
         return new DefaultsConfig(
-                searchDirs == null ? this.searchDirs : searchDirs,
                 upDirs == null ? this.upDirs : upDirs,
                 downDirs == null ? this.downDirs : downDirs,
                 finalizeDirs == null ? this.finalizeDirs : finalizeDirs,

@@ -15,11 +15,12 @@ public final class RuntimeDatabaseFactory {
             final RepositoryConfig repository,
             final List<ArtifactContent> preDbArtifacts,
             final List<ArtifactContent> postDbArtifacts,
-            final @Nullable String schemaHash) {
+            final @Nullable String schemaHash,
+            final Path searchDirectory) {
         return new RuntimeDatabase(
                 database.key(),
                 repository,
-                database.searchDirs().stream().map(Path::of).toList(),
+                List.of(searchDirectory),
                 preDbArtifacts,
                 postDbArtifacts,
                 defaults.indexFileName(),

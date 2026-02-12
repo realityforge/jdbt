@@ -35,7 +35,7 @@ java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar --help
 ## Quick start
 
 1. Create `jdbt.yml` in the working directory.
-2. Create `repository.yml` in the base directory of your configured `searchDirs`.
+2. Create `repository.yml` in the same directory as `jdbt.yml`.
 3. Arrange module SQL/YAML files under your database layout.
 4. Run a command, for example:
 
@@ -50,7 +50,6 @@ java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar status --database default
 ```yaml
 databases:
   default:
-    searchDirs: [db]
     migrations: true
     datasets: [seed]
     imports:
@@ -84,5 +83,6 @@ modules:
 
 - Configuration file name is fixed: `jdbt.yml`.
 - Top-level `defaults` is not supported in `jdbt.yml`; runtime defaults are hardcoded.
+- `searchDirs` is not configurable; jdbt always searches from the directory containing `jdbt.yml`.
 - There is no template processing in configs or fixture files.
 - Import resume uses `--resume-at` (not environment variables).

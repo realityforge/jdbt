@@ -45,7 +45,6 @@ public final class JdbtProjectConfigLoader {
         YamlMapSupport.assertKeys(
                 body,
                 Set.of(
-                        "searchDirs",
                         "upDirs",
                         "downDirs",
                         "finalizeDirs",
@@ -67,12 +66,6 @@ public final class JdbtProjectConfigLoader {
                         "moduleGroups"),
                 path);
 
-        final List<String> searchDirs =
-                YamlMapSupport.optionalStringList(body, "searchDirs", path, defaults.searchDirs());
-        if (searchDirs.isEmpty()) {
-            throw new ConfigException("Database '" + key + "' must define non-empty searchDirs.");
-        }
-
         final @Nullable Boolean migrationsValue = YamlMapSupport.optionalBoolean(body, "migrations", path);
         final boolean migrations = migrationsValue != null && migrationsValue;
         final @Nullable Boolean migrationsAppliedAtCreate =
@@ -83,7 +76,6 @@ public final class JdbtProjectConfigLoader {
 
         return new DatabaseConfig(
                 key,
-                searchDirs,
                 YamlMapSupport.optionalStringList(body, "upDirs", path, defaults.upDirs()),
                 YamlMapSupport.optionalStringList(body, "downDirs", path, defaults.downDirs()),
                 YamlMapSupport.optionalStringList(body, "finalizeDirs", path, defaults.finalizeDirs()),

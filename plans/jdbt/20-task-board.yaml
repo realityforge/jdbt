@@ -491,6 +491,42 @@ tasks:
       hash: f37f841
       message: Add standalone packaging for workflow skill
 
+  - id: T19
+    title: Remove configurable searchDirs from project config
+    status: completed
+    priority: medium
+    depends_on:
+      - T16
+    acceptance_criteria:
+      - jdbt.yml rejects searchDirs settings
+      - search root is fixed to directory containing jdbt.yml
+      - runtime loader and config tests validate fixed search directory behavior
+      - README and user guide reflect new config contract
+      - required full gates pass
+    files_touched:
+      - src/main/java/org/realityforge/jdbt/config/DefaultsConfig.java
+      - src/main/java/org/realityforge/jdbt/config/DatabaseConfig.java
+      - src/main/java/org/realityforge/jdbt/config/JdbtProjectConfigLoader.java
+      - src/main/java/org/realityforge/jdbt/cli/ProjectRuntimeLoader.java
+      - src/main/java/org/realityforge/jdbt/runtime/RuntimeDatabaseFactory.java
+      - src/test/java/org/realityforge/jdbt/config/DefaultsConfigTest.java
+      - src/test/java/org/realityforge/jdbt/config/JdbtProjectConfigLoaderTest.java
+      - src/test/java/org/realityforge/jdbt/cli/ProjectRuntimeLoaderTest.java
+      - src/test/java/org/realityforge/jdbt/cli/DefaultCommandRunnerTest.java
+      - src/test/java/org/realityforge/jdbt/runtime/RuntimeDatabaseFactoryTest.java
+      - README.md
+      - docs/user-guide.md
+      - plans/jdbt/00-requirements.md
+      - plans/jdbt/10-implementation-plan.md
+      - plans/jdbt/20-task-board.yaml
+      - plans/jdbt/30-compatibility-matrix.md
+    evidence:
+      - command: ./gradlew clean spotlessCheck check fatJar
+        result: pass
+    commit:
+      hash: pending
+      message: pending
+
 history:
   - timestamp: 2026-02-12
     task: T01
@@ -564,3 +600,7 @@ history:
     task: T18
     commit: f37f841
     note: Added standalone skill packaging utility and adoption guide.
+  - timestamp: 2026-02-12
+    task: T19
+    commit: pending
+    note: Removed searchDirs config and fixed search root to jdbt.yml directory.

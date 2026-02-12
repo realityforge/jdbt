@@ -54,7 +54,7 @@ public final class ProjectRuntimeLoader {
 
         final List<ArtifactContent> preDbArtifacts = loadArtifacts(bootstrapDatabase.preDbArtifacts());
         final List<ArtifactContent> postDbArtifacts = loadArtifacts(bootstrapDatabase.postDbArtifacts());
-        final RepositoryConfig repository = loadRepository(bootstrapDatabase, preDbArtifacts, postDbArtifacts);
+        final RepositoryConfig repository = loadRepository(preDbArtifacts, postDbArtifacts);
         final JdbtProjectConfig projectConfig = projectConfigLoader.load(projectYaml, PROJECT_CONFIG_FILE, repository);
         final DatabaseConfig database = projectConfig.databases().get(databaseKey);
         if (null == database) {
@@ -70,7 +70,8 @@ public final class ProjectRuntimeLoader {
                 repository,
                 resolvedPreDbArtifacts,
                 resolvedPostDbArtifacts,
-                schemaHash(repository));
+                schemaHash(repository),
+                baseDirectory);
         return new LoadedRuntime(runtimeDatabase, projectConfig.defaults());
     }
 
@@ -93,16 +94,11 @@ public final class ProjectRuntimeLoader {
             }
             final String path = PROJECT_CONFIG_FILE + ".databases." + key;
             final Map<String, Object> databaseNode = YamlMapSupport.toStringMap(body, path);
-            final List<String> searchDirs =
-                    YamlMapSupport.optionalStringList(databaseNode, "searchDirs", path, defaults.searchDirs());
-            if (searchDirs.isEmpty()) {
-                throw new ConfigException("Database '" + key + "' must define non-empty searchDirs.");
-            }
             final List<String> preDbArtifacts =
                     YamlMapSupport.optionalStringList(databaseNode, "preDbArtifacts", path, List.of());
             final List<String> postDbArtifacts =
                     YamlMapSupport.optionalStringList(databaseNode, "postDbArtifacts", path, List.of());
-            databases.put(key, new BootstrapDatabase(searchDirs, preDbArtifacts, postDbArtifacts));
+            databases.put(key, new BootstrapDatabase(preDbArtifacts, postDbArtifacts));
         }
 
         return new BootstrapProject(defaults.defaultDatabase(), Map.copyOf(databases));
@@ -113,11 +109,9 @@ public final class ProjectRuntimeLoader {
     }
 
     private RepositoryConfig loadRepository(
-            final BootstrapDatabase bootstrapDatabase,
-            final List<ArtifactContent> preDbArtifacts,
-            final List<ArtifactContent> postDbArtifacts) {
+            final List<ArtifactContent> preDbArtifacts, final List<ArtifactContent> postDbArtifacts) {
         final List<RepositoryConfig> preRepositories = repositoryFromArtifacts(preDbArtifacts, "preDbArtifacts");
-        final RepositoryConfig localRepository = repositoryFromDisk(bootstrapDatabase.searchDirs());
+        final RepositoryConfig localRepository = repositoryFromDisk();
         final List<RepositoryConfig> postRepositories = repositoryFromArtifacts(postDbArtifacts, "postDbArtifacts");
         final RepositoryConfig repository =
                 repositoryConfigMerger.merge(preRepositories, localRepository, postRepositories);
@@ -128,22 +122,11 @@ public final class ProjectRuntimeLoader {
         return repository;
     }
 
-    private RepositoryConfig repositoryFromDisk(final List<String> searchDirs) {
-        final List<Path> candidates = new ArrayList<>();
-        for (final String searchDir : searchDirs) {
-            final Path candidate = resolvePath(searchDir).resolve(REPOSITORY_CONFIG_FILE);
-            if (Files.exists(candidate)) {
-                candidates.add(candidate);
-            }
-        }
-        if (candidates.size() > 1) {
-            throw new ConfigException(
-                    "Duplicate copies of " + REPOSITORY_CONFIG_FILE + " found in database search path");
-        }
-        if (candidates.isEmpty()) {
+    private RepositoryConfig repositoryFromDisk() {
+        final Path repositoryFile = baseDirectory.resolve(REPOSITORY_CONFIG_FILE);
+        if (!Files.exists(repositoryFile)) {
             return new RepositoryConfig(List.of(), Map.of(), Map.of(), Map.of());
         }
-        final Path repositoryFile = candidates.get(0);
         return repositoryConfigLoader.load(readFile(repositoryFile), repositoryFile.toString());
     }
 
@@ -209,10 +192,8 @@ public final class ProjectRuntimeLoader {
 
     private record BootstrapProject(String defaultDatabase, Map<String, BootstrapDatabase> databases) {}
 
-    private record BootstrapDatabase(
-            List<String> searchDirs, List<String> preDbArtifacts, List<String> postDbArtifacts) {
+    private record BootstrapDatabase(List<String> preDbArtifacts, List<String> postDbArtifacts) {
         private BootstrapDatabase {
-            searchDirs = List.copyOf(searchDirs);
             preDbArtifacts = List.copyOf(preDbArtifacts);
             postDbArtifacts = List.copyOf(postDbArtifacts);
         }

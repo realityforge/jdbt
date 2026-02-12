@@ -19,11 +19,10 @@ final class ProjectRuntimeLoaderTest {
         writeFile(tempDir, "jdbt.yml", """
                 databases:
                   default:
-                    searchDirs: [db]
                     preDbArtifacts: [pre.zip]
                     postDbArtifacts: [post.zip]
                 """);
-        writeFile(tempDir, "db/repository.yml", """
+        writeFile(tempDir, "repository.yml", """
                 modules:
                   Local:
                     tables: ["[Local].[tbl]"]
@@ -51,38 +50,31 @@ final class ProjectRuntimeLoaderTest {
     }
 
     @Test
-    void loadRejectsDuplicateRepositoryFilesInSearchPath(@TempDir final Path tempDir) throws IOException {
+    void loadRejectsSearchDirsSetting(@TempDir final Path tempDir) throws IOException {
         writeFile(tempDir, "jdbt.yml", """
                 databases:
                   default:
-                    searchDirs: [dbA, dbB]
+                    searchDirs: [db]
                 """);
-        writeFile(tempDir, "dbA/repository.yml", """
+        writeFile(tempDir, "repository.yml", """
                 modules:
                   A:
-                    tables: []
-                    sequences: []
-                """);
-        writeFile(tempDir, "dbB/repository.yml", """
-                modules:
-                  B:
                     tables: []
                     sequences: []
                 """);
 
         assertThatThrownBy(() -> new ProjectRuntimeLoader(tempDir).load(null))
                 .isInstanceOf(ConfigException.class)
-                .hasMessageContaining("Duplicate copies of repository.yml");
+                .hasMessageContaining("Unknown key 'searchDirs'");
     }
 
     @Test
     void loadUsesHardcodedDefaultDatabaseKey(@TempDir final Path tempDir) throws IOException {
         writeFile(tempDir, "jdbt.yml", """
                 databases:
-                  default:
-                    searchDirs: [db]
+                  default: {}
                 """);
-        writeFile(tempDir, "db/repository.yml", """
+        writeFile(tempDir, "repository.yml", """
                 modules:
                   A:
                     tables: []
@@ -91,16 +83,16 @@ final class ProjectRuntimeLoaderTest {
 
         final ProjectRuntimeLoader.LoadedRuntime runtime = new ProjectRuntimeLoader(tempDir).load(null);
         assertThat(runtime.database().key()).isEqualTo("default");
+        assertThat(runtime.database().searchDirs()).containsExactly(tempDir);
     }
 
     @Test
     void loadFailsWhenHardcodedDefaultDatabaseKeyMissing(@TempDir final Path tempDir) throws IOException {
         writeFile(tempDir, "jdbt.yml", """
                 databases:
-                  custom:
-                    searchDirs: [db]
+                  custom: {}
                 """);
-        writeFile(tempDir, "db/repository.yml", """
+        writeFile(tempDir, "repository.yml", """
                 modules:
                   A:
                     tables: []
@@ -117,10 +109,9 @@ final class ProjectRuntimeLoaderTest {
         writeFile(tempDir, "jdbt.yml", """
                 databases:
                   default:
-                    searchDirs: [db]
                     preDbArtifacts: [pre.zip]
                 """);
-        writeFile(tempDir, "db/repository.yml", """
+        writeFile(tempDir, "repository.yml", """
                 modules:
                   A:
                     tables: []

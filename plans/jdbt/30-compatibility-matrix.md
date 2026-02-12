@@ -28,7 +28,7 @@ This matrix tracks parity against Ruby `dbt` implementation and tests.
 
 | Area | Ruby Source | Java Target | Status | Notes |
 | --- | --- | --- | --- | --- |
-| Project config parsing | `config.rb`, definition classes | `JdbtProjectConfigLoader` | done | Strict key validation with hardcoded runtime defaults (no top-level `defaults` key). |
+| Project config parsing | `config.rb`, definition classes | `JdbtProjectConfigLoader` | done | Strict key validation with hardcoded runtime defaults (no top-level `defaults`, no `searchDirs` setting). |
 | Repository config parsing | `repository_definition.rb#from_yaml` | `RepositoryConfigLoader` | done | Supports omap-style list and map-style module declarations. |
 | Repository merge order | `runtime.rb#perform_load_database_config` + `repository_definition.rb#merge!` | Config load pipeline | done | Merge semantics implemented and wired into CLI runtime loading pipeline. |
 | Index ordering | `runtime.rb#collect_files` | File resolver | done | Index entries first with lexical fallback and runtime integration implemented. |
@@ -56,3 +56,4 @@ This matrix tracks parity against Ruby `dbt` implementation and tests.
 | Backup/restore command surface | Optional Ruby tasks | Excluded from initial Java delivery | intentional_divergence | Candidate future scope if requested. |
 | PostgreSQL cross-database standard import | SQL Server style cross-db default import SQL | Explicit import SQL required | intentional_divergence | PostgreSQL does not support cross-database table access without extensions. |
 | Config defaults declaration | Top-level `defaults` in `config.rb` | Hardcoded runtime defaults | intentional_divergence | `jdbt.yml` only accepts top-level `databases`. |
+| Search directory selection | Configurable `search_dirs` in Ruby config | Fixed to `jdbt.yml` directory | intentional_divergence | Java resolves all relative paths from the project config directory. |

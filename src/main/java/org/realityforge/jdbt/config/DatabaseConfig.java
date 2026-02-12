@@ -6,7 +6,6 @@ import org.jspecify.annotations.Nullable;
 
 public record DatabaseConfig(
         String key,
-        List<String> searchDirs,
         List<String> upDirs,
         List<String> downDirs,
         List<String> finalizeDirs,
@@ -28,7 +27,6 @@ public record DatabaseConfig(
         Map<String, ModuleGroupConfig> moduleGroups) {
 
     public DatabaseConfig {
-        searchDirs = List.copyOf(searchDirs);
         upDirs = List.copyOf(upDirs);
         downDirs = List.copyOf(downDirs);
         finalizeDirs = List.copyOf(finalizeDirs);

@@ -19,7 +19,6 @@ final class RuntimeDatabaseFactoryTest {
                 List.of("Core"), Map.of(), Map.of("Core", List.of("[Core].[tblA]")), Map.of("Core", List.of()));
         final DatabaseConfig database = new DatabaseConfig(
                 "default",
-                List.of("db"),
                 List.of("."),
                 List.of("down"),
                 List.of("finalize"),
@@ -41,10 +40,16 @@ final class RuntimeDatabaseFactoryTest {
                 Map.of("g", new ModuleGroupConfig("g", List.of("Core"), false)));
 
         final RuntimeDatabase runtimeDatabase = factory.from(
-                database, DefaultsConfig.rubyCompatibleDefaults(), repository, List.of(), List.of(), "hash");
+                database,
+                DefaultsConfig.rubyCompatibleDefaults(),
+                repository,
+                List.of(),
+                List.of(),
+                "hash",
+                java.nio.file.Path.of("dbRoot"));
 
         assertThat(runtimeDatabase.key()).isEqualTo("default");
-        assertThat(runtimeDatabase.searchDirs()).containsExactly(java.nio.file.Path.of("db"));
+        assertThat(runtimeDatabase.searchDirs()).containsExactly(java.nio.file.Path.of("dbRoot"));
         assertThat(runtimeDatabase.indexFileName()).isEqualTo("index.txt");
         assertThat(runtimeDatabase.schemaHash()).isEqualTo("hash");
         assertThat(runtimeDatabase.migrationsAppliedAtCreate()).isTrue();

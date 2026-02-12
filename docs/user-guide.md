@@ -53,7 +53,6 @@ Runtime defaults are hardcoded and currently match Ruby-compatible defaults for:
 
 #### `databases.<key>` keys
 
-- `searchDirs` (required)
 - `upDirs`
 - `downDirs`
 - `finalizeDirs`
@@ -75,6 +74,12 @@ Runtime defaults are hardcoded and currently match Ruby-compatible defaults for:
 - `moduleGroups`
 
 Unknown keys are rejected.
+
+Search directory behavior is fixed:
+
+- jdbt uses exactly one search directory
+- that directory is where `jdbt.yml` is located
+- `searchDirs` is not a supported key in `jdbt.yml`
 
 #### `imports`
 
@@ -151,6 +156,8 @@ The default logical directories (unless overridden) are:
 - index file: `index.txt`
 
 `index.txt` controls ordering when present.
+
+All module and hook paths are resolved relative to the directory containing `jdbt.yml`.
 
 ## CLI usage
 
@@ -306,5 +313,5 @@ java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar package-data \
 
 - `Unable to locate database 'default' ...`: either define a `default` database key in `jdbt.yml` or pass `--database <key>`.
 - `Unable to locate import definition by key ...`: pass `--import`, or define an import named `default` in `jdbt.yml`.
-- `Duplicate copies of repository.yml found in database search path`: ensure only one local `repository.yml` is present across `searchDirs`.
+- `Unknown key 'searchDirs'`: remove `searchDirs` from `jdbt.yml`; path resolution is fixed to the `jdbt.yml` directory.
 - Fat jar startup security/signature errors: rebuild with `./gradlew clean fatJar` using current build config.

@@ -11,7 +11,7 @@ final class DefaultsConfigTest {
         final DefaultsConfig defaults = DefaultsConfig.rubyCompatibleDefaults();
 
         final DefaultsConfig merged = defaults.merge(
-                null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 
         assertThat(merged).isEqualTo(defaults);
     }
@@ -20,7 +20,6 @@ final class DefaultsConfigTest {
     void mergeAppliesEveryOverrideValue() {
         final DefaultsConfig merged = DefaultsConfig.rubyCompatibleDefaults()
                 .merge(
-                        List.of("a"),
                         List.of("b"),
                         List.of("c"),
                         List.of("d"),
@@ -38,7 +37,6 @@ final class DefaultsConfigTest {
                         "db-x",
                         "imp-x");
 
-        assertThat(merged.searchDirs()).containsExactly("a");
         assertThat(merged.upDirs()).containsExactly("b");
         assertThat(merged.downDirs()).containsExactly("c");
         assertThat(merged.finalizeDirs()).containsExactly("d");

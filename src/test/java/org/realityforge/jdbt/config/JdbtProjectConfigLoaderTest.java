@@ -19,8 +19,6 @@ final class JdbtProjectConfigLoaderTest {
         final JdbtProjectConfig config = loader.load("""
             databases:
               default:
-                searchDirs:
-                  - databases/generated
                 imports:
                   default:
                     modules: [Core]
@@ -31,7 +29,6 @@ final class JdbtProjectConfigLoaderTest {
             """, "jdbt.yml", repository);
 
         final DatabaseConfig database = config.databases().get("default");
-        assertThat(database.searchDirs()).containsExactly("databases/generated");
         assertThat(database.upDirs()).containsExactly(".", "types", "views", "functions", "stored-procedures", "misc");
         assertThat(database.imports().get("default").modules()).containsExactly("Core");
         assertThat(database.imports().get("default").dir()).isEqualTo("import");
@@ -44,7 +41,6 @@ final class JdbtProjectConfigLoaderTest {
         final JdbtProjectConfig config = loader.load("""
             databases:
               default:
-                searchDirs: [db]
                 imports:
                   default: {}
             """, "jdbt.yml", repository);
@@ -60,7 +56,6 @@ final class JdbtProjectConfigLoaderTest {
         final JdbtProjectConfig config = loader.load("""
             databases:
               default:
-                searchDirs: [db]
                 migrations: true
             """, "jdbt.yml", repository);
 
@@ -74,7 +69,6 @@ final class JdbtProjectConfigLoaderTest {
         assertThatThrownBy(() -> loader.load("""
                     databases:
                       default:
-                        searchDirs: [db]
                         unsupported: true
                     """, "jdbt.yml", repository))
                 .isInstanceOf(ConfigException.class)
@@ -85,10 +79,8 @@ final class JdbtProjectConfigLoaderTest {
     void loadRejectsDefaultsTopLevelKey() {
         assertThatThrownBy(() -> loader.load("""
                     defaults:
-                      searchDirs: [db]
                     databases:
-                      default:
-                        searchDirs: [db]
+                      default: {}
                     """, "jdbt.yml", repository))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("Unknown key 'defaults'");
@@ -99,7 +91,6 @@ final class JdbtProjectConfigLoaderTest {
         assertThatThrownBy(() -> loader.load("""
                     databases:
                       default:
-                        searchDirs: [db]
                         imports:
                           default:
                             modules: [Missing]
@@ -114,7 +105,6 @@ final class JdbtProjectConfigLoaderTest {
         assertThatThrownBy(() -> loader.load("""
                     databases:
                       default:
-                        searchDirs: [db]
                         moduleGroups:
                           reporting: {}
                     """, "jdbt.yml", repository))
@@ -127,7 +117,6 @@ final class JdbtProjectConfigLoaderTest {
         assertThatThrownBy(() -> loader.load("""
                     databases:
                       default:
-                        searchDirs: [db]
                         moduleGroups:
                           reporting:
                             modules: [Missing]
@@ -155,12 +144,13 @@ final class JdbtProjectConfigLoaderTest {
     }
 
     @Test
-    void loadRequiresSearchDirsPerDatabase() {
+    void loadRejectsSearchDirsKey() {
         assertThatThrownBy(() -> loader.load("""
                     databases:
-                      default: {}
+                      default:
+                        searchDirs: [db]
                     """, "jdbt.yml", repository))
                 .isInstanceOf(ConfigException.class)
-                .hasMessageContaining("must define non-empty searchDirs");
+                .hasMessageContaining("Unknown key 'searchDirs'");
     }
 }
