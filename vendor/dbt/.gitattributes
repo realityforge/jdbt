@@ -1,0 +1,18 @@
+# DO NOT EDIT: File is auto-generated
+* -text
+*.css text
+*.gemspec text
+*.html text
+*.jpg binary
+*.js text
+*.md text
+*.png binary
+*.rb text
+*.txt text
+*.yml text
+.gitattributes text
+.gitignore text
+.ruby-version text
+Gemfile text
+LICENSE text
+Rakefile text
