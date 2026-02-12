@@ -17,7 +17,7 @@ public final class YamlMapSupport {
                 .setAllowDuplicateKeys(false)
                 .setLabel(sourceName)
                 .build();
-        final Object loaded = new Load(settings).loadFromString(yaml);
+        final var loaded = new Load(settings).loadFromString(yaml);
         if (!(loaded instanceof Map<?, ?> loadedMap)) {
             throw new ConfigException("Expected root YAML object in " + sourceName + " to be a map.");
         }
@@ -34,7 +34,7 @@ public final class YamlMapSupport {
     }
 
     public static Map<String, Object> requireMap(final Map<String, Object> map, final String key, final String path) {
-        final Map<String, Object> value = optionalMap(map, key, path);
+        final var value = optionalMap(map, key, path);
         if (value == null) {
             throw new ConfigException("Missing required map key '" + key + "' at " + path + '.');
         }
@@ -43,7 +43,7 @@ public final class YamlMapSupport {
 
     public static @Nullable Map<String, Object> optionalMap(
             final Map<String, Object> map, final String key, final String path) {
-        final Object value = map.get(key);
+        final var value = map.get(key);
         if (value == null) {
             return null;
         }
@@ -54,7 +54,7 @@ public final class YamlMapSupport {
     }
 
     public static String requireString(final Map<String, Object> map, final String key, final String path) {
-        final String value = optionalString(map, key, path);
+        final var value = optionalString(map, key, path);
         if (value == null) {
             throw new ConfigException("Missing required string key '" + key + "' at " + path + '.');
         }
@@ -62,7 +62,7 @@ public final class YamlMapSupport {
     }
 
     public static @Nullable String optionalString(final Map<String, Object> map, final String key, final String path) {
-        final Object value = map.get(key);
+        final var value = map.get(key);
         if (value == null) {
             return null;
         }
@@ -74,7 +74,7 @@ public final class YamlMapSupport {
 
     public static @Nullable Boolean optionalBoolean(
             final Map<String, Object> map, final String key, final String path) {
-        final Object value = map.get(key);
+        final var value = map.get(key);
         if (value == null) {
             return null;
         }
@@ -86,7 +86,7 @@ public final class YamlMapSupport {
 
     public static List<String> optionalStringList(
             final Map<String, Object> map, final String key, final String path, final List<String> defaultValue) {
-        final Object value = map.get(key);
+        final var value = map.get(key);
         if (value == null) {
             return defaultValue;
         }
@@ -97,7 +97,7 @@ public final class YamlMapSupport {
     }
 
     public static List<String> requireStringList(final Map<String, Object> map, final String key, final String path) {
-        final Object value = map.get(key);
+        final var value = map.get(key);
         if (value == null) {
             throw new ConfigException("Missing required list key '" + key + "' at " + path + '.');
         }
@@ -108,9 +108,9 @@ public final class YamlMapSupport {
     }
 
     public static Map<String, Object> toStringMap(final Map<?, ?> map, final String path) {
-        final Map<String, Object> result = new LinkedHashMap<>();
+        final var result = new LinkedHashMap<String, Object>();
         for (final Map.Entry<?, ?> entry : map.entrySet()) {
-            final Object key = entry.getKey();
+            final var key = entry.getKey();
             if (!(key instanceof String text)) {
                 throw new ConfigException("Expected string map key at " + path + " but got: " + key);
             }
@@ -120,7 +120,7 @@ public final class YamlMapSupport {
     }
 
     public static List<String> toStringList(final List<?> list, final String path) {
-        final List<String> result = new ArrayList<>(list.size());
+        final var result = new ArrayList<String>(list.size());
         for (final Object value : list) {
             if (!(value instanceof String text)) {
                 throw new ConfigException("Expected string list entry at " + path + " but got: " + value);

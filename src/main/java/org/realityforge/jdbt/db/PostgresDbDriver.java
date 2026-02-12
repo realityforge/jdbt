@@ -80,7 +80,7 @@ public final class PostgresDbDriver implements DbDriver {
 
     @Override
     public void execute(final String sql, final boolean executeInControlDatabase) {
-        final Connection connection = executeInControlDatabase ? controlConnection() : targetConnection();
+        final var connection = executeInControlDatabase ? controlConnection() : targetConnection();
         executeSql(connection, sql);
     }
 
@@ -89,12 +89,12 @@ public final class PostgresDbDriver implements DbDriver {
 
     @Override
     public void insert(final String tableName, final Map<String, Object> record) {
-        final List<String> columns = new ArrayList<>(record.keySet());
-        final String columnSql = String.join(
+        final var columns = new ArrayList<>(record.keySet());
+        final var columnSql = String.join(
                 ", ", columns.stream().map(PostgresDbDriver::quoteIdentifier).toList());
-        final String placeholderSql =
+        final var placeholderSql =
                 String.join(", ", columns.stream().map(column -> "?").toList());
-        final String sql = "INSERT INTO " + tableName + " (" + columnSql + ") VALUES (" + placeholderSql + ")";
+        final var sql = "INSERT INTO " + tableName + " (" + columnSql + ") VALUES (" + placeholderSql + ")";
         try (PreparedStatement statement = targetConnection().prepareStatement(sql)) {
             for (int i = 0; i < columns.size(); i++) {
                 statement.setObject(i + 1, record.get(columns.get(i)));
@@ -127,10 +127,10 @@ public final class PostgresDbDriver implements DbDriver {
 
     @Override
     public List<String> columnNamesForTable(final String tableName) {
-        final SchemaAndTable resolved = parseTableName(tableName);
-        final String sql =
+        final var resolved = parseTableName(tableName);
+        final var sql =
                 "SELECT column_name FROM information_schema.columns WHERE table_schema = ? AND table_name = ? ORDER BY ordinal_position";
-        final List<String> columns = new ArrayList<>();
+        final var columns = new ArrayList<String>();
         try (PreparedStatement statement = targetConnection().prepareStatement(sql)) {
             statement.setString(1, resolved.schema());
             statement.setString(2, resolved.table());
@@ -157,7 +157,7 @@ public final class PostgresDbDriver implements DbDriver {
     @Override
     public boolean shouldMigrate(final String namespace, final String migrationName) {
         setupMigrations();
-        final String sql = "SELECT COUNT(*) FROM \"tblMigration\" WHERE \"Namespace\" = ? AND \"Migration\" = ?";
+        final var sql = "SELECT COUNT(*) FROM \"tblMigration\" WHERE \"Namespace\" = ? AND \"Migration\" = ?";
         try (PreparedStatement statement = targetConnection().prepareStatement(sql)) {
             statement.setString(1, namespace);
             statement.setString(2, migrationName);
@@ -174,7 +174,7 @@ public final class PostgresDbDriver implements DbDriver {
 
     @Override
     public void markMigrationAsRun(final String namespace, final String migrationName) {
-        final String sql =
+        final var sql =
                 "INSERT INTO \"tblMigration\"(\"Namespace\",\"Migration\",\"AppliedAt\") VALUES (?, ?, current_timestamp)";
         try (PreparedStatement statement = targetConnection().prepareStatement(sql)) {
             statement.setString(1, namespace);
@@ -217,7 +217,7 @@ public final class PostgresDbDriver implements DbDriver {
     }
 
     private boolean schemaExists(final String schemaName) {
-        final String sql = "SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name = ?";
+        final var sql = "SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name = ?";
         try (PreparedStatement statement = targetConnection().prepareStatement(sql)) {
             statement.setString(1, schemaName);
             try (ResultSet resultSet = statement.executeQuery()) {
@@ -229,7 +229,7 @@ public final class PostgresDbDriver implements DbDriver {
     }
 
     private boolean tableExists(final String schemaName, final String tableName) {
-        final String sql = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = ? AND table_name = ?";
+        final var sql = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = ? AND table_name = ?";
         try (PreparedStatement statement = targetConnection().prepareStatement(sql)) {
             statement.setString(1, schemaName);
             statement.setString(2, tableName);
@@ -243,7 +243,7 @@ public final class PostgresDbDriver implements DbDriver {
 
     private static SchemaAndTable parseTableName(final String tableName) {
         String value = tableName.trim().replace("[", "").replace("]", "").replace("\"", "");
-        final int separator = value.lastIndexOf('.');
+        final var separator = value.lastIndexOf('.');
         if (-1 == separator) {
             return new SchemaAndTable("public", value);
         }
@@ -265,7 +265,7 @@ public final class PostgresDbDriver implements DbDriver {
     }
 
     private Connection connect(final boolean controlDatabase) {
-        final DatabaseConnection connectionConfig = this.config;
+        final var connectionConfig = this.config;
         if (null == connectionConfig) {
             throw new IllegalStateException("Connection requested before driver was opened");
         }
@@ -290,8 +290,8 @@ public final class PostgresDbDriver implements DbDriver {
 
     private static Connection openPostgresConnection(final DatabaseConnection config, final boolean controlDatabase)
             throws SQLException {
-        final String database = controlDatabase ? "postgres" : config.database();
-        final String jdbcUrl = "jdbc:postgresql://" + config.host() + ':' + config.port() + '/' + database;
+        final var database = controlDatabase ? "postgres" : config.database();
+        final var jdbcUrl = "jdbc:postgresql://" + config.host() + ':' + config.port() + '/' + database;
         return DriverManager.getConnection(jdbcUrl, config.username(), config.password());
     }
 

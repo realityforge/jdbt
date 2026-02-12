@@ -660,6 +660,44 @@ tasks:
       hash: 04452eb
       message: Enable additional Error Prone checks and fix fully-qualified references
 
+  - id: T24
+    title: Prefer var for local declarations where viable
+    status: completed
+    priority: low
+    depends_on:
+      - T23
+    acceptance_criteria:
+      - local declarations prefer var when type inference is safe
+      - explicit generic constructor arguments are retained where needed for inference
+      - code style and static analysis checks remain green
+      - required full gates pass
+    files_touched:
+      - src/main/java/org/realityforge/jdbt/cli/DefaultCommandRunner.java
+      - src/main/java/org/realityforge/jdbt/cli/JdbtCommand.java
+      - src/main/java/org/realityforge/jdbt/cli/PasswordResolver.java
+      - src/main/java/org/realityforge/jdbt/cli/ProjectRuntimeLoader.java
+      - src/main/java/org/realityforge/jdbt/config/JdbtProjectConfigLoader.java
+      - src/main/java/org/realityforge/jdbt/config/YamlMapSupport.java
+      - src/main/java/org/realityforge/jdbt/db/PostgresDbDriver.java
+      - src/main/java/org/realityforge/jdbt/db/SqlServerDbDriver.java
+      - src/main/java/org/realityforge/jdbt/files/FileResolver.java
+      - src/main/java/org/realityforge/jdbt/files/ZipArtifactContent.java
+      - src/main/java/org/realityforge/jdbt/packaging/DatabaseDataPackager.java
+      - src/main/java/org/realityforge/jdbt/packaging/DeterministicZipPackager.java
+      - src/main/java/org/realityforge/jdbt/repository/RepositoryConfig.java
+      - src/main/java/org/realityforge/jdbt/repository/RepositoryConfigLoader.java
+      - src/main/java/org/realityforge/jdbt/runtime/RuntimeEngine.java
+      - src/test/java/org/realityforge/jdbt/cli/JdbtCommandTest.java
+      - src/test/java/org/realityforge/jdbt/runtime/RuntimeEngineTest.java
+      - plans/jdbt/10-implementation-plan.md
+      - plans/jdbt/20-task-board.yaml
+    evidence:
+      - command: ./gradlew clean spotlessCheck check fatJar
+        result: pass
+    commit:
+      hash: pending
+      message: Prefer var for local declarations where viable
+
 history:
   - timestamp: 2026-02-12
     task: T01
@@ -753,3 +791,7 @@ history:
     task: T23
     commit: 04452eb
     note: Enabled additional valid Error Prone checks and remediated fully-qualified-name diagnostics.
+  - timestamp: 2026-02-12
+    task: T24
+    commit: pending
+    note: Refactored local declarations to prefer var while preserving type inference safety.

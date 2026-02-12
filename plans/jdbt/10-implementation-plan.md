@@ -24,6 +24,7 @@
 20. Enable requested Error Prone checks and remediate violations in production and test code.
 21. Flatten `jdbt.yml` to a single implicit database configuration model.
 22. Enable additional requested Error Prone checks, suppress accepted `UnusedException`, and fix `UnnecessarilyFullyQualified` violations.
+23. Prefer `var` for local declarations where type inference remains clear and safe.
 
 ## Delivery Approach
 

@@ -16,7 +16,7 @@ public final class ZipArtifactContent implements ArtifactContent {
     private final String id;
     private final Map<String, byte[]> entries;
 
-  public ZipArtifactContent(final String id, final Path zipPath, final String dataPrefix) {
+    public ZipArtifactContent(final String id, final Path zipPath, final String dataPrefix) {
         this.id = id;
         this.entries = loadEntries(zipPath, dataPrefix);
     }
@@ -33,7 +33,7 @@ public final class ZipArtifactContent implements ArtifactContent {
 
     @Override
     public String readText(final String path) {
-        final byte[] data = entries.get(path);
+        final var data = entries.get(path);
         if (null == data) {
             throw new FileCollectionException("Missing artifact path '" + path + "' in artifact '" + id + "'.");
         }
@@ -41,15 +41,15 @@ public final class ZipArtifactContent implements ArtifactContent {
     }
 
     private static Map<String, byte[]> loadEntries(final Path zipPath, final String dataPrefix) {
-        final String prefix = dataPrefix + '/';
-        final Map<String, byte[]> entries = new LinkedHashMap<>();
+        final var prefix = dataPrefix + '/';
+        final var entries = new LinkedHashMap<String, byte[]>();
         try (ZipFile zipFile = new ZipFile(zipPath.toFile())) {
-            final List<? extends ZipEntry> zipEntries = Collections.list(zipFile.entries());
+            final var zipEntries = Collections.list(zipFile.entries());
             for (final ZipEntry entry : zipEntries) {
                 if (entry.isDirectory() || !entry.getName().startsWith(prefix)) {
                     continue;
                 }
-                final String relativeName = entry.getName().substring(prefix.length());
+                final var relativeName = entry.getName().substring(prefix.length());
                 try (var input = zipFile.getInputStream(entry)) {
                     entries.put(relativeName, input.readAllBytes());
                 }

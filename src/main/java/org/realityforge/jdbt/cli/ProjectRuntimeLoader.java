@@ -14,9 +14,7 @@ import java.util.Map;
 import java.util.Set;
 import org.jspecify.annotations.Nullable;
 import org.realityforge.jdbt.config.ConfigException;
-import org.realityforge.jdbt.config.DatabaseConfig;
 import org.realityforge.jdbt.config.DefaultsConfig;
-import org.realityforge.jdbt.config.JdbtProjectConfig;
 import org.realityforge.jdbt.config.JdbtProjectConfigLoader;
 import org.realityforge.jdbt.config.YamlMapSupport;
 import org.realityforge.jdbt.files.ArtifactContent;
@@ -43,24 +41,24 @@ public final class ProjectRuntimeLoader {
     }
 
     public LoadedRuntime load(final @Nullable String selectedDatabaseKey) {
-        final String projectYaml = readFile(baseDirectory.resolve(PROJECT_CONFIG_FILE));
-        final BootstrapProject bootstrap = loadBootstrap(projectYaml);
-        final String databaseKey = resolveDatabaseKey(selectedDatabaseKey, bootstrap);
+        final var projectYaml = readFile(baseDirectory.resolve(PROJECT_CONFIG_FILE));
+        final var bootstrap = loadBootstrap(projectYaml);
+        final var databaseKey = resolveDatabaseKey(selectedDatabaseKey, bootstrap);
         if (!bootstrap.defaultDatabase().equals(databaseKey)) {
             throw new ConfigException(
                     "Unable to locate database '" + databaseKey + "' in " + PROJECT_CONFIG_FILE + '.');
         }
-        final BootstrapDatabase bootstrapDatabase = bootstrap.database();
+        final var bootstrapDatabase = bootstrap.database();
 
-        final List<ArtifactContent> preDbArtifacts = loadArtifacts(bootstrapDatabase.preDbArtifacts());
-        final List<ArtifactContent> postDbArtifacts = loadArtifacts(bootstrapDatabase.postDbArtifacts());
-        final RepositoryConfig repository = loadRepository(preDbArtifacts, postDbArtifacts);
-        final JdbtProjectConfig projectConfig = projectConfigLoader.load(projectYaml, PROJECT_CONFIG_FILE, repository);
-        final DatabaseConfig database = projectConfig.database();
+        final var preDbArtifacts = loadArtifacts(bootstrapDatabase.preDbArtifacts());
+        final var postDbArtifacts = loadArtifacts(bootstrapDatabase.postDbArtifacts());
+        final var repository = loadRepository(preDbArtifacts, postDbArtifacts);
+        final var projectConfig = projectConfigLoader.load(projectYaml, PROJECT_CONFIG_FILE, repository);
+        final var database = projectConfig.database();
 
-        final List<ArtifactContent> resolvedPreDbArtifacts = loadArtifacts(database.preDbArtifacts());
-        final List<ArtifactContent> resolvedPostDbArtifacts = loadArtifacts(database.postDbArtifacts());
-        final RuntimeDatabase runtimeDatabase = runtimeDatabaseFactory.from(
+        final var resolvedPreDbArtifacts = loadArtifacts(database.preDbArtifacts());
+        final var resolvedPostDbArtifacts = loadArtifacts(database.postDbArtifacts());
+        final var runtimeDatabase = runtimeDatabaseFactory.from(
                 database,
                 projectConfig.defaults(),
                 repository,
@@ -72,7 +70,7 @@ public final class ProjectRuntimeLoader {
     }
 
     private static BootstrapProject loadBootstrap(final String yaml) {
-        final Map<String, Object> root = YamlMapSupport.parseRoot(yaml, PROJECT_CONFIG_FILE);
+        final var root = YamlMapSupport.parseRoot(yaml, PROJECT_CONFIG_FILE);
         YamlMapSupport.assertKeys(
                 root,
                 Set.of(
@@ -97,11 +95,11 @@ public final class ProjectRuntimeLoader {
                         "moduleGroups"),
                 PROJECT_CONFIG_FILE);
 
-        final DefaultsConfig defaults = DefaultsConfig.rubyCompatibleDefaults();
+        final var defaults = DefaultsConfig.rubyCompatibleDefaults();
 
-        final List<String> preDbArtifacts =
+        final var preDbArtifacts =
                 YamlMapSupport.optionalStringList(root, "preDbArtifacts", PROJECT_CONFIG_FILE, List.of());
-        final List<String> postDbArtifacts =
+        final var postDbArtifacts =
                 YamlMapSupport.optionalStringList(root, "postDbArtifacts", PROJECT_CONFIG_FILE, List.of());
 
         return new BootstrapProject(defaults.defaultDatabase(), new BootstrapDatabase(preDbArtifacts, postDbArtifacts));
@@ -114,11 +112,10 @@ public final class ProjectRuntimeLoader {
 
     private RepositoryConfig loadRepository(
             final List<ArtifactContent> preDbArtifacts, final List<ArtifactContent> postDbArtifacts) {
-        final List<RepositoryConfig> preRepositories = repositoryFromArtifacts(preDbArtifacts, "preDbArtifacts");
-        final RepositoryConfig localRepository = repositoryFromDisk();
-        final List<RepositoryConfig> postRepositories = repositoryFromArtifacts(postDbArtifacts, "postDbArtifacts");
-        final RepositoryConfig repository =
-                repositoryConfigMerger.merge(preRepositories, localRepository, postRepositories);
+        final var preRepositories = repositoryFromArtifacts(preDbArtifacts, "preDbArtifacts");
+        final var localRepository = repositoryFromDisk();
+        final var postRepositories = repositoryFromArtifacts(postDbArtifacts, "postDbArtifacts");
+        final var repository = repositoryConfigMerger.merge(preRepositories, localRepository, postRepositories);
         if (repository.modules().isEmpty()) {
             throw new ConfigException(REPOSITORY_CONFIG_FILE
                     + " not located in base directory of database search path and no modules defined");
@@ -127,7 +124,7 @@ public final class ProjectRuntimeLoader {
     }
 
     private RepositoryConfig repositoryFromDisk() {
-        final Path repositoryFile = baseDirectory.resolve(REPOSITORY_CONFIG_FILE);
+        final var repositoryFile = baseDirectory.resolve(REPOSITORY_CONFIG_FILE);
         if (!Files.exists(repositoryFile)) {
             return new RepositoryConfig(List.of(), Map.of(), Map.of(), Map.of());
         }
@@ -137,10 +134,10 @@ public final class ProjectRuntimeLoader {
     @SuppressWarnings("UnusedException")
     private List<RepositoryConfig> repositoryFromArtifacts(
             final List<ArtifactContent> artifacts, final String artifactSourceName) {
-        final List<RepositoryConfig> repositories = new ArrayList<>();
+        final var repositories = new ArrayList<RepositoryConfig>();
         for (final ArtifactContent artifact : artifacts) {
             try {
-                final String content = artifact.readText(REPOSITORY_CONFIG_FILE);
+                final var content = artifact.readText(REPOSITORY_CONFIG_FILE);
                 repositories.add(repositoryConfigLoader.load(content, artifactSourceName + ':' + artifact.id()));
             } catch (final FileCollectionException fce) {
                 throw new ConfigException("Database artifact "
@@ -154,9 +151,9 @@ public final class ProjectRuntimeLoader {
     }
 
     private List<ArtifactContent> loadArtifacts(final List<String> artifactPaths) {
-        final List<ArtifactContent> artifacts = new ArrayList<>();
+        final var artifacts = new ArrayList<ArtifactContent>();
         for (final String artifactPath : artifactPaths) {
-            final Path path = resolvePath(artifactPath);
+            final var path = resolvePath(artifactPath);
             if (!Files.exists(path)) {
                 throw new ConfigException("Unable to locate database artifact " + artifactPath);
             }
@@ -187,8 +184,8 @@ public final class ProjectRuntimeLoader {
             buffer.append(String.join(",", repository.sequenceOrdering(module))).append('\n');
         }
         try {
-            final MessageDigest digest = MessageDigest.getInstance("SHA-1");
-            final byte[] hash = digest.digest(buffer.toString().getBytes(StandardCharsets.UTF_8));
+            final var digest = MessageDigest.getInstance("SHA-1");
+            final var hash = digest.digest(buffer.toString().getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(hash);
         } catch (final NoSuchAlgorithmException nsae) {
             throw new IllegalStateException("Unable to create schema hash", nsae);

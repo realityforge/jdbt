@@ -21,23 +21,22 @@ public final class FileResolver {
             final String indexFileName,
             final List<ArtifactContent> postArtifacts,
             final List<ArtifactContent> preArtifacts) {
-        final List<Path> directories =
+        final var directories =
                 searchDirs.stream().map(d -> d.resolve(relativeDir)).toList();
 
-        final List<String> index = new ArrayList<>();
-        final List<String> files = new ArrayList<>();
+        final var index = new ArrayList<String>();
+        final var files = new ArrayList<String>();
 
         for (final Path directory : directories) {
-            final List<String> indexEntries = readIndexEntries(directory.resolve(indexFileName));
+            final var indexEntries = readIndexEntries(directory.resolve(indexFileName));
             validateIndexEntries(indexEntries, directories);
             index.addAll(indexEntries);
             files.addAll(readFiles(directory, extension));
         }
 
-        final String prefix = normalizeRelativeDir(relativeDir);
-        final String indexEntryPath = prefix + '/' + indexFileName;
-        final Pattern matcher =
-                Pattern.compile("^" + Pattern.quote(prefix) + "/[^/]*\\." + Pattern.quote(extension) + "$");
+        final var prefix = normalizeRelativeDir(relativeDir);
+        final var indexEntryPath = prefix + '/' + indexFileName;
+        final var matcher = Pattern.compile("^" + Pattern.quote(prefix) + "/[^/]*\\." + Pattern.quote(extension) + "$");
 
         addArtifactFiles(files, index, postArtifacts, indexEntryPath, matcher);
         addArtifactFiles(files, index, preArtifacts, indexEntryPath, matcher);
@@ -55,20 +54,20 @@ public final class FileResolver {
             final List<String> orderedElements,
             final List<ArtifactContent> postArtifacts,
             final List<ArtifactContent> preArtifacts) {
-        final String relativeModuleDir = moduleName + (subdir == null ? "" : "/" + subdir);
-        final List<Path> directories =
+        final var relativeModuleDir = moduleName + (subdir == null ? "" : "/" + subdir);
+        final var directories =
                 searchDirs.stream().map(d -> d.resolve(relativeModuleDir)).toList();
 
-        final List<String> filesystemYamlFiles = new ArrayList<>(
+        final var filesystemYamlFiles = new ArrayList<>(
                 directories.stream().flatMap(d -> readFiles(d, "yml").stream()).toList());
-        final List<String> filesystemSqlFiles = new ArrayList<>(
+        final var filesystemSqlFiles = new ArrayList<>(
                 directories.stream().flatMap(d -> readFiles(d, "sql").stream()).toList());
 
-        final Map<String, String> fixtures = new LinkedHashMap<>();
+        final var fixtures = new LinkedHashMap<String, String>();
         for (final String element : orderedElements) {
-            final String fixtureBasename = cleanObjectName(element) + ".yml";
+            final var fixtureBasename = cleanObjectName(element) + ".yml";
             for (final Path directory : directories) {
-                final String filename = directory.resolve(fixtureBasename).toString();
+                final var filename = directory.resolve(fixtureBasename).toString();
                 filesystemYamlFiles.remove(filename);
                 if (Files.exists(Path.of(filename))) {
                     if (fixtures.containsKey(element)) {
@@ -80,8 +79,8 @@ public final class FileResolver {
             }
 
             if (!fixtures.containsKey(element)) {
-                final String artifactFixtureName = relativeModuleDir + '/' + fixtureBasename;
-                final String fixture = findFromArtifacts(artifactFixtureName, postArtifacts, preArtifacts);
+                final var artifactFixtureName = relativeModuleDir + '/' + fixtureBasename;
+                final var fixture = findFromArtifacts(artifactFixtureName, postArtifacts, preArtifacts);
                 if (fixture != null) {
                     fixtures.put(element, fixture);
                 }
@@ -109,10 +108,10 @@ public final class FileResolver {
             final String extension,
             final List<ArtifactContent> postArtifacts,
             final List<ArtifactContent> preArtifacts) {
-        final String filename = moduleFilename(moduleName, subdir, tableName, extension);
+        final var filename = moduleFilename(moduleName, subdir, tableName, extension);
 
         for (final Path searchDir : searchDirs) {
-            final Path file = searchDir.resolve(filename);
+            final var file = searchDir.resolve(filename);
             if (Files.exists(file)) {
                 return file.toString();
             }
@@ -139,7 +138,7 @@ public final class FileResolver {
 
     private static void validateIndexEntries(final List<String> entries, final List<Path> directories) {
         for (final String entry : entries) {
-            final boolean exists = directories.stream().anyMatch(dir -> Files.exists(dir.resolve(entry)));
+            final var exists = directories.stream().anyMatch(dir -> Files.exists(dir.resolve(entry)));
             if (!exists) {
                 throw new FileCollectionException("A specified index entry does not exist on the disk " + entry);
             }
@@ -184,11 +183,11 @@ public final class FileResolver {
                 index.addAll(splitIndexContent(artifact.readText(indexEntryPath)));
             }
 
-            final List<String> candidates = artifact.files().stream()
+            final var candidates = artifact.files().stream()
                     .filter(file -> matcher.matcher(file).matches())
                     .toList();
             for (final String candidate : candidates) {
-                final String location = toArtifactLocation(artifact, candidate);
+                final var location = toArtifactLocation(artifact, candidate);
                 if (!containsBasename(files, basename(location))) {
                     files.add(location);
                 }
@@ -198,10 +197,10 @@ public final class FileResolver {
 
     private static Comparator<String> indexComparator(final List<String> index) {
         return (left, right) -> {
-            final String leftBasename = basename(left);
-            final String rightBasename = basename(right);
-            final int leftIndex = index.indexOf(leftBasename);
-            final int rightIndex = index.indexOf(rightBasename);
+            final var leftBasename = basename(left);
+            final var rightBasename = basename(right);
+            final var leftIndex = index.indexOf(leftBasename);
+            final var rightIndex = index.indexOf(rightBasename);
             if (-1 == leftIndex && -1 == rightIndex) {
                 return leftBasename.compareTo(rightBasename);
             }
@@ -216,12 +215,12 @@ public final class FileResolver {
     }
 
     private static void failIfDuplicateBasenames(final List<String> files) {
-        final Map<String, List<String>> groups = files.stream()
+        final var groups = files.stream()
                 .collect(Collectors.groupingBy(FileResolver::basename, LinkedHashMap::new, Collectors.toList()));
-        final List<List<String>> duplicates =
+        final var duplicates =
                 groups.values().stream().filter(values -> values.size() > 1).toList();
         if (!duplicates.isEmpty()) {
-            final String detail = duplicates.stream()
+            final var detail = duplicates.stream()
                     .map(values -> String.join("\n\t", values))
                     .collect(Collectors.joining("\n\t"));
             throw new FileCollectionException("Files with duplicate basename not allowed.\n\t" + detail);
@@ -233,7 +232,7 @@ public final class FileResolver {
     }
 
     private static String basename(final String value) {
-        final int slash = Math.max(value.lastIndexOf('/'), value.lastIndexOf('\\'));
+        final var slash = Math.max(value.lastIndexOf('/'), value.lastIndexOf('\\'));
         return slash == -1 ? value : value.substring(slash + 1);
     }
 

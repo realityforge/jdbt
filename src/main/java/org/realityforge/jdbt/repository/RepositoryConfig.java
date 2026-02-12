@@ -25,7 +25,7 @@ public record RepositoryConfig(
     }
 
     public String schemaNameForModule(final String moduleName) {
-        final String override = schemaOverrides.get(moduleName);
+        final var override = schemaOverrides.get(moduleName);
         if (null != override) {
             return override;
         }
@@ -36,7 +36,7 @@ public record RepositoryConfig(
     }
 
     public List<String> tableOrdering(final String moduleName) {
-        final List<String> tables = tableMap.get(moduleName);
+        final var tables = tableMap.get(moduleName);
         if (null == tables) {
             throw new ConfigException("No tables defined for module " + moduleName);
         }
@@ -44,7 +44,7 @@ public record RepositoryConfig(
     }
 
     public List<String> sequenceOrdering(final String moduleName) {
-        final List<String> sequences = sequenceMap.get(moduleName);
+        final var sequences = sequenceMap.get(moduleName);
         if (null == sequences) {
             throw new ConfigException("No sequences defined for module " + moduleName);
         }
@@ -52,7 +52,7 @@ public record RepositoryConfig(
     }
 
     public List<String> orderedElementsForModule(final String moduleName) {
-        final List<String> values = new ArrayList<>(tableOrdering(moduleName));
+        final var values = new ArrayList<>(tableOrdering(moduleName));
         values.addAll(sequenceOrdering(moduleName));
         return List.copyOf(values);
     }

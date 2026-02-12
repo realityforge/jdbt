@@ -15,7 +15,7 @@ final class JdbtCommandTest {
     void noArgsBehavesLikeHelpAndDoesNotDispatchToRunner() {
         final var runner = new RecordingRunner();
 
-        final int exitCode = JdbtCommand.execute(
+        final var exitCode = JdbtCommand.execute(
                 new String[0], runner, new PasswordResolver(Map.of(), new ByteArrayInputStream(new byte[0])));
 
         assertThat(exitCode).isZero();
@@ -26,7 +26,7 @@ final class JdbtCommandTest {
     void statusDispatchesToRunnerWithDefaultDriver() {
         final var runner = new RecordingRunner();
 
-        final int exitCode = JdbtCommand.execute(
+        final var exitCode = JdbtCommand.execute(
                 new String[] {"status", "--database", "default"},
                 runner,
                 new PasswordResolver(Map.of(), new ByteArrayInputStream(new byte[0])));
@@ -41,7 +41,7 @@ final class JdbtCommandTest {
     void createDispatchesWithTargetConnectionAndNoCreateFlag() {
         final var runner = new RecordingRunner();
 
-        final int exitCode = JdbtCommand.execute(
+        final var exitCode = JdbtCommand.execute(
                 new String[] {
                     "create",
                     "--database",
@@ -70,7 +70,7 @@ final class JdbtCommandTest {
     @Test
     void importDispatchesWithTargetAndSourceConnectionsAndResumeAt() {
         final var runner = new RecordingRunner();
-        final int exitCode = JdbtCommand.execute(
+        final var exitCode = JdbtCommand.execute(
                 new String[] {
                     "import",
                     "--database",
@@ -121,8 +121,8 @@ final class JdbtCommandTest {
     @Test
     void createByImportSupportsStdinPasswords() {
         final var runner = new RecordingRunner();
-        final byte[] stdin = "target\nsource\n".getBytes(StandardCharsets.UTF_8);
-        final int exitCode = JdbtCommand.execute(
+        final var stdin = "target\nsource\n".getBytes(StandardCharsets.UTF_8);
+        final var exitCode = JdbtCommand.execute(
                 new String[] {
                     "create-by-import",
                     "--target-host",
@@ -157,7 +157,7 @@ final class JdbtCommandTest {
     void packageDataDispatchesOutputPath() {
         final var runner = new RecordingRunner();
 
-        final int exitCode = JdbtCommand.execute(
+        final var exitCode = JdbtCommand.execute(
                 new String[] {"package-data", "--database", "default", "--output", "build/out.zip"},
                 runner,
                 new PasswordResolver(Map.of(), new ByteArrayInputStream(new byte[0])));
@@ -171,7 +171,7 @@ final class JdbtCommandTest {
     @Test
     void createRequiresPasswordOption() {
         final var runner = new RecordingRunner();
-        final int exitCode = JdbtCommand.execute(
+        final var exitCode = JdbtCommand.execute(
                 new String[] {
                     "create",
                     "--target-host",

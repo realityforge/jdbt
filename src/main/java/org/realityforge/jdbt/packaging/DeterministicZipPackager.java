@@ -16,7 +16,7 @@ public final class DeterministicZipPackager {
     private static final long FIXED_ENTRY_TIME_MILLIS = 0L;
 
     public void write(final Path sourceDirectory, final Path zipFile) {
-        final List<Path> files = collectFiles(sourceDirectory);
+        final var files = collectFiles(sourceDirectory);
         createParentDirectory(zipFile);
         try (OutputStream output = Files.newOutputStream(zipFile);
                 ZipOutputStream zip = new ZipOutputStream(output)) {
@@ -33,7 +33,7 @@ public final class DeterministicZipPackager {
             return List.of();
         }
         try (var stream = Files.walk(sourceDirectory)) {
-            final List<Path> files = stream.filter(Files::isRegularFile)
+            final var files = stream.filter(Files::isRegularFile)
                     .sorted(Comparator.comparing(path -> entryName(sourceDirectory, path)))
                     .toList();
             return new ArrayList<>(files);
@@ -43,7 +43,7 @@ public final class DeterministicZipPackager {
     }
 
     private static void createParentDirectory(final Path zipFile) {
-        final Path parent = zipFile.getParent();
+        final var parent = zipFile.getParent();
         if (null == parent) {
             return;
         }
@@ -56,8 +56,8 @@ public final class DeterministicZipPackager {
 
     private static void writeEntry(final Path sourceDirectory, final Path file, final ZipOutputStream zip)
             throws IOException {
-        final String entryName = entryName(sourceDirectory, file);
-        final byte[] content = Files.readAllBytes(file);
+        final var entryName = entryName(sourceDirectory, file);
+        final var content = Files.readAllBytes(file);
         final var crc = new CRC32();
         crc.update(content);
 

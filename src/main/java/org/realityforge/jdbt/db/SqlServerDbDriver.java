@@ -16,7 +16,7 @@ import org.realityforge.jdbt.config.ImportConfig;
 import org.realityforge.jdbt.runtime.RuntimeDatabase;
 import org.realityforge.jdbt.runtime.RuntimeExecutionException;
 
-@SuppressWarnings( { "SqlNoDataSourceInspection", "SqlResolve" } )
+@SuppressWarnings({"SqlNoDataSourceInspection", "SqlResolve"})
 public final class SqlServerDbDriver implements DbDriver {
     private static final Logger LOGGER = Logger.getLogger(SqlServerDbDriver.class.getName());
 
@@ -59,7 +59,7 @@ public final class SqlServerDbDriver implements DbDriver {
 
     @Override
     public void drop(final RuntimeDatabase database, final DatabaseConnection connection) {
-        final Connection control = controlConnection();
+        final var control = controlConnection();
         if (databaseExists(control, connection.database())) {
             executeSql(
                     control,
@@ -70,7 +70,7 @@ public final class SqlServerDbDriver implements DbDriver {
 
     @Override
     public void createDatabase(final RuntimeDatabase database, final DatabaseConnection connection) {
-        final Connection control = controlConnection();
+        final var control = controlConnection();
         if (!databaseExists(control, connection.database())) {
             executeSql(control, "CREATE DATABASE " + quote(connection.database()));
         }
@@ -97,7 +97,7 @@ public final class SqlServerDbDriver implements DbDriver {
 
     @Override
     public void execute(final String sql, final boolean executeInControlDatabase) {
-        final Connection connection = executeInControlDatabase ? controlConnection() : targetConnection();
+        final var connection = executeInControlDatabase ? controlConnection() : targetConnection();
         executeSql(connection, sql);
     }
 
@@ -110,12 +110,12 @@ public final class SqlServerDbDriver implements DbDriver {
 
     @Override
     public void insert(final String tableName, final Map<String, Object> record) {
-        final List<String> columns = new ArrayList<>(record.keySet());
-        final String columnSql =
+        final var columns = new ArrayList<>(record.keySet());
+        final var columnSql =
                 String.join(", ", columns.stream().map(SqlServerDbDriver::quote).toList());
-        final String placeholderSql =
+        final var placeholderSql =
                 String.join(", ", columns.stream().map(column -> "?").toList());
-        final String sql = "INSERT INTO " + tableName + " (" + columnSql + ") VALUES (" + placeholderSql + ")";
+        final var sql = "INSERT INTO " + tableName + " (" + columnSql + ") VALUES (" + placeholderSql + ")";
         try (PreparedStatement statement = targetConnection().prepareStatement(sql)) {
             for (int i = 0; i < columns.size(); i++) {
                 statement.setObject(i + 1, record.get(columns.get(i)));
@@ -156,9 +156,8 @@ public final class SqlServerDbDriver implements DbDriver {
 
     @Override
     public List<String> columnNamesForTable(final String tableName) {
-        final String sql =
-                "SELECT C.name AS column_name FROM sys.syscolumns C WHERE C.id = OBJECT_ID(?) ORDER BY C.colid";
-        final List<String> columns = new ArrayList<>();
+        final var sql = "SELECT C.name AS column_name FROM sys.syscolumns C WHERE C.id = OBJECT_ID(?) ORDER BY C.colid";
+        final var columns = new ArrayList<String>();
         try (PreparedStatement statement = targetConnection().prepareStatement(sql)) {
             statement.setString(1, tableName);
             try (ResultSet resultSet = statement.executeQuery()) {
@@ -184,7 +183,7 @@ public final class SqlServerDbDriver implements DbDriver {
     @Override
     public boolean shouldMigrate(final String namespace, final String migrationName) {
         setupMigrations();
-        final String sql = "SELECT COUNT(*) FROM [dbo].[tblMigration] WHERE [Namespace] = ? AND [Migration] = ?";
+        final var sql = "SELECT COUNT(*) FROM [dbo].[tblMigration] WHERE [Namespace] = ? AND [Migration] = ?";
         try (PreparedStatement statement = targetConnection().prepareStatement(sql)) {
             statement.setString(1, namespace);
             statement.setString(2, migrationName);
@@ -201,7 +200,7 @@ public final class SqlServerDbDriver implements DbDriver {
 
     @Override
     public void markMigrationAsRun(final String namespace, final String migrationName) {
-        final String sql =
+        final var sql =
                 "INSERT INTO [dbo].[tblMigration]([Namespace],[Migration],[AppliedAt]) VALUES (?, ?, GETDATE())";
         try (PreparedStatement statement = targetConnection().prepareStatement(sql)) {
             statement.setString(1, namespace);
@@ -253,7 +252,7 @@ public final class SqlServerDbDriver implements DbDriver {
     }
 
     private static boolean databaseExists(final Connection connection, final String databaseName) {
-        final String sql = "SELECT COUNT(*) FROM sys.databases WHERE name = ?";
+        final var sql = "SELECT COUNT(*) FROM sys.databases WHERE name = ?";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, databaseName);
             try (ResultSet resultSet = statement.executeQuery()) {
@@ -265,7 +264,7 @@ public final class SqlServerDbDriver implements DbDriver {
     }
 
     private boolean schemaExists(final String schemaName) {
-        final String sql = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?";
+        final var sql = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?";
         try (PreparedStatement statement = targetConnection().prepareStatement(sql)) {
             statement.setString(1, schemaName);
             try (ResultSet resultSet = statement.executeQuery()) {
@@ -277,7 +276,7 @@ public final class SqlServerDbDriver implements DbDriver {
     }
 
     private boolean tableExists(final String tableName) {
-        final String sql =
+        final var sql =
                 "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE OBJECT_ID(TABLE_SCHEMA + '.' + TABLE_NAME) = OBJECT_ID(?)";
         try (PreparedStatement statement = targetConnection().prepareStatement(sql)) {
             statement.setString(1, tableName);
@@ -290,7 +289,7 @@ public final class SqlServerDbDriver implements DbDriver {
     }
 
     private boolean hasIdentityColumn(final String tableName) {
-        final String sql =
+        final var sql =
                 "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMNPROPERTY(OBJECT_ID(?), COLUMN_NAME, 'IsIdentity') = 1";
         try (PreparedStatement statement = targetConnection().prepareStatement(sql)) {
             statement.setString(1, tableName);
@@ -317,7 +316,7 @@ public final class SqlServerDbDriver implements DbDriver {
     }
 
     private Connection connect(final boolean controlDatabase) {
-        final DatabaseConnection connectionConfig = this.config;
+        final var connectionConfig = this.config;
         if (null == connectionConfig) {
             throw new IllegalStateException("Connection requested before driver was opened");
         }
@@ -342,8 +341,8 @@ public final class SqlServerDbDriver implements DbDriver {
 
     private static Connection openSqlServerConnection(final DatabaseConnection config, final boolean controlDatabase)
             throws SQLException {
-        final String database = controlDatabase ? "msdb" : config.database();
-        final String jdbcUrl = "jdbc:sqlserver://"
+        final var database = controlDatabase ? "msdb" : config.database();
+        final var jdbcUrl = "jdbc:sqlserver://"
                 + config.host()
                 + ':'
                 + config.port()

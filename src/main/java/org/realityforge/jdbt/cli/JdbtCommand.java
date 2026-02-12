@@ -42,7 +42,7 @@ public final class JdbtCommand implements Callable<Integer> {
     }
 
     static int execute(final String[] args, final CommandRunner runner, final PasswordResolver passwordResolver) {
-        final String[] effectiveArgs = 0 == args.length ? new String[] {"--help"} : args;
+        final var effectiveArgs = 0 == args.length ? new String[] {"--help"} : args;
         return new CommandLine(new JdbtCommand(runner, passwordResolver)).execute(effectiveArgs);
     }
 

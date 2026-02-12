@@ -8,12 +8,9 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.jspecify.annotations.Nullable;
-import org.realityforge.jdbt.files.ArtifactContent;
 import org.realityforge.jdbt.files.FileResolver;
 import org.realityforge.jdbt.runtime.RuntimeDatabase;
 import org.realityforge.jdbt.runtime.RuntimeExecutionException;
@@ -30,20 +27,20 @@ public final class DatabaseDataPackager {
     public void packageDatabaseData(final RuntimeDatabase database, final Path packageDir) {
         createDirectories(packageDir);
 
-        final List<String> importDirs = database.imports().values().stream()
+        final var importDirs = database.imports().values().stream()
                 .map(config -> config.dir())
                 .sorted()
                 .distinct()
                 .toList();
-        final List<String> datasetDirs = database.datasets().stream()
+        final var datasetDirs = database.datasets().stream()
                 .map(dataset -> database.datasetsDirName() + '/' + dataset)
                 .toList();
 
-        final Set<String> fixtureStyleDirs = new LinkedHashSet<>();
+        final var fixtureStyleDirs = new LinkedHashSet<String>();
         fixtureStyleDirs.add(database.fixtureDirName());
         fixtureStyleDirs.addAll(datasetDirs);
 
-        final List<String> moduleDirs = new ArrayList<>();
+        final var moduleDirs = new ArrayList<String>();
         moduleDirs.addAll(database.upDirs());
         moduleDirs.addAll(database.downDirs());
         moduleDirs.addAll(database.finalizeDirs());
@@ -53,10 +50,10 @@ public final class DatabaseDataPackager {
 
         for (final String moduleName : database.repository().modules()) {
             for (final String relativeDirName : moduleDirs) {
-                final String relativeModuleDir = moduleName + '/' + relativeDirName;
-                final Path targetDir = packageDir.resolve(relativeModuleDir);
+                final var relativeModuleDir = moduleName + '/' + relativeDirName;
+                final var targetDir = packageDir.resolve(relativeModuleDir);
                 if (fixtureStyleDirs.contains(relativeDirName)) {
-                    final List<String> files = fileResolver.collectFiles(
+                    final var files = fileResolver.collectFiles(
                             database.searchDirs(),
                             relativeModuleDir,
                             "yml",
@@ -65,7 +62,7 @@ public final class DatabaseDataPackager {
                             database.preDbArtifacts());
                     copyFilesToDir(database, filesForKnownElements(database, moduleName, files, "yml"), targetDir);
                 } else if (importDirs.contains(relativeDirName)) {
-                    final List<String> files = new ArrayList<>();
+                    final var files = new ArrayList<String>();
                     files.addAll(fileResolver.collectFiles(
                             database.searchDirs(),
                             relativeModuleDir,
@@ -82,7 +79,7 @@ public final class DatabaseDataPackager {
                             database.preDbArtifacts()));
                     copyFilesToDir(database, filesForKnownElements(database, moduleName, files, null), targetDir);
                 } else {
-                    final List<String> files = fileResolver.collectFiles(
+                    final var files = fileResolver.collectFiles(
                             database.searchDirs(),
                             relativeModuleDir,
                             "sql",
@@ -96,8 +93,8 @@ public final class DatabaseDataPackager {
         }
 
         for (final String databaseWideDir : databaseWideDirs(database)) {
-            final Path targetDir = packageDir.resolve(databaseWideDir);
-            final List<String> files = fileResolver.collectFiles(
+            final var targetDir = packageDir.resolve(databaseWideDir);
+            final var files = fileResolver.collectFiles(
                     database.searchDirs(),
                     databaseWideDir,
                     "sql",
@@ -111,26 +108,25 @@ public final class DatabaseDataPackager {
         writeRepository(database, packageDir.resolve("repository.yml"));
 
         if (database.migrationsEnabled()) {
-            final List<String> files = fileResolver.collectFiles(
+            final var files = fileResolver.collectFiles(
                     database.searchDirs(),
                     database.migrationsDirName(),
                     "sql",
                     database.indexFileName(),
                     database.postDbArtifacts(),
                     database.preDbArtifacts());
-            final Path targetDir = packageDir.resolve(database.migrationsDirName());
+            final var targetDir = packageDir.resolve(database.migrationsDirName());
             copyFilesToDir(database, files, targetDir);
             generateIndex(database.indexFileName(), targetDir, files);
         }
     }
 
     private static List<String> databaseWideDirs(final RuntimeDatabase database) {
-        final List<String> directories = new ArrayList<>();
+        final var directories = new ArrayList<String>();
         directories.addAll(database.preCreateDirs());
         directories.addAll(database.postCreateDirs());
 
-        final List<String> importKeys =
-                database.imports().keySet().stream().sorted().toList();
+        final var importKeys = database.imports().keySet().stream().sorted().toList();
         for (final String importKey : importKeys) {
             final var importConfig = database.imports().get(importKey);
             if (null != importConfig) {
@@ -140,7 +136,7 @@ public final class DatabaseDataPackager {
         }
 
         for (final String dataset : database.datasets()) {
-            final String root = database.datasetsDirName() + '/' + dataset;
+            final var root = database.datasetsDirName() + '/' + dataset;
             for (final String pre : database.preDatasetDirs()) {
                 directories.add(root + '/' + pre);
             }
@@ -157,17 +153,17 @@ public final class DatabaseDataPackager {
             final String moduleName,
             final List<String> files,
             final @Nullable String fixedExtension) {
-        final Set<String> knownElementNames = database.orderedElementsForModule(moduleName).stream()
+        final var knownElementNames = database.orderedElementsForModule(moduleName).stream()
                 .map(DatabaseDataPackager::cleanObjectName)
                 .collect(Collectors.toUnmodifiableSet());
-        final List<String> output = new ArrayList<>();
+        final var output = new ArrayList<String>();
         for (final String file : files) {
-            final String basename = basename(file);
-            final String extension = fileExtension(basename);
+            final var basename = basename(file);
+            final var extension = fileExtension(basename);
             if (null != fixedExtension && !fixedExtension.equals(extension)) {
                 continue;
             }
-            final String elementName = basenameWithoutExtension(basename);
+            final var elementName = basenameWithoutExtension(basename);
             if (knownElementNames.contains(elementName)) {
                 output.add(file);
             }
@@ -189,7 +185,7 @@ public final class DatabaseDataPackager {
         if (files.isEmpty()) {
             return;
         }
-        final String index = String.join(
+        final var index = String.join(
                 "\n", files.stream().map(DatabaseDataPackager::basename).toList());
         writeText(targetDir.resolve(indexFileName), index);
     }
@@ -200,7 +196,7 @@ public final class DatabaseDataPackager {
         for (final String module : database.repository().modules()) {
             yaml.append("  ").append(toYamlScalar(module)).append(":\n");
 
-            final String schemaName = database.repository().schemaNameForModule(module);
+            final var schemaName = database.repository().schemaNameForModule(module);
             if (!module.equals(schemaName)) {
                 yaml.append("    schema: ").append(toYamlScalar(schemaName)).append('\n');
             }
@@ -223,11 +219,11 @@ public final class DatabaseDataPackager {
     }
 
     private static String readText(final RuntimeDatabase database, final String location) {
-        final Matcher matcher = ARTIFACT_FILE_PATTERN.matcher(location);
+        final var matcher = ARTIFACT_FILE_PATTERN.matcher(location);
         if (matcher.matches()) {
-            final String artifactId = matcher.group(1);
-            final String file = matcher.group(2);
-            final ArtifactContent artifact = database.artifactById(artifactId);
+            final var artifactId = matcher.group(1);
+            final var file = matcher.group(2);
+            final var artifact = database.artifactById(artifactId);
             if (null == artifact) {
                 throw new RuntimeExecutionException("Unable to locate artifact with id '" + artifactId + "'.");
             }
@@ -253,19 +249,19 @@ public final class DatabaseDataPackager {
     }
 
     private static String basename(final String value) {
-        final Matcher matcher = ARTIFACT_FILE_PATTERN.matcher(value);
-        final String candidate = matcher.matches() ? matcher.group(2) : value;
-        final int slash = Math.max(candidate.lastIndexOf('/'), candidate.lastIndexOf('\\'));
+        final var matcher = ARTIFACT_FILE_PATTERN.matcher(value);
+        final var candidate = matcher.matches() ? matcher.group(2) : value;
+        final var slash = Math.max(candidate.lastIndexOf('/'), candidate.lastIndexOf('\\'));
         return -1 == slash ? candidate : candidate.substring(slash + 1);
     }
 
     private static String fileExtension(final String filename) {
-        final int dot = filename.lastIndexOf('.');
+        final var dot = filename.lastIndexOf('.');
         return -1 == dot ? "" : filename.substring(dot + 1);
     }
 
     private static String basenameWithoutExtension(final String filename) {
-        final int dot = filename.lastIndexOf('.');
+        final var dot = filename.lastIndexOf('.');
         return -1 == dot ? filename : filename.substring(0, dot);
     }
 
@@ -279,7 +275,7 @@ public final class DatabaseDataPackager {
 
     private static void writeText(final Path path, final String content) {
         try {
-            final Path parent = path.getParent();
+            final var parent = path.getParent();
             if (null != parent) {
                 Files.createDirectories(parent);
             }

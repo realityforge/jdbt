@@ -255,10 +255,10 @@ final class RuntimeEngineTest {
 
         engine.databaseImport(database, "default", "grp", connection, sourceConnection, null);
 
-        final int firstDelete = indexOf(driver.calls, "execute(false):DELETE FROM [MyModule].[bar]");
-        final int secondDelete = indexOf(driver.calls, "execute(false):DELETE FROM [MyModule].[foo]");
-        final int thirdDelete = indexOf(driver.calls, "execute(false):DELETE FROM [MyOtherModule].[bark]");
-        final int firstImport = indexOf(driver.calls, "preTableImport(default,[MyModule].[foo])");
+        final var firstDelete = indexOf(driver.calls, "execute(false):DELETE FROM [MyModule].[bar]");
+        final var secondDelete = indexOf(driver.calls, "execute(false):DELETE FROM [MyModule].[foo]");
+        final var thirdDelete = indexOf(driver.calls, "execute(false):DELETE FROM [MyOtherModule].[bark]");
+        final var firstImport = indexOf(driver.calls, "preTableImport(default,[MyModule].[foo])");
 
         assertThat(firstDelete).isNotNegative();
         assertThat(secondDelete).isNotNegative();

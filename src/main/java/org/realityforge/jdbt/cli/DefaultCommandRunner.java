@@ -7,7 +7,6 @@ import java.nio.file.Path;
 import java.util.Comparator;
 import org.jspecify.annotations.Nullable;
 import org.realityforge.jdbt.db.DatabaseConnection;
-import org.realityforge.jdbt.db.DbDriver;
 import org.realityforge.jdbt.db.DbDriverFactory;
 import org.realityforge.jdbt.files.FileResolver;
 import org.realityforge.jdbt.packaging.DatabaseDataPackager;
@@ -36,7 +35,7 @@ public final class DefaultCommandRunner implements CommandRunner {
     @Override
     public void status(final @Nullable String databaseKey, final String driver) {
         final var runtime = projectRuntimeLoader.load(databaseKey);
-        final RuntimeEngine runtimeEngine = runtimeEngine(driver);
+        final var runtimeEngine = runtimeEngine(driver);
         System.out.print(runtimeEngine.status(runtime.database()));
     }
 
@@ -72,7 +71,7 @@ public final class DefaultCommandRunner implements CommandRunner {
             final DatabaseConnection source,
             final @Nullable String resumeAt) {
         final var runtime = projectRuntimeLoader.load(databaseKey);
-        final String resolvedImport = resolveImportKey(runtime, importKey);
+        final var resolvedImport = resolveImportKey(runtime, importKey);
         runtimeEngine(driver).databaseImport(runtime.database(), resolvedImport, moduleGroup, target, source, resumeAt);
     }
 
@@ -86,7 +85,7 @@ public final class DefaultCommandRunner implements CommandRunner {
             final @Nullable String resumeAt,
             final boolean noCreate) {
         final var runtime = projectRuntimeLoader.load(databaseKey);
-        final String resolvedImport = resolveImportKey(runtime, importKey);
+        final var resolvedImport = resolveImportKey(runtime, importKey);
         runtimeEngine(driver).createByImport(runtime.database(), resolvedImport, target, source, resumeAt, noCreate);
     }
 
@@ -147,7 +146,7 @@ public final class DefaultCommandRunner implements CommandRunner {
         if (null != importKey) {
             return importKey;
         }
-        final String defaultImport = runtime.defaults().defaultImport();
+        final var defaultImport = runtime.defaults().defaultImport();
         if (!runtime.database().imports().containsKey(defaultImport)) {
             throw new RuntimeExecutionException("Unable to locate import definition by key '" + defaultImport + "'");
         }
@@ -155,7 +154,7 @@ public final class DefaultCommandRunner implements CommandRunner {
     }
 
     private RuntimeEngine runtimeEngine(final String driver) {
-        final DbDriver dbDriver = dbDriverFactory.create(driver);
+        final var dbDriver = dbDriverFactory.create(driver);
         return new RuntimeEngine(dbDriver, fileResolver);
     }
 

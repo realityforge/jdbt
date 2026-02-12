@@ -22,7 +22,7 @@ public final class PasswordResolver {
     }
 
     public String fromEnvironment(final String variableName) {
-        final String value = environment.get(variableName);
+        final var value = environment.get(variableName);
         if (null == value) {
             throw new ConfigException("No value found in environment variable '" + variableName + "'.");
         }
@@ -31,7 +31,7 @@ public final class PasswordResolver {
 
     public String fromStdin() {
         try {
-            final String value = stdin.readLine();
+            final var value = stdin.readLine();
             if (null == value) {
                 throw new ConfigException("No password available on stdin.");
             }

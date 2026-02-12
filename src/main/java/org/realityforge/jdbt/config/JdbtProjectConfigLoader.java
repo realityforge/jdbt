@@ -8,7 +8,7 @@ import org.realityforge.jdbt.repository.RepositoryConfig;
 
 public final class JdbtProjectConfigLoader {
     public JdbtProjectConfig load(final String yaml, final String sourceName, final RepositoryConfig repository) {
-        final Map<String, Object> root = YamlMapSupport.parseRoot(yaml, sourceName);
+        final var root = YamlMapSupport.parseRoot(yaml, sourceName);
         YamlMapSupport.assertKeys(
                 root,
                 Set.of(
@@ -33,9 +33,8 @@ public final class JdbtProjectConfigLoader {
                         "moduleGroups"),
                 sourceName);
 
-        final DefaultsConfig defaults = DefaultsConfig.rubyCompatibleDefaults();
-        final DatabaseConfig database =
-                loadDatabase(defaults.defaultDatabase(), root, defaults, repository, sourceName);
+        final var defaults = DefaultsConfig.rubyCompatibleDefaults();
+        final var database = loadDatabase(defaults.defaultDatabase(), root, defaults, repository, sourceName);
         return new JdbtProjectConfig(defaults, database);
     }
 
@@ -45,7 +44,7 @@ public final class JdbtProjectConfigLoader {
             final DefaultsConfig defaults,
             final RepositoryConfig repository,
             final String sourceName) {
-        final String path = sourceName;
+        final var path = sourceName;
         YamlMapSupport.assertKeys(
                 body,
                 Set.of(
@@ -70,13 +69,12 @@ public final class JdbtProjectConfigLoader {
                         "moduleGroups"),
                 path);
 
-        final Boolean migrationsValue = YamlMapSupport.optionalBoolean(body, "migrations", path);
-        final boolean migrations = migrationsValue != null && migrationsValue;
-        final Boolean migrationsAppliedAtCreate =
-                YamlMapSupport.optionalBoolean(body, "migrationsAppliedAtCreate", path);
+        final var migrationsValue = YamlMapSupport.optionalBoolean(body, "migrations", path);
+        final var migrations = migrationsValue != null && migrationsValue;
+        final var migrationsAppliedAtCreate = YamlMapSupport.optionalBoolean(body, "migrationsAppliedAtCreate", path);
 
-        final Map<String, ImportConfig> imports = loadImports(key, body, defaults, repository, path);
-        final Map<String, ModuleGroupConfig> moduleGroups = loadModuleGroups(key, body, repository, path);
+        final var imports = loadImports(key, body, defaults, repository, path);
+        final var moduleGroups = loadModuleGroups(key, body, repository, path);
 
         return new DatabaseConfig(
                 key,
@@ -113,27 +111,26 @@ public final class JdbtProjectConfigLoader {
             final DefaultsConfig defaults,
             final RepositoryConfig repository,
             final String databasePath) {
-        final Map<String, Object> importsNode = YamlMapSupport.optionalMap(body, "imports", databasePath);
+        final var importsNode = YamlMapSupport.optionalMap(body, "imports", databasePath);
         if (importsNode == null) {
             return Map.of();
         }
 
-        final Map<String, ImportConfig> imports = new LinkedHashMap<>();
+        final var imports = new LinkedHashMap<String, ImportConfig>();
         for (final Map.Entry<String, Object> entry : importsNode.entrySet()) {
-            final String importKey = entry.getKey();
+            final var importKey = entry.getKey();
             if (!(entry.getValue() instanceof Map<?, ?> importBody)) {
                 throw new ConfigException(
                         "Expected map for import '" + importKey + "' in database '" + databaseKey + "'.");
             }
-            final String path = databasePath + ".imports." + importKey;
-            final Map<String, Object> importNode = YamlMapSupport.toStringMap(importBody, path);
+            final var path = databasePath + ".imports." + importKey;
+            final var importNode = YamlMapSupport.toStringMap(importBody, path);
             YamlMapSupport.assertKeys(importNode, Set.of("modules", "dir", "preImportDirs", "postImportDirs"), path);
 
-            final List<String> modules =
-                    YamlMapSupport.optionalStringList(importNode, "modules", path, repository.modules());
+            final var modules = YamlMapSupport.optionalStringList(importNode, "modules", path, repository.modules());
             validateModulesExist(modules, repository, "import", importKey, databaseKey);
 
-            final String dir = YamlMapSupport.optionalString(importNode, "dir", path) == null
+            final var dir = YamlMapSupport.optionalString(importNode, "dir", path) == null
                     ? defaults.importDir()
                     : YamlMapSupport.requireString(importNode, "dir", path);
             imports.put(
@@ -155,25 +152,25 @@ public final class JdbtProjectConfigLoader {
             final Map<String, Object> body,
             final RepositoryConfig repository,
             final String databasePath) {
-        final Map<String, Object> groupsNode = YamlMapSupport.optionalMap(body, "moduleGroups", databasePath);
+        final var groupsNode = YamlMapSupport.optionalMap(body, "moduleGroups", databasePath);
         if (groupsNode == null) {
             return Map.of();
         }
 
-        final Map<String, ModuleGroupConfig> groups = new LinkedHashMap<>();
+        final var groups = new LinkedHashMap<String, ModuleGroupConfig>();
         for (final Map.Entry<String, Object> entry : groupsNode.entrySet()) {
-            final String groupKey = entry.getKey();
+            final var groupKey = entry.getKey();
             if (!(entry.getValue() instanceof Map<?, ?> groupBody)) {
                 throw new ConfigException(
                         "Expected map for module group '" + groupKey + "' in database '" + databaseKey + "'.");
             }
-            final String path = databasePath + ".moduleGroups." + groupKey;
-            final Map<String, Object> groupNode = YamlMapSupport.toStringMap(groupBody, path);
+            final var path = databasePath + ".moduleGroups." + groupKey;
+            final var groupNode = YamlMapSupport.toStringMap(groupBody, path);
             YamlMapSupport.assertKeys(groupNode, Set.of("modules", "importEnabled"), path);
-            final List<String> modules = YamlMapSupport.requireStringList(groupNode, "modules", path);
+            final var modules = YamlMapSupport.requireStringList(groupNode, "modules", path);
             validateModulesExist(modules, repository, "module group", groupKey, databaseKey);
-            final Boolean importEnabledValue = YamlMapSupport.optionalBoolean(groupNode, "importEnabled", path);
-            final boolean importEnabled = importEnabledValue != null && importEnabledValue;
+            final var importEnabledValue = YamlMapSupport.optionalBoolean(groupNode, "importEnabled", path);
+            final var importEnabled = importEnabledValue != null && importEnabledValue;
             groups.put(groupKey, new ModuleGroupConfig(groupKey, modules, importEnabled));
         }
         return Map.copyOf(groups);
