@@ -1,0 +1,272 @@
+package org.realityforge.jdbt.files;
+
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import org.jspecify.annotations.Nullable;
+
+public final class FileResolver {
+    public List<String> collectFiles(
+            final List<Path> searchDirs,
+            final String relativeDir,
+            final String extension,
+            final String indexFileName,
+            final List<ArtifactContent> postArtifacts,
+            final List<ArtifactContent> preArtifacts) {
+        final List<Path> directories =
+                searchDirs.stream().map(d -> d.resolve(relativeDir)).toList();
+
+        final List<String> index = new ArrayList<>();
+        final List<String> files = new ArrayList<>();
+
+        for (final Path directory : directories) {
+            final List<String> indexEntries = readIndexEntries(directory.resolve(indexFileName));
+            validateIndexEntries(indexEntries, directories);
+            index.addAll(indexEntries);
+            files.addAll(readFiles(directory, extension));
+        }
+
+        final String prefix = normalizeRelativeDir(relativeDir);
+        final String indexEntryPath = prefix + '/' + indexFileName;
+        final Pattern matcher =
+                Pattern.compile("^" + Pattern.quote(prefix) + "/[^/]*\\." + Pattern.quote(extension) + "$");
+
+        addArtifactFiles(files, index, postArtifacts, indexEntryPath, matcher);
+        addArtifactFiles(files, index, preArtifacts, indexEntryPath, matcher);
+
+        failIfDuplicateBasenames(files);
+
+        files.sort(indexComparator(index));
+        return List.copyOf(files);
+    }
+
+    public Map<String, String> collectFixtures(
+            final List<Path> searchDirs,
+            final String moduleName,
+            final @Nullable String subdir,
+            final List<String> orderedElements,
+            final List<ArtifactContent> postArtifacts,
+            final List<ArtifactContent> preArtifacts) {
+        final String relativeModuleDir = moduleName + (subdir == null ? "" : "/" + subdir);
+        final List<Path> directories =
+                searchDirs.stream().map(d -> d.resolve(relativeModuleDir)).toList();
+
+        final List<String> filesystemYamlFiles = new ArrayList<>(
+                directories.stream().flatMap(d -> readFiles(d, "yml").stream()).toList());
+        final List<String> filesystemSqlFiles = new ArrayList<>(
+                directories.stream().flatMap(d -> readFiles(d, "sql").stream()).toList());
+
+        final Map<String, String> fixtures = new LinkedHashMap<>();
+        for (final String element : orderedElements) {
+            final String fixtureBasename = cleanObjectName(element) + ".yml";
+            for (final Path directory : directories) {
+                final String filename = directory.resolve(fixtureBasename).toString();
+                filesystemYamlFiles.remove(filename);
+                if (Files.exists(Path.of(filename))) {
+                    if (fixtures.containsKey(element)) {
+                        throw new FileCollectionException(
+                                "Duplicate fixture for " + element + " found in database search paths");
+                    }
+                    fixtures.put(element, filename);
+                }
+            }
+
+            if (!fixtures.containsKey(element)) {
+                final String artifactFixtureName = relativeModuleDir + '/' + fixtureBasename;
+                final @Nullable String fixture = findFromArtifacts(artifactFixtureName, postArtifacts, preArtifacts);
+                if (fixture != null) {
+                    fixtures.put(element, fixture);
+                }
+            }
+        }
+
+        if (!filesystemYamlFiles.isEmpty()) {
+            throw new FileCollectionException(
+                    "Unexpected fixtures found in database search paths. Fixtures do not match existing tables. Files: "
+                            + filesystemYamlFiles);
+        }
+        if (!filesystemSqlFiles.isEmpty()) {
+            throw new FileCollectionException(
+                    "Unexpected sql files found in fixture directories. SQL files are not processed. Files: "
+                            + filesystemSqlFiles);
+        }
+        return Map.copyOf(fixtures);
+    }
+
+    public @Nullable String findFileInModule(
+            final List<Path> searchDirs,
+            final String moduleName,
+            final String subdir,
+            final String tableName,
+            final String extension,
+            final List<ArtifactContent> postArtifacts,
+            final List<ArtifactContent> preArtifacts) {
+        final String filename = moduleFilename(moduleName, subdir, tableName, extension);
+
+        for (final Path searchDir : searchDirs) {
+            final Path file = searchDir.resolve(filename);
+            if (Files.exists(file)) {
+                return file.toString();
+            }
+        }
+        return findFromArtifacts(filename, postArtifacts, preArtifacts);
+    }
+
+    private @Nullable String findFromArtifacts(
+            final String filename,
+            final List<ArtifactContent> postArtifacts,
+            final List<ArtifactContent> preArtifacts) {
+        for (final ArtifactContent artifact : postArtifacts) {
+            if (artifact.files().contains(filename)) {
+                return toArtifactLocation(artifact, filename);
+            }
+        }
+        for (final ArtifactContent artifact : preArtifacts) {
+            if (artifact.files().contains(filename)) {
+                return toArtifactLocation(artifact, filename);
+            }
+        }
+        return null;
+    }
+
+    private void validateIndexEntries(final List<String> entries, final List<Path> directories) {
+        for (final String entry : entries) {
+            final boolean exists = directories.stream().anyMatch(dir -> Files.exists(dir.resolve(entry)));
+            if (!exists) {
+                throw new FileCollectionException("A specified index entry does not exist on the disk " + entry);
+            }
+        }
+    }
+
+    private List<String> readIndexEntries(final Path indexFile) {
+        if (!Files.exists(indexFile)) {
+            return List.of();
+        }
+
+        try {
+            return Files.readAllLines(indexFile).stream().map(String::trim).toList();
+        } catch (final IOException ioe) {
+            throw new UncheckedIOException("Failed to read index file " + indexFile, ioe);
+        }
+    }
+
+    private List<String> readFiles(final Path directory, final String extension) {
+        if (!Files.isDirectory(directory)) {
+            return List.of();
+        }
+
+        try (var stream = Files.list(directory)) {
+            return stream.filter(Files::isRegularFile)
+                    .filter(file -> file.getFileName().toString().endsWith('.' + extension))
+                    .map(Path::toString)
+                    .toList();
+        } catch (final IOException ioe) {
+            throw new UncheckedIOException("Failed to read files in " + directory, ioe);
+        }
+    }
+
+    private void addArtifactFiles(
+            final List<String> files,
+            final List<String> index,
+            final List<ArtifactContent> artifacts,
+            final String indexEntryPath,
+            final Pattern matcher) {
+        for (final ArtifactContent artifact : artifacts) {
+            if (artifact.files().contains(indexEntryPath)) {
+                index.addAll(splitIndexContent(artifact.readText(indexEntryPath)));
+            }
+
+            final List<String> candidates = artifact.files().stream()
+                    .filter(file -> matcher.matcher(file).matches())
+                    .toList();
+            for (final String candidate : candidates) {
+                final String location = toArtifactLocation(artifact, candidate);
+                if (!containsBasename(files, basename(location))) {
+                    files.add(location);
+                }
+            }
+        }
+    }
+
+    private Comparator<String> indexComparator(final List<String> index) {
+        return (left, right) -> {
+            final String leftBasename = basename(left);
+            final String rightBasename = basename(right);
+            final int leftIndex = index.indexOf(leftBasename);
+            final int rightIndex = index.indexOf(rightBasename);
+            if (-1 == leftIndex && -1 == rightIndex) {
+                return leftBasename.compareTo(rightBasename);
+            }
+            if (-1 == leftIndex) {
+                return 1;
+            }
+            if (-1 == rightIndex) {
+                return -1;
+            }
+            return Integer.compare(leftIndex, rightIndex);
+        };
+    }
+
+    private void failIfDuplicateBasenames(final List<String> files) {
+        final Map<String, List<String>> groups =
+                files.stream().collect(Collectors.groupingBy(this::basename, LinkedHashMap::new, Collectors.toList()));
+        final List<List<String>> duplicates =
+                groups.values().stream().filter(values -> values.size() > 1).toList();
+        if (!duplicates.isEmpty()) {
+            final String detail = duplicates.stream()
+                    .map(values -> String.join("\n\t", values))
+                    .collect(Collectors.joining("\n\t"));
+            throw new FileCollectionException("Files with duplicate basename not allowed.\n\t" + detail);
+        }
+    }
+
+    private boolean containsBasename(final List<String> files, final String basename) {
+        return files.stream().anyMatch(file -> basename(file).equals(basename));
+    }
+
+    private String basename(final String value) {
+        final int slash = Math.max(value.lastIndexOf('/'), value.lastIndexOf('\\'));
+        return slash == -1 ? value : value.substring(slash + 1);
+    }
+
+    private String moduleFilename(
+            final String moduleName, final String subdir, final String tableName, final String extension) {
+        return moduleName + '/' + subdir + '/' + cleanObjectName(tableName) + '.' + extension;
+    }
+
+    private String cleanObjectName(final String tableName) {
+        return tableName
+                .replace("[", "")
+                .replace("]", "")
+                .replace("\"", "")
+                .replace("'", "")
+                .replace(" ", "");
+    }
+
+    private String normalizeRelativeDir(final String relativeDir) {
+        String value = relativeDir.replace("/./", "/");
+        if (value.endsWith("/.")) {
+            value = value.substring(0, value.length() - 2);
+        }
+        return value;
+    }
+
+    private List<String> splitIndexContent(final String content) {
+        return Pattern.compile("\\s+")
+                .splitAsStream(content)
+                .filter(token -> !token.isEmpty())
+                .toList();
+    }
+
+    private String toArtifactLocation(final ArtifactContent artifact, final String candidate) {
+        return "zip:" + artifact.id() + ':' + candidate;
+    }
+}

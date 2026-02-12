@@ -9,7 +9,7 @@ meta:
     - completed
     - cancelled
 
-current_focus: T06
+current_focus: T07
 
 tasks:
   - id: T01
@@ -140,14 +140,32 @@ tasks:
 
   - id: T06
     title: Implement file resolution and artifact overlay semantics
-    status: in_progress
+    status: completed
     priority: high
     depends_on:
       - T05
+    acceptance_criteria:
+      - Collect files from search dirs with index-aware ordering
+      - Merge post/pre artifact files with basename-precedence semantics
+      - Reject duplicate basenames and invalid index entries
+      - Resolve fixtures with strict unexpected-file validation
+      - Resolve module files with disk > post > pre precedence
+      - required full gates pass
+    files_touched:
+      - src/main/java/org/realityforge/jdbt/files/*
+      - src/test/java/org/realityforge/jdbt/files/*
+      - plans/jdbt/20-task-board.yaml
+      - plans/jdbt/30-compatibility-matrix.md
+    evidence:
+      - command: ./gradlew clean spotlessCheck check fatJar
+        result: pass
+    commit:
+      hash: pending
+      message: pending
 
   - id: T07
     title: Implement runtime core commands and flow orchestration
-    status: pending
+    status: in_progress
     priority: high
     depends_on:
       - T06
@@ -218,3 +236,7 @@ history:
     task: T05
     commit: 006aeba
     note: Repository merge semantics implemented with duplicate-module safety.
+  - timestamp: 2026-02-12
+    task: T06
+    commit: pending
+    note: File resolution and artifact overlay semantics implemented with strict validation.
