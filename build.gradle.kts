@@ -82,7 +82,9 @@ val fatJar by tasks.registering(Jar::class) {
     {
       configurations.runtimeClasspath.get().filter { it.name.endsWith(".jar") }.map { zipTree(it) }
     }
-  )
+  ) {
+    exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA", "META-INF/*.EC")
+  }
 }
 
 tasks.assemble {
