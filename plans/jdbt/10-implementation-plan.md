@@ -20,6 +20,7 @@
 16. Publish reusable Agent Skill for the delivery workflow.
 17. Package skill for standalone distribution and document adoption.
 18. Remove `searchDirs` config and fix search root to `jdbt.yml` directory.
+19. Mark all source and test packages as `@NullMarked`.
 
 ## Delivery Approach
 

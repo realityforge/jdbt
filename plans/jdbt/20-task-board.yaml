@@ -527,6 +527,34 @@ tasks:
       hash: f5374eb
       message: Fix search root to jdbt.yml directory
 
+  - id: T20
+    title: Mark all source and test packages as NullMarked
+    status: completed
+    priority: low
+    depends_on:
+      - T01
+    acceptance_criteria:
+      - every production package has package-level @NullMarked declaration
+      - every test package has package-level @NullMarked declaration
+      - required full gates pass
+    files_touched:
+      - src/test/java/org/realityforge/jdbt/package-info.java
+      - src/test/java/org/realityforge/jdbt/cli/package-info.java
+      - src/test/java/org/realityforge/jdbt/config/package-info.java
+      - src/test/java/org/realityforge/jdbt/runtime/package-info.java
+      - src/test/java/org/realityforge/jdbt/db/package-info.java
+      - src/test/java/org/realityforge/jdbt/packaging/package-info.java
+      - src/test/java/org/realityforge/jdbt/repository/package-info.java
+      - src/test/java/org/realityforge/jdbt/files/package-info.java
+      - plans/jdbt/10-implementation-plan.md
+      - plans/jdbt/20-task-board.yaml
+    evidence:
+      - command: ./gradlew clean spotlessCheck check fatJar
+        result: pass
+    commit:
+      hash: pending
+      message: pending
+
 history:
   - timestamp: 2026-02-12
     task: T01
@@ -604,3 +632,7 @@ history:
     task: T19
     commit: f5374eb
     note: Removed searchDirs config and fixed search root to jdbt.yml directory.
+  - timestamp: 2026-02-12
+    task: T20
+    commit: pending
+    note: Added package-level NullMarked annotations to all test packages.
