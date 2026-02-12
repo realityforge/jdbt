@@ -81,7 +81,7 @@ public final class FileResolver {
 
             if (!fixtures.containsKey(element)) {
                 final String artifactFixtureName = relativeModuleDir + '/' + fixtureBasename;
-                final @Nullable String fixture = findFromArtifacts(artifactFixtureName, postArtifacts, preArtifacts);
+                final String fixture = findFromArtifacts(artifactFixtureName, postArtifacts, preArtifacts);
                 if (fixture != null) {
                     fixtures.put(element, fixture);
                 }

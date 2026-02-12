@@ -4,7 +4,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.jspecify.annotations.Nullable;
 import org.realityforge.jdbt.repository.RepositoryConfig;
 
 public final class JdbtProjectConfigLoader {
@@ -66,9 +65,9 @@ public final class JdbtProjectConfigLoader {
                         "moduleGroups"),
                 path);
 
-        final @Nullable Boolean migrationsValue = YamlMapSupport.optionalBoolean(body, "migrations", path);
+        final Boolean migrationsValue = YamlMapSupport.optionalBoolean(body, "migrations", path);
         final boolean migrations = migrationsValue != null && migrationsValue;
-        final @Nullable Boolean migrationsAppliedAtCreate =
+        final Boolean migrationsAppliedAtCreate =
                 YamlMapSupport.optionalBoolean(body, "migrationsAppliedAtCreate", path);
 
         final Map<String, ImportConfig> imports = loadImports(key, body, defaults, repository, path);
@@ -168,8 +167,7 @@ public final class JdbtProjectConfigLoader {
             YamlMapSupport.assertKeys(groupNode, Set.of("modules", "importEnabled"), path);
             final List<String> modules = YamlMapSupport.requireStringList(groupNode, "modules", path);
             validateModulesExist(modules, repository, "module group", groupKey, databaseKey);
-            final @Nullable Boolean importEnabledValue =
-                    YamlMapSupport.optionalBoolean(groupNode, "importEnabled", path);
+            final Boolean importEnabledValue = YamlMapSupport.optionalBoolean(groupNode, "importEnabled", path);
             final boolean importEnabled = importEnabledValue != null && importEnabledValue;
             groups.put(groupKey, new ModuleGroupConfig(groupKey, modules, importEnabled));
         }

@@ -139,8 +139,7 @@ public final class RuntimeEngine {
             final DatabaseConnection source,
             final @Nullable String resumeAt) {
         final ImportConfig importConfig = importByKey(database, importKey);
-        final @Nullable ModuleGroupConfig moduleGroup =
-                null == moduleGroupKey ? null : moduleGroup(database, moduleGroupKey);
+        final ModuleGroupConfig moduleGroup = null == moduleGroupKey ? null : moduleGroup(database, moduleGroupKey);
         withDatabaseConnection(
                 target,
                 false,
@@ -253,7 +252,7 @@ public final class RuntimeEngine {
 
         final List<String> tables = new ArrayList<>();
         for (final String table : orderedTables) {
-            final @Nullable String fixture = fileResolver.findFileInModule(
+            final String fixture = fileResolver.findFileInModule(
                     database.searchDirs(),
                     moduleName,
                     database.fixtureDirName(),
@@ -300,7 +299,7 @@ public final class RuntimeEngine {
             final DatabaseConnection source,
             final String moduleName,
             final String tableName) {
-        final @Nullable String fixtureFile = fileResolver.findFileInModule(
+        final String fixtureFile = fileResolver.findFileInModule(
                 database.searchDirs(),
                 moduleName,
                 importConfig.dir(),
@@ -308,7 +307,7 @@ public final class RuntimeEngine {
                 "yml",
                 database.postDbArtifacts(),
                 database.preDbArtifacts());
-        final @Nullable String sqlFile = fileResolver.findFileInModule(
+        final String sqlFile = fileResolver.findFileInModule(
                 database.searchDirs(),
                 moduleName,
                 importConfig.dir(),
@@ -338,7 +337,7 @@ public final class RuntimeEngine {
             final DatabaseConnection source,
             final String moduleName,
             final String sequenceName) {
-        final @Nullable String fixtureFile = fileResolver.findFileInModule(
+        final String fixtureFile = fileResolver.findFileInModule(
                 database.searchDirs(),
                 moduleName,
                 importConfig.dir(),
@@ -346,7 +345,7 @@ public final class RuntimeEngine {
                 "yml",
                 database.postDbArtifacts(),
                 database.preDbArtifacts());
-        final @Nullable String sqlFile = fileResolver.findFileInModule(
+        final String sqlFile = fileResolver.findFileInModule(
                 database.searchDirs(),
                 moduleName,
                 importConfig.dir(),
@@ -467,7 +466,8 @@ public final class RuntimeEngine {
                 .replace(" ", "");
     }
 
-    private static String basenameWithoutExtension(final String value, final String extension) {
+    @SuppressWarnings( "SameParameterValue" )
+    private static String basenameWithoutExtension( final String value, final String extension) {
         final int slash = Math.max(value.lastIndexOf('/'), value.lastIndexOf('\\'));
         final String basename = -1 == slash ? value : value.substring(slash + 1);
         return basename.endsWith(extension) ? basename.substring(0, basename.length() - extension.length()) : basename;
@@ -510,7 +510,7 @@ public final class RuntimeEngine {
                 database.postDbArtifacts(),
                 database.preDbArtifacts());
 
-        final @Nullable Integer versionIndex = releaseVersionIndex(database, files);
+        final Integer versionIndex = releaseVersionIndex(database, files);
         for (int i = 0; i < files.size(); i++) {
             final String filename = files.get(i);
             final String migrationName = basenameWithoutExtension(filename, ".sql");
@@ -665,14 +665,14 @@ public final class RuntimeEngine {
     private void upFixtures(
             final RuntimeDatabase database, final String moduleName, final Map<String, String> fixtures) {
         for (final String tableName : database.tableOrdering(moduleName)) {
-            final @Nullable String fixture = fixtures.get(tableName);
+            final String fixture = fixtures.get(tableName);
             if (null != fixture) {
                 loadFixture(tableName, loadData(database, fixture));
             }
         }
 
         for (final String sequenceName : database.sequenceOrdering(moduleName)) {
-            final @Nullable String fixture = fixtures.get(sequenceName);
+            final String fixture = fixtures.get(sequenceName);
             if (null != fixture) {
                 loadSequenceFixture(sequenceName, loadData(database, fixture));
             }
@@ -741,7 +741,7 @@ public final class RuntimeEngine {
         return Map.copyOf(values);
     }
 
-    private static Object parseYaml(final String content) {
+    private static @Nullable Object parseYaml(final String content) {
         final var settings = LoadSettings.builder().setAllowDuplicateKeys(false).build();
         return new Load(settings).loadFromString(content);
     }
