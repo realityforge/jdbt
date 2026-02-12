@@ -40,7 +40,7 @@ java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar --help
 4. Run a command, for example:
 
 ```bash
-java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar status --database default
+java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar status
 ```
 
 ## Minimal config example
@@ -48,17 +48,15 @@ java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar status --database default
 `jdbt.yml`
 
 ```yaml
-databases:
+migrations: true
+datasets: [seed]
+imports:
   default:
-    migrations: true
-    datasets: [seed]
-    imports:
-      default:
-        modules: [Core]
-    moduleGroups:
-      all:
-        modules: [Core]
-        importEnabled: true
+    modules: [Core]
+moduleGroups:
+  all:
+    modules: [Core]
+    importEnabled: true
 ```
 
 `db/repository.yml`
@@ -82,7 +80,8 @@ modules:
 ## Notes
 
 - Configuration file name is fixed: `jdbt.yml`.
-- Top-level `defaults` is not supported in `jdbt.yml`; runtime defaults are hardcoded.
+- `jdbt.yml` defines a single implicit database at top-level keys.
+- Top-level `defaults` and `databases` are not supported in `jdbt.yml`; runtime defaults are hardcoded.
 - `searchDirs` is not configurable; jdbt always searches from the directory containing `jdbt.yml`.
 - There is no template processing in configs or fixture files.
 - Import resume uses `--resume-at` (not environment variables).

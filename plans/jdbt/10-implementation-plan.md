@@ -22,6 +22,7 @@
 18. Remove `searchDirs` config and fix search root to `jdbt.yml` directory.
 19. Mark all source and test packages as `@NullMarked`.
 20. Enable requested Error Prone checks and remediate violations in production and test code.
+21. Flatten `jdbt.yml` to a single implicit database configuration model.
 
 ## Delivery Approach
 

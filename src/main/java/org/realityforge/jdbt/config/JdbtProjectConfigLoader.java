@@ -9,29 +9,34 @@ import org.realityforge.jdbt.repository.RepositoryConfig;
 public final class JdbtProjectConfigLoader {
     public JdbtProjectConfig load(final String yaml, final String sourceName, final RepositoryConfig repository) {
         final Map<String, Object> root = YamlMapSupport.parseRoot(yaml, sourceName);
-        YamlMapSupport.assertKeys(root, Set.of("databases"), sourceName);
+        YamlMapSupport.assertKeys(
+                root,
+                Set.of(
+                        "upDirs",
+                        "downDirs",
+                        "finalizeDirs",
+                        "preCreateDirs",
+                        "postCreateDirs",
+                        "datasets",
+                        "datasetsDirName",
+                        "preDatasetDirs",
+                        "postDatasetDirs",
+                        "fixtureDirName",
+                        "migrations",
+                        "migrationsAppliedAtCreate",
+                        "migrationsDirName",
+                        "version",
+                        "resourcePrefix",
+                        "preDbArtifacts",
+                        "postDbArtifacts",
+                        "imports",
+                        "moduleGroups"),
+                sourceName);
 
         final DefaultsConfig defaults = DefaultsConfig.rubyCompatibleDefaults();
-        final Map<String, Object> databasesNode = YamlMapSupport.requireMap(root, "databases", sourceName);
-        if (databasesNode.isEmpty()) {
-            throw new ConfigException("No databases defined in " + sourceName + '.');
-        }
-
-        final Map<String, DatabaseConfig> databases = new LinkedHashMap<>();
-        for (final Map.Entry<String, Object> entry : databasesNode.entrySet()) {
-            if (!(entry.getValue() instanceof Map<?, ?> dbBody)) {
-                throw new ConfigException("Expected map for database '" + entry.getKey() + "' in " + sourceName + '.');
-            }
-            final DatabaseConfig database = loadDatabase(
-                    entry.getKey(),
-                    YamlMapSupport.toStringMap(dbBody, sourceName + ".databases." + entry.getKey()),
-                    defaults,
-                    repository,
-                    sourceName);
-            databases.put(entry.getKey(), database);
-        }
-
-        return new JdbtProjectConfig(defaults, databases);
+        final DatabaseConfig database =
+                loadDatabase(defaults.defaultDatabase(), root, defaults, repository, sourceName);
+        return new JdbtProjectConfig(defaults, database);
     }
 
     private static DatabaseConfig loadDatabase(
@@ -40,7 +45,7 @@ public final class JdbtProjectConfigLoader {
             final DefaultsConfig defaults,
             final RepositoryConfig repository,
             final String sourceName) {
-        final String path = sourceName + ".databases." + key;
+        final String path = sourceName;
         YamlMapSupport.assertKeys(
                 body,
                 Set.of(

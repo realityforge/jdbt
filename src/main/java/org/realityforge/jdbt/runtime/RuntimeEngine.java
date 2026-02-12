@@ -466,8 +466,8 @@ public final class RuntimeEngine {
                 .replace(" ", "");
     }
 
-    @SuppressWarnings( "SameParameterValue" )
-    private static String basenameWithoutExtension( final String value, final String extension) {
+    @SuppressWarnings("SameParameterValue")
+    private static String basenameWithoutExtension(final String value, final String extension) {
         final int slash = Math.max(value.lastIndexOf('/'), value.lastIndexOf('\\'));
         final String basename = -1 == slash ? value : value.substring(slash + 1);
         return basename.endsWith(extension) ? basename.substring(0, basename.length() - extension.length()) : basename;

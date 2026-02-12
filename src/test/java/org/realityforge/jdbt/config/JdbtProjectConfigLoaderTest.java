@@ -17,18 +17,16 @@ final class JdbtProjectConfigLoaderTest {
     @Test
     void loadAppliesHardcodedDefaultsAndBuildsDatabaseConfig() {
         final var config = loader.load("""
-            databases:
+            imports:
               default:
-                imports:
-                  default:
-                    modules: [Core]
-                moduleGroups:
-                  reporting:
-                    modules: [Geo]
-                    importEnabled: true
+                modules: [Core]
+            moduleGroups:
+              reporting:
+                modules: [Geo]
+                importEnabled: true
             """, "jdbt.yml", repository);
 
-        final var database = config.databases().get("default");
+        final var database = config.database();
         assertThat(database.upDirs()).containsExactly(".", "types", "views", "functions", "stored-procedures", "misc");
         assertThat(database.imports().get("default").modules()).containsExactly("Core");
         assertThat(database.imports().get("default").dir()).isEqualTo("import");
@@ -39,13 +37,11 @@ final class JdbtProjectConfigLoaderTest {
     @Test
     void loadUsesRepositoryModulesWhenImportModulesMissing() {
         final var config = loader.load("""
-            databases:
-              default:
-                imports:
-                  default: {}
+            imports:
+              default: {}
             """, "jdbt.yml", repository);
 
-        final var importConfig = config.databases().get("default").imports().get("default");
+        final var importConfig = config.database().imports().get("default");
         assertThat(importConfig.modules()).containsExactly("Core", "Geo");
         assertThat(importConfig.dir()).isEqualTo("import");
     }
@@ -53,22 +49,17 @@ final class JdbtProjectConfigLoaderTest {
     @Test
     void loadDefaultsMigrationsAppliedAtCreateToMigrationsValue() {
         final var config = loader.load("""
-            databases:
-              default:
-                migrations: true
+            migrations: true
             """, "jdbt.yml", repository);
 
-        assertThat(config.databases().get("default").migrations()).isTrue();
-        assertThat(config.databases().get("default").migrationsAppliedAtCreate())
-                .isTrue();
+        assertThat(config.database().migrations()).isTrue();
+        assertThat(config.database().migrationsAppliedAtCreate()).isTrue();
     }
 
     @Test
     void loadRejectsUnknownDatabaseKey() {
         assertThatThrownBy(() -> loader.load("""
-                    databases:
-                      default:
-                        unsupported: true
+                    unsupported: true
                     """, "jdbt.yml", repository))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("Unknown key 'unsupported'");
@@ -78,8 +69,6 @@ final class JdbtProjectConfigLoaderTest {
     void loadRejectsDefaultsTopLevelKey() {
         assertThatThrownBy(() -> loader.load("""
                     defaults:
-                    databases:
-                      default: {}
                     """, "jdbt.yml", repository))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("Unknown key 'defaults'");
@@ -88,11 +77,9 @@ final class JdbtProjectConfigLoaderTest {
     @Test
     void loadRejectsUnknownImportModule() {
         assertThatThrownBy(() -> loader.load("""
-                    databases:
+                    imports:
                       default:
-                        imports:
-                          default:
-                            modules: [Missing]
+                        modules: [Missing]
                     """, "jdbt.yml", repository))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("Module 'Missing'")
@@ -102,10 +89,8 @@ final class JdbtProjectConfigLoaderTest {
     @Test
     void loadRejectsModuleGroupWithoutModules() {
         assertThatThrownBy(() -> loader.load("""
-                    databases:
-                      default:
-                        moduleGroups:
-                          reporting: {}
+                    moduleGroups:
+                      reporting: {}
                     """, "jdbt.yml", repository))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("Missing required list key 'modules'");
@@ -114,11 +99,9 @@ final class JdbtProjectConfigLoaderTest {
     @Test
     void loadRejectsModuleGroupWithUnknownModule() {
         assertThatThrownBy(() -> loader.load("""
-                    databases:
-                      default:
-                        moduleGroups:
-                          reporting:
-                            modules: [Missing]
+                    moduleGroups:
+                      reporting:
+                        modules: [Missing]
                     """, "jdbt.yml", repository))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("Module 'Missing'")
@@ -126,28 +109,25 @@ final class JdbtProjectConfigLoaderTest {
     }
 
     @Test
-    void loadRejectsMissingDatabaseMap() {
-        assertThatThrownBy(() -> loader.load("{}", "jdbt.yml", repository))
-                .isInstanceOf(ConfigException.class)
-                .hasMessageContaining("Missing required map key 'databases'");
+    void loadAllowsEmptyConfigWithHardcodedDefaults() {
+        final var config = loader.load("{}", "jdbt.yml", repository);
+        assertThat(config.database().key()).isEqualTo("default");
     }
 
     @Test
-    void loadRejectsDatabaseWhenNodeIsNotMap() {
+    void loadRejectsLegacyDatabasesKey() {
         assertThatThrownBy(() -> loader.load("""
                     databases:
-                      default: true
+                      default: {}
                     """, "jdbt.yml", repository))
                 .isInstanceOf(ConfigException.class)
-                .hasMessageContaining("Expected map for database 'default'");
+                .hasMessageContaining("Unknown key 'databases'");
     }
 
     @Test
     void loadRejectsSearchDirsKey() {
         assertThatThrownBy(() -> loader.load("""
-                    databases:
-                      default:
-                        searchDirs: [db]
+                    searchDirs: [db]
                     """, "jdbt.yml", repository))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("Unknown key 'searchDirs'");

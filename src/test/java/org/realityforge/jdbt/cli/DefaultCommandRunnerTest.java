@@ -90,28 +90,24 @@ final class DefaultCommandRunnerTest {
 
     private static String projectConfig(final boolean withMigrations) {
         return """
-            databases:
+            datasets: [seed]
+            migrations: %s
+            imports:
               default:
-                datasets: [seed]
-                migrations: %s
-                imports:
-                  default:
-                    modules: [MyModule]
-                moduleGroups:
-                  all:
-                    modules: [MyModule]
+                modules: [MyModule]
+            moduleGroups:
+              all:
+                modules: [MyModule]
             """.formatted(withMigrations);
     }
 
     private static String projectConfigWithoutImports() {
         return """
-            databases:
-              default:
-                datasets: [seed]
-                imports: {}
-                moduleGroups:
-                  all:
-                    modules: [MyModule]
+            datasets: [seed]
+            imports: {}
+            moduleGroups:
+              all:
+                modules: [MyModule]
             """;
     }
 

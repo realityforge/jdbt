@@ -8,7 +8,6 @@ import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -46,21 +45,17 @@ public final class ProjectRuntimeLoader {
         final String projectYaml = readFile(baseDirectory.resolve(PROJECT_CONFIG_FILE));
         final BootstrapProject bootstrap = loadBootstrap(projectYaml);
         final String databaseKey = resolveDatabaseKey(selectedDatabaseKey, bootstrap);
-        final BootstrapDatabase bootstrapDatabase = bootstrap.databases().get(databaseKey);
-        if (null == bootstrapDatabase) {
+        if (!bootstrap.defaultDatabase().equals(databaseKey)) {
             throw new ConfigException(
                     "Unable to locate database '" + databaseKey + "' in " + PROJECT_CONFIG_FILE + '.');
         }
+        final BootstrapDatabase bootstrapDatabase = bootstrap.database();
 
         final List<ArtifactContent> preDbArtifacts = loadArtifacts(bootstrapDatabase.preDbArtifacts());
         final List<ArtifactContent> postDbArtifacts = loadArtifacts(bootstrapDatabase.postDbArtifacts());
         final RepositoryConfig repository = loadRepository(preDbArtifacts, postDbArtifacts);
         final JdbtProjectConfig projectConfig = projectConfigLoader.load(projectYaml, PROJECT_CONFIG_FILE, repository);
-        final DatabaseConfig database = projectConfig.databases().get(databaseKey);
-        if (null == database) {
-            throw new ConfigException(
-                    "Unable to locate database '" + databaseKey + "' in " + PROJECT_CONFIG_FILE + '.');
-        }
+        final DatabaseConfig database = projectConfig.database();
 
         final List<ArtifactContent> resolvedPreDbArtifacts = loadArtifacts(database.preDbArtifacts());
         final List<ArtifactContent> resolvedPostDbArtifacts = loadArtifacts(database.postDbArtifacts());
@@ -77,31 +72,38 @@ public final class ProjectRuntimeLoader {
 
     private static BootstrapProject loadBootstrap(final String yaml) {
         final Map<String, Object> root = YamlMapSupport.parseRoot(yaml, PROJECT_CONFIG_FILE);
-        YamlMapSupport.assertKeys(root, Set.of("databases"), PROJECT_CONFIG_FILE);
+        YamlMapSupport.assertKeys(
+                root,
+                Set.of(
+                        "upDirs",
+                        "downDirs",
+                        "finalizeDirs",
+                        "preCreateDirs",
+                        "postCreateDirs",
+                        "datasets",
+                        "datasetsDirName",
+                        "preDatasetDirs",
+                        "postDatasetDirs",
+                        "fixtureDirName",
+                        "migrations",
+                        "migrationsAppliedAtCreate",
+                        "migrationsDirName",
+                        "version",
+                        "resourcePrefix",
+                        "preDbArtifacts",
+                        "postDbArtifacts",
+                        "imports",
+                        "moduleGroups"),
+                PROJECT_CONFIG_FILE);
 
         final DefaultsConfig defaults = DefaultsConfig.rubyCompatibleDefaults();
 
-        final Map<String, Object> databasesNode = YamlMapSupport.requireMap(root, "databases", PROJECT_CONFIG_FILE);
-        if (databasesNode.isEmpty()) {
-            throw new ConfigException("No databases defined in " + PROJECT_CONFIG_FILE + '.');
-        }
+        final List<String> preDbArtifacts =
+                YamlMapSupport.optionalStringList(root, "preDbArtifacts", PROJECT_CONFIG_FILE, List.of());
+        final List<String> postDbArtifacts =
+                YamlMapSupport.optionalStringList(root, "postDbArtifacts", PROJECT_CONFIG_FILE, List.of());
 
-        final Map<String, BootstrapDatabase> databases = new LinkedHashMap<>();
-        for (final Map.Entry<String, Object> entry : databasesNode.entrySet()) {
-            final String key = entry.getKey();
-            if (!(entry.getValue() instanceof Map<?, ?> body)) {
-                throw new ConfigException("Expected map for database '" + key + "' in " + PROJECT_CONFIG_FILE + '.');
-            }
-            final String path = PROJECT_CONFIG_FILE + ".databases." + key;
-            final Map<String, Object> databaseNode = YamlMapSupport.toStringMap(body, path);
-            final List<String> preDbArtifacts =
-                    YamlMapSupport.optionalStringList(databaseNode, "preDbArtifacts", path, List.of());
-            final List<String> postDbArtifacts =
-                    YamlMapSupport.optionalStringList(databaseNode, "postDbArtifacts", path, List.of());
-            databases.put(key, new BootstrapDatabase(preDbArtifacts, postDbArtifacts));
-        }
-
-        return new BootstrapProject(defaults.defaultDatabase(), Map.copyOf(databases));
+        return new BootstrapProject(defaults.defaultDatabase(), new BootstrapDatabase(preDbArtifacts, postDbArtifacts));
     }
 
     private static String resolveDatabaseKey(
@@ -191,7 +193,7 @@ public final class ProjectRuntimeLoader {
         }
     }
 
-    private record BootstrapProject(String defaultDatabase, Map<String, BootstrapDatabase> databases) {}
+    private record BootstrapProject(String defaultDatabase, BootstrapDatabase database) {}
 
     private record BootstrapDatabase(List<String> preDbArtifacts, List<String> postDbArtifacts) {
         private BootstrapDatabase {

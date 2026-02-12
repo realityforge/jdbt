@@ -76,7 +76,7 @@ public final class JdbtCommand implements Callable<Integer> {
     }
 
     private static final class ExecutionOptions {
-        @CommandLine.Option(names = "--database", description = "Database key from jdbt.yml")
+        @CommandLine.Option(names = "--database", description = "Database key (only 'default' is supported)")
         private @Nullable String databaseKey;
 
         @CommandLine.Option(

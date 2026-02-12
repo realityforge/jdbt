@@ -55,5 +55,5 @@ This matrix tracks parity against Ruby `dbt` implementation and tests.
 | Query command | `runtime.rb#query` helper | No end-user CLI command | intentional_divergence | Removed from Java CLI command surface. |
 | Backup/restore command surface | Optional Ruby tasks | Excluded from initial Java delivery | intentional_divergence | Candidate future scope if requested. |
 | PostgreSQL cross-database standard import | SQL Server style cross-db default import SQL | Explicit import SQL required | intentional_divergence | PostgreSQL does not support cross-database table access without extensions. |
-| Config defaults declaration | Top-level `defaults` in `config.rb` | Hardcoded runtime defaults | intentional_divergence | `jdbt.yml` only accepts top-level `databases`. |
+| Config defaults declaration | Top-level `defaults` in `config.rb` | Hardcoded runtime defaults | intentional_divergence | `jdbt.yml` defines a single implicit database at top-level keys and rejects top-level `defaults`/`databases`. |
 | Search directory selection | Configurable `search_dirs` in Ruby config | Fixed to `jdbt.yml` directory | intentional_divergence | Java resolves all relative paths from the project config directory. |

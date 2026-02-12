@@ -17,10 +17,8 @@ final class ProjectRuntimeLoaderTest {
     @Test
     void loadMergesRepositoryFromPreLocalAndPostArtifacts(@TempDir final Path tempDir) throws IOException {
         writeFile(tempDir, "jdbt.yml", """
-                databases:
-                  default:
-                    preDbArtifacts: [pre.zip]
-                    postDbArtifacts: [post.zip]
+                preDbArtifacts: [pre.zip]
+                postDbArtifacts: [post.zip]
                 """);
         writeFile(tempDir, "repository.yml", """
                 modules:
@@ -52,9 +50,7 @@ final class ProjectRuntimeLoaderTest {
     @Test
     void loadRejectsSearchDirsSetting(@TempDir final Path tempDir) throws IOException {
         writeFile(tempDir, "jdbt.yml", """
-                databases:
-                  default:
-                    searchDirs: [db]
+                searchDirs: [db]
                 """);
         writeFile(tempDir, "repository.yml", """
                 modules:
@@ -70,10 +66,7 @@ final class ProjectRuntimeLoaderTest {
 
     @Test
     void loadUsesHardcodedDefaultDatabaseKey(@TempDir final Path tempDir) throws IOException {
-        writeFile(tempDir, "jdbt.yml", """
-                databases:
-                  default: {}
-                """);
+        writeFile(tempDir, "jdbt.yml", "{}\n");
         writeFile(tempDir, "repository.yml", """
                 modules:
                   A:
@@ -87,11 +80,8 @@ final class ProjectRuntimeLoaderTest {
     }
 
     @Test
-    void loadFailsWhenHardcodedDefaultDatabaseKeyMissing(@TempDir final Path tempDir) throws IOException {
-        writeFile(tempDir, "jdbt.yml", """
-                databases:
-                  custom: {}
-                """);
+    void loadRejectsSelectedDatabaseWhenNotHardcodedDefault(@TempDir final Path tempDir) throws IOException {
+        writeFile(tempDir, "jdbt.yml", "{}\n");
         writeFile(tempDir, "repository.yml", """
                 modules:
                   A:
@@ -99,17 +89,15 @@ final class ProjectRuntimeLoaderTest {
                     sequences: []
                 """);
 
-        assertThatThrownBy(() -> new ProjectRuntimeLoader(tempDir).load(null))
+        assertThatThrownBy(() -> new ProjectRuntimeLoader(tempDir).load("custom"))
                 .isInstanceOf(ConfigException.class)
-                .hasMessageContaining("Unable to locate database 'default'");
+                .hasMessageContaining("Unable to locate database 'custom'");
     }
 
     @Test
     void loadRejectsArtifactMissingRepositoryYml(@TempDir final Path tempDir) throws IOException {
         writeFile(tempDir, "jdbt.yml", """
-                databases:
-                  default:
-                    preDbArtifacts: [pre.zip]
+                preDbArtifacts: [pre.zip]
                 """);
         writeFile(tempDir, "repository.yml", """
                 modules:

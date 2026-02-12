@@ -26,9 +26,25 @@ java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar --help
 
 Top-level keys:
 
-- `databases`
-
-`databases` must contain at least one entry.
+- `upDirs`
+- `downDirs`
+- `finalizeDirs`
+- `preCreateDirs`
+- `postCreateDirs`
+- `datasets`
+- `datasetsDirName`
+- `preDatasetDirs`
+- `postDatasetDirs`
+- `fixtureDirName`
+- `migrations`
+- `migrationsAppliedAtCreate`
+- `migrationsDirName`
+- `version`
+- `resourcePrefix`
+- `preDbArtifacts`
+- `postDbArtifacts`
+- `imports`
+- `moduleGroups`
 
 `jdbt.yml` no longer supports a top-level `defaults` key.
 
@@ -51,27 +67,7 @@ Runtime defaults are hardcoded and currently match Ruby-compatible defaults for:
 - default database key (`default`)
 - default import key (`default`)
 
-#### `databases.<key>` keys
-
-- `upDirs`
-- `downDirs`
-- `finalizeDirs`
-- `preCreateDirs`
-- `postCreateDirs`
-- `datasets`
-- `datasetsDirName`
-- `preDatasetDirs`
-- `postDatasetDirs`
-- `fixtureDirName`
-- `migrations`
-- `migrationsAppliedAtCreate`
-- `migrationsDirName`
-- `version`
-- `resourcePrefix`
-- `preDbArtifacts`
-- `postDbArtifacts`
-- `imports`
-- `moduleGroups`
+`jdbt.yml` defines configuration for a single implicit database keyed as `default`.
 
 Unknown keys are rejected.
 
@@ -83,7 +79,7 @@ Search directory behavior is fixed:
 
 #### `imports`
 
-`databases.<db>.imports.<importKey>` supports:
+`imports.<importKey>` supports:
 
 - `modules`
 - `dir`
@@ -94,7 +90,7 @@ If `modules` is missing, all repository modules are used.
 
 #### `moduleGroups`
 
-`databases.<db>.moduleGroups.<groupKey>` supports:
+`moduleGroups.<groupKey>` supports:
 
 - `modules` (required)
 - `importEnabled`
@@ -163,10 +159,10 @@ All module and hook paths are resolved relative to the directory containing `jdb
 
 Global options available on subcommands:
 
-- `--database <databaseKey>`
+- `--database <databaseKey>` (optional compatibility flag; only `default` is accepted)
 - `--driver <sqlserver|postgres>` (default: `sqlserver`)
 
-If `--database` is omitted, the hardcoded default database key `default` is used.
+If `--database` is omitted, `default` is used.
 
 ### Connection options
 
@@ -199,14 +195,13 @@ Note: when using PostgreSQL, provide `--target-port 5432` and `--source-port 543
 `status`
 
 ```bash
-java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar status --database default
+java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar status
 ```
 
 `create`
 
 ```bash
 java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar create \
-  --database default \
   --driver sqlserver \
   --target-host localhost --target-port 1433 \
   --target-database MyDb --target-username sa --password-env DB_PASS
@@ -218,7 +213,6 @@ Optional: `--no-create` (skip drop/create, run create flow against existing data
 
 ```bash
 java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar drop \
-  --database default \
   --target-host localhost --target-port 1433 \
   --target-database MyDb --target-username sa --password-env DB_PASS
 ```
@@ -227,7 +221,6 @@ java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar drop \
 
 ```bash
 java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar migrate \
-  --database default \
   --target-host localhost --target-port 1433 \
   --target-database MyDb --target-username sa --password-env DB_PASS
 ```
@@ -236,7 +229,6 @@ java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar migrate \
 
 ```bash
 java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar import \
-  --database default \
   --import default \
   --resume-at Core.tblA \
   --target-host localhost --target-port 1433 \
@@ -251,7 +243,6 @@ Optional: `--module-group <groupKey>`.
 
 ```bash
 java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar create-by-import \
-  --database default \
   --import default \
   --target-host localhost --target-port 1433 \
   --target-database TargetDb --target-username sa --password-env TARGET_PASS \
@@ -265,7 +256,6 @@ Optional: `--resume-at <tableOrSequence>`, `--no-create`.
 
 ```bash
 java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar load-dataset seed \
-  --database default \
   --target-host localhost --target-port 1433 \
   --target-database MyDb --target-username sa --password-env DB_PASS
 ```
@@ -274,14 +264,12 @@ java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar load-dataset seed \
 
 ```bash
 java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar up-module-group all \
-  --database default \
   --target-host localhost --target-port 1433 \
   --target-database MyDb --target-username sa --password-env DB_PASS
 ```
 
 ```bash
 java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar down-module-group all \
-  --database default \
   --target-host localhost --target-port 1433 \
   --target-database MyDb --target-username sa --password-env DB_PASS
 ```
@@ -290,7 +278,6 @@ java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar down-module-group all \
 
 ```bash
 java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar package-data \
-  --database default \
   --output ./build/data.zip
 ```
 
@@ -311,7 +298,7 @@ java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar package-data \
 
 ## Troubleshooting
 
-- `Unable to locate database 'default' ...`: either define a `default` database key in `jdbt.yml` or pass `--database <key>`.
+- `Unable to locate database '<key>' ...`: only `default` is supported as the database key; omit `--database` or pass `--database default`.
 - `Unable to locate import definition by key ...`: pass `--import`, or define an import named `default` in `jdbt.yml`.
 - `Unknown key 'searchDirs'`: remove `searchDirs` from `jdbt.yml`; path resolution is fixed to the `jdbt.yml` directory.
 - Fat jar startup security/signature errors: rebuild with `./gradlew clean fatJar` using current build config.
