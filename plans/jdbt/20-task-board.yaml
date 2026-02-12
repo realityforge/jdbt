@@ -622,7 +622,7 @@ tasks:
       - command: ./gradlew clean spotlessCheck check fatJar
         result: pass
     commit:
-      hash: pending
+      hash: db40233
       message: Flatten jdbt.yml to single implicit database config
 
 history:
@@ -712,5 +712,5 @@ history:
     note: Enabled requested Error Prone checks and remediated production and test findings.
   - timestamp: 2026-02-12
     task: T22
-    commit: pending
+    commit: db40233
     note: Flattened jdbt.yml to top-level single-database configuration semantics.
