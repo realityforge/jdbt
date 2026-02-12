@@ -552,8 +552,8 @@ tasks:
       - command: ./gradlew clean spotlessCheck check fatJar
         result: pass
     commit:
-      hash: pending
-      message: pending
+      hash: f58afe0
+      message: NullMark all test packages
 
 history:
   - timestamp: 2026-02-12
@@ -634,5 +634,5 @@ history:
     note: Removed searchDirs config and fixed search root to jdbt.yml directory.
   - timestamp: 2026-02-12
     task: T20
-    commit: pending
+    commit: f58afe0
     note: Added package-level NullMarked annotations to all test packages.
