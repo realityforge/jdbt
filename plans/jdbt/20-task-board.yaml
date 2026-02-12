@@ -9,7 +9,7 @@ meta:
     - completed
     - cancelled
 
-current_focus: T07
+current_focus: T08
 
 tasks:
   - id: T01
@@ -165,14 +165,34 @@ tasks:
 
   - id: T07
     title: Implement runtime core commands and flow orchestration
-    status: in_progress
+    status: completed
     priority: high
     depends_on:
       - T06
+    acceptance_criteria:
+      - Runtime status/create/drop flows implemented
+      - Module group up/down orchestration implemented
+      - Dataset load/create-with-dataset orchestration implemented
+      - Runtime driver abstraction introduced for orchestration testing
+      - required full gates pass
+    files_touched:
+      - src/main/java/org/realityforge/jdbt/db/*
+      - src/main/java/org/realityforge/jdbt/runtime/*
+      - src/main/java/org/realityforge/jdbt/repository/RepositoryConfig.java
+      - src/test/java/org/realityforge/jdbt/runtime/*
+      - src/test/java/org/realityforge/jdbt/repository/RepositoryConfigTest.java
+      - plans/jdbt/20-task-board.yaml
+      - plans/jdbt/30-compatibility-matrix.md
+    evidence:
+      - command: ./gradlew clean spotlessCheck check fatJar
+        result: pass
+    commit:
+      hash: pending
+      message: pending
 
   - id: T08
     title: Implement import flow and --resume-at behavior
-    status: pending
+    status: in_progress
     priority: high
     depends_on:
       - T07
@@ -240,3 +260,7 @@ history:
     task: T06
     commit: e2726a9
     note: File resolution and artifact overlay semantics implemented with strict validation.
+  - timestamp: 2026-02-12
+    task: T07
+    commit: pending
+    note: Runtime core orchestration implemented with no-DB execution tests.
