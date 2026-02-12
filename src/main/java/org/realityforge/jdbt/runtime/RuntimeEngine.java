@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.jspecify.annotations.Nullable;
+import org.realityforge.jdbt.config.ImportConfig;
 import org.realityforge.jdbt.config.ModuleGroupConfig;
 import org.realityforge.jdbt.db.DatabaseConnection;
 import org.realityforge.jdbt.db.DbDriver;
@@ -122,6 +123,377 @@ public final class RuntimeEngine {
             performLoadDataset(database, datasetName);
             performPostDatasetHooks(database, datasetName);
         });
+    }
+
+    public void databaseImport(
+            final RuntimeDatabase database,
+            final String importKey,
+            final @Nullable String moduleGroupKey,
+            final DatabaseConnection target,
+            final DatabaseConnection source,
+            final @Nullable String resumeAt) {
+        final ImportConfig importConfig = importByKey(database, importKey);
+        final @Nullable ModuleGroupConfig moduleGroup =
+                null == moduleGroupKey ? null : moduleGroup(database, moduleGroupKey);
+        withDatabaseConnection(
+                target,
+                false,
+                () -> performImportAction(database, importConfig, target, source, true, moduleGroup, resumeAt));
+    }
+
+    public void createByImport(
+            final RuntimeDatabase database,
+            final String importKey,
+            final DatabaseConnection target,
+            final DatabaseConnection source,
+            final @Nullable String resumeAt,
+            final boolean noCreate) {
+        final ImportConfig importConfig = importByKey(database, importKey);
+        if (null == resumeAt) {
+            createDatabaseIfRequired(database, target, noCreate);
+        }
+        withDatabaseConnection(target, false, () -> {
+            if (null == resumeAt) {
+                for (final String dir : database.preCreateDirs()) {
+                    processDirSet(database, dir);
+                }
+                performCreateAction(database, ModuleMode.UP);
+            }
+            performImportAction(database, importConfig, target, source, false, null, resumeAt);
+            performCreateAction(database, ModuleMode.FINALIZE);
+            for (final String dir : database.postCreateDirs()) {
+                processDirSet(database, dir);
+            }
+        });
+    }
+
+    private void performImportAction(
+            final RuntimeDatabase database,
+            final ImportConfig importConfig,
+            final DatabaseConnection target,
+            final DatabaseConnection source,
+            final boolean shouldPerformDelete,
+            final @Nullable ModuleGroupConfig moduleGroup,
+            final @Nullable String resumeAtInput) {
+        final ResumeState resumeAt = new ResumeState(resumeAtInput);
+        final List<String> selectedModules = selectedImportModules(database, importConfig, moduleGroup);
+
+        if (null == moduleGroup && null == resumeAt.value) {
+            for (final String dir : importConfig.preImportDirs()) {
+                processImportDirSet(database, dir, target, source);
+            }
+        }
+
+        for (final String moduleName : selectedModules) {
+            verifyNoUnexpectedImportFiles(database, moduleName, importConfig.dir());
+        }
+
+        if (shouldPerformDelete && null == resumeAt.value) {
+            final List<String> deleteOrder = new ArrayList<>();
+            for (final String moduleName : selectedModules) {
+                final List<String> tables = new ArrayList<>(database.tableOrdering(moduleName));
+                java.util.Collections.reverse(tables);
+                deleteOrder.addAll(tables);
+            }
+            for (final String table : deleteOrder) {
+                db.execute("DELETE FROM " + table, false);
+            }
+        }
+
+        for (final String moduleName : selectedModules) {
+            importModule(database, importConfig, target, source, moduleName, resumeAt);
+        }
+
+        if (null != resumeAt.value) {
+            throw new RuntimeExecutionException(
+                    "Partial import unable to be completed as bad table name supplied " + resumeAt.value);
+        }
+
+        if (null == moduleGroup) {
+            for (final String dir : importConfig.postImportDirs()) {
+                processImportDirSet(database, dir, target, source);
+            }
+        }
+        db.postDatabaseImport(importConfig);
+    }
+
+    private List<String> selectedImportModules(
+            final RuntimeDatabase database,
+            final ImportConfig importConfig,
+            final @Nullable ModuleGroupConfig moduleGroup) {
+        final List<String> selectedModules = new ArrayList<>();
+        for (final String moduleName : database.repository().modules()) {
+            if (!importConfig.modules().contains(moduleName)) {
+                continue;
+            }
+            if (null != moduleGroup && !moduleGroup.modules().contains(moduleName)) {
+                continue;
+            }
+            selectedModules.add(moduleName);
+        }
+        return List.copyOf(selectedModules);
+    }
+
+    private void importModule(
+            final RuntimeDatabase database,
+            final ImportConfig importConfig,
+            final DatabaseConnection target,
+            final DatabaseConnection source,
+            final String moduleName,
+            final ResumeState resumeAt) {
+        final List<String> orderedTables = new ArrayList<>(database.tableOrdering(moduleName));
+        final List<String> orderedSequences = new ArrayList<>(database.sequenceOrdering(moduleName));
+
+        final List<String> tables = new ArrayList<>();
+        for (final String table : orderedTables) {
+            final @Nullable String fixture = fileResolver.findFileInModule(
+                    database.searchDirs(),
+                    moduleName,
+                    database.fixtureDirName(),
+                    table,
+                    "yml",
+                    database.postDbArtifacts(),
+                    database.preDbArtifacts());
+            if (null == fixture) {
+                tables.add(table);
+            }
+        }
+
+        for (final String table : tables) {
+            final String cleanName = cleanObjectName(table);
+            if (cleanName.equals(resumeAt.value)) {
+                db.execute("DELETE FROM " + table, false);
+                resumeAt.value = null;
+            }
+            if (null == resumeAt.value) {
+                db.preTableImport(importConfig, table);
+                performImport(database, importConfig, target, source, moduleName, table);
+                db.postTableImport(importConfig, table);
+            }
+        }
+
+        for (final String sequence : orderedSequences) {
+            if (cleanObjectName(sequence).equals(resumeAt.value)) {
+                resumeAt.value = null;
+            }
+            if (null == resumeAt.value) {
+                performSequenceImport(database, importConfig, target, source, moduleName, sequence);
+            }
+        }
+
+        if (null == resumeAt.value) {
+            db.postDataModuleImport(importConfig, moduleName);
+        }
+    }
+
+    private void performImport(
+            final RuntimeDatabase database,
+            final ImportConfig importConfig,
+            final DatabaseConnection target,
+            final DatabaseConnection source,
+            final String moduleName,
+            final String tableName) {
+        final @Nullable String fixtureFile = fileResolver.findFileInModule(
+                database.searchDirs(),
+                moduleName,
+                importConfig.dir(),
+                tableName,
+                "yml",
+                database.postDbArtifacts(),
+                database.preDbArtifacts());
+        final @Nullable String sqlFile = fileResolver.findFileInModule(
+                database.searchDirs(),
+                moduleName,
+                importConfig.dir(),
+                tableName,
+                "sql",
+                database.postDbArtifacts(),
+                database.preDbArtifacts());
+
+        if (null != fixtureFile && null != sqlFile) {
+            throw new RuntimeExecutionException("Unexpectedly found both import fixture (" + fixtureFile
+                    + ") and import sql (" + sqlFile + ") files.");
+        }
+
+        if (null != fixtureFile) {
+            loadFixture(tableName, loadData(database, fixtureFile));
+        } else if (null != sqlFile) {
+            runImportSql(tableName, loadData(database, sqlFile), target.database(), source.database());
+        } else {
+            performStandardImport(tableName, target.database(), source.database());
+        }
+    }
+
+    private void performSequenceImport(
+            final RuntimeDatabase database,
+            final ImportConfig importConfig,
+            final DatabaseConnection target,
+            final DatabaseConnection source,
+            final String moduleName,
+            final String sequenceName) {
+        final @Nullable String fixtureFile = fileResolver.findFileInModule(
+                database.searchDirs(),
+                moduleName,
+                importConfig.dir(),
+                sequenceName,
+                "yml",
+                database.postDbArtifacts(),
+                database.preDbArtifacts());
+        final @Nullable String sqlFile = fileResolver.findFileInModule(
+                database.searchDirs(),
+                moduleName,
+                importConfig.dir(),
+                sequenceName,
+                "sql",
+                database.postDbArtifacts(),
+                database.preDbArtifacts());
+
+        if (null != fixtureFile && null != sqlFile) {
+            throw new RuntimeExecutionException("Unexpectedly found both fixture ("
+                    + fixtureFile
+                    + ") and sql ("
+                    + sqlFile
+                    + ") files for "
+                    + cleanObjectName(sequenceName)
+                    + '.');
+        }
+
+        if (null != fixtureFile) {
+            loadSequenceFixture(sequenceName, loadData(database, fixtureFile));
+        } else if (null != sqlFile) {
+            runImportSql(sequenceName, loadData(database, sqlFile), target.database(), source.database());
+        } else {
+            runImportSql(
+                    sequenceName,
+                    generateStandardSequenceImportSql(sequenceName),
+                    target.database(),
+                    source.database());
+        }
+    }
+
+    private String generateStandardImportSql(
+            final String tableName, final String targetDatabase, final String sourceDatabase) {
+        final List<String> columns = db.columnNamesForTable(tableName);
+        return "INSERT INTO ["
+                + targetDatabase
+                + "]."
+                + tableName
+                + '(' + String.join(", ", columns)
+                + ")\n  SELECT "
+                + String.join(", ", columns)
+                + " FROM ["
+                + sourceDatabase
+                + "]."
+                + tableName
+                + "\n";
+    }
+
+    private String generateStandardSequenceImportSql(final String sequenceName) {
+        return "DECLARE @Next VARCHAR(50);\n"
+                + "SELECT @Next = CAST(current_value AS BIGINT) + 1 FROM [__SOURCE__].sys.sequences "
+                + "WHERE object_id = OBJECT_ID('[__SOURCE__]."
+                + sequenceName
+                + "');\n"
+                + "SET @Next = COALESCE(@Next,'1');"
+                + "EXEC('USE [__TARGET__]; ALTER SEQUENCE "
+                + sequenceName
+                + " RESTART WITH ' + @Next );";
+    }
+
+    private void performStandardImport(
+            final String tableName, final String targetDatabase, final String sourceDatabase) {
+        runImportSql(
+                tableName,
+                generateStandardImportSql(tableName, targetDatabase, sourceDatabase),
+                targetDatabase,
+                sourceDatabase);
+    }
+
+    private void runImportSql(
+            final @Nullable String tableName,
+            final String sql,
+            final String targetDatabase,
+            final String sourceDatabase) {
+        String effectiveSql = sql;
+        if (null != tableName) {
+            effectiveSql = effectiveSql.replace("@@TABLE@@", tableName).replace("__TABLE__", tableName);
+        }
+        effectiveSql = effectiveSql.replace("@@SOURCE@@", sourceDatabase).replace("__SOURCE__", sourceDatabase);
+        effectiveSql = effectiveSql.replace("@@TARGET@@", targetDatabase).replace("__TARGET__", targetDatabase);
+        runSqlBatch(effectiveSql, true);
+    }
+
+    private void processImportDirSet(
+            final RuntimeDatabase database,
+            final String dir,
+            final DatabaseConnection target,
+            final DatabaseConnection source) {
+        final List<String> files = fileResolver.collectFiles(
+                database.searchDirs(),
+                dir,
+                "sql",
+                database.indexFileName(),
+                database.postDbArtifacts(),
+                database.preDbArtifacts());
+        for (final String file : files) {
+            runImportSql(null, loadData(database, file), target.database(), source.database());
+        }
+    }
+
+    private void verifyNoUnexpectedImportFiles(
+            final RuntimeDatabase database, final String moduleName, final String importDir) {
+        final List<String> expected = new ArrayList<>();
+        final List<String> orderedElements = new ArrayList<>(database.tableOrdering(moduleName));
+        orderedElements.addAll(database.sequenceOrdering(moduleName));
+        for (final String table : orderedElements) {
+            final String clean = cleanObjectName(table);
+            expected.add(clean + ".yml");
+            expected.add(clean + ".sql");
+        }
+
+        final List<String> additional = new ArrayList<>();
+        for (final Path searchDir : database.searchDirs()) {
+            final Path directory = searchDir.resolve(moduleName).resolve(importDir);
+            if (!Files.isDirectory(directory)) {
+                continue;
+            }
+            try (var stream = Files.list(directory)) {
+                stream.filter(Files::isRegularFile)
+                        .filter(file -> {
+                            final String fileName = file.getFileName().toString();
+                            return fileName.endsWith(".yml") || fileName.endsWith(".sql");
+                        })
+                        .forEach(file -> {
+                            final String fileName = file.getFileName().toString();
+                            if (!expected.contains(fileName)) {
+                                additional.add(file.toString());
+                            }
+                        });
+            } catch (final IOException ioe) {
+                throw new UncheckedIOException("Failed scanning import directory " + directory, ioe);
+            }
+        }
+
+        if (!additional.isEmpty()) {
+            throw new RuntimeExecutionException(
+                    "Discovered additional files in import directory in database search path. Files: " + additional);
+        }
+    }
+
+    private String cleanObjectName(final String value) {
+        return value.replace("[", "")
+                .replace("]", "")
+                .replace("\"", "")
+                .replace("'", "")
+                .replace(" ", "");
+    }
+
+    private ImportConfig importByKey(final RuntimeDatabase database, final String importKey) {
+        final ImportConfig importConfig = database.imports().get(importKey);
+        if (null == importConfig) {
+            throw new RuntimeExecutionException("Unable to locate import definition by key '" + importKey + "'");
+        }
+        return importConfig;
     }
 
     private void createDatabaseIfRequired(
@@ -384,5 +756,13 @@ public final class RuntimeEngine {
         UP,
         DOWN,
         FINALIZE
+    }
+
+    private static final class ResumeState {
+        private @Nullable String value;
+
+        private ResumeState(final @Nullable String value) {
+            this.value = value;
+        }
     }
 }

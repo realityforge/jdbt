@@ -17,8 +17,8 @@ This matrix tracks parity against Ruby `dbt` implementation and tests.
 | Create command | `runtime.rb#create` | `create` | in_progress | Core orchestration implemented with fixture load support. |
 | Drop command | `runtime.rb#drop` | `drop` | in_progress | Control-connection drop flow implemented. |
 | Migrate command | `runtime.rb#migrate` | `migrate` | pending | Migration table semantics preserved. |
-| Import command | `runtime.rb#database_import` | `import` | pending | Includes per-table and per-sequence behavior. |
-| Create by import | `runtime.rb#create_by_import` | `create-by-import` | pending | Skips create path when resuming partial import. |
+| Import command | `runtime.rb#database_import` | `import` | in_progress | Runtime import sequencing and resume behavior implemented; CLI wiring pending. |
+| Create by import | `runtime.rb#create_by_import` | `create-by-import` | in_progress | Runtime flow implemented with resume-aware create-skip semantics. |
 | Load dataset | `runtime.rb#load_dataset` | `load-dataset` | in_progress | Core dataset orchestration implemented; CLI wiring pending. |
 | Module group up/down | `runtime.rb#up_module_group`, `#down_module_group` | `up-module-group`, `down-module-group` | in_progress | Core up/down orchestration implemented with reverse-down semantics. |
 | Dump fixtures | `runtime.rb#dump_database_to_fixtures` | `dump-fixtures` | pending | No live DB required in default tests. |
@@ -34,7 +34,7 @@ This matrix tracks parity against Ruby `dbt` implementation and tests.
 | Index ordering | `runtime.rb#collect_files` | File resolver | in_progress | Index entries first, then lexical fallback implemented; runtime integration pending. |
 | Duplicate basename rejection | `runtime.rb#collect_files` | File resolver | in_progress | Duplicate basename checks implemented in resolver with diagnostics. |
 | Fixture resolution | `runtime.rb#collect_fixtures_from_dirs` | Fixture loader | in_progress | Strict rejection of unexpected fixture/sql files implemented in resolver. |
-| Import file strictness | `runtime.rb#import` | Import resolver | pending | Reject unknown files in import dirs. |
+| Import file strictness | `runtime.rb#import` | Import resolver | in_progress | Unknown import files now rejected in runtime resolver; broader parity checks pending. |
 | SQL batch splitting | `runtime.rb#run_sql_batch` | SQL executor | pending | `GO` separator behavior preserved. |
 | Migration release-cut behavior | `runtime.rb#perform_migration` | Migration engine | pending | Respect `*_Release-<version>.sql` semantics. |
 

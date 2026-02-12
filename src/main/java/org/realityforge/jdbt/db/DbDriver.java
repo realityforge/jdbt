@@ -2,6 +2,7 @@ package org.realityforge.jdbt.db;
 
 import java.util.List;
 import java.util.Map;
+import org.realityforge.jdbt.config.ImportConfig;
 import org.realityforge.jdbt.runtime.RuntimeDatabase;
 
 public interface DbDriver {
@@ -26,4 +27,14 @@ public interface DbDriver {
     void postFixtureImport(String tableName);
 
     void updateSequence(String sequenceName, long value);
+
+    void preTableImport(ImportConfig importConfig, String tableName);
+
+    void postTableImport(ImportConfig importConfig, String tableName);
+
+    void postDataModuleImport(ImportConfig importConfig, String moduleName);
+
+    void postDatabaseImport(ImportConfig importConfig);
+
+    List<String> columnNamesForTable(String tableName);
 }

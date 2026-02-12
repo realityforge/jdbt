@@ -9,7 +9,7 @@ meta:
     - completed
     - cancelled
 
-current_focus: T08
+current_focus: T09
 
 tasks:
   - id: T01
@@ -192,14 +192,35 @@ tasks:
 
   - id: T08
     title: Implement import flow and --resume-at behavior
-    status: in_progress
+    status: completed
     priority: high
     depends_on:
       - T07
+    acceptance_criteria:
+      - Standalone import flow implemented with delete/import sequencing
+      - --resume-at semantics implemented and validated
+      - create-by-import runtime flow implemented
+      - module-group import delete-first behavior enforced
+      - import hook SQL supports source/target placeholders
+      - required full gates pass
+    files_touched:
+      - src/main/java/org/realityforge/jdbt/runtime/RuntimeEngine.java
+      - src/main/java/org/realityforge/jdbt/db/DbDriver.java
+      - src/test/java/org/realityforge/jdbt/runtime/RuntimeEngineTest.java
+      - src/test/java/org/realityforge/jdbt/runtime/RuntimeDatabaseTest.java
+      - src/main/java/org/realityforge/jdbt/runtime/RuntimeDatabase.java
+      - plans/jdbt/20-task-board.yaml
+      - plans/jdbt/30-compatibility-matrix.md
+    evidence:
+      - command: ./gradlew clean spotlessCheck check fatJar
+        result: pass
+    commit:
+      hash: pending
+      message: pending
 
   - id: T09
     title: Implement migration flow and migration tracking
-    status: pending
+    status: in_progress
     priority: high
     depends_on:
       - T07
@@ -264,3 +285,7 @@ history:
     task: T07
     commit: bad3ca8
     note: Runtime core orchestration implemented with no-DB execution tests.
+  - timestamp: 2026-02-12
+    task: T08
+    commit: pending
+    note: Import and resume runtime flow implemented with module-group delete-first behavior.

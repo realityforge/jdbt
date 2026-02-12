@@ -17,11 +17,14 @@ import org.realityforge.jdbt.config.ImportConfig;
 import org.realityforge.jdbt.config.ModuleGroupConfig;
 import org.realityforge.jdbt.db.DatabaseConnection;
 import org.realityforge.jdbt.db.DbDriver;
+import org.realityforge.jdbt.files.ArtifactContent;
 import org.realityforge.jdbt.files.FileResolver;
 import org.realityforge.jdbt.repository.RepositoryConfig;
 
 final class RuntimeEngineTest {
-    private final DatabaseConnection connection = new DatabaseConnection("127.0.0.1", 1433, "DB", "sa", "secret");
+    private final DatabaseConnection connection = new DatabaseConnection("127.0.0.1", 1433, "DBT_TEST", "sa", "secret");
+    private final DatabaseConnection sourceConnection =
+            new DatabaseConnection("127.0.0.1", 1433, "IMPORT_DB", "sa", "secret");
 
     @Test
     void statusReportsVersionHashAndMigrationFlag() {
@@ -163,6 +166,230 @@ final class RuntimeEngineTest {
                 .hasMessageContaining("Unknown dataset");
     }
 
+    @Test
+    void importExecutesDeleteThenDefaultTableImportAndHooks(@TempDir final Path tempDir) throws IOException {
+        createFile(tempDir, "db/import-hooks/pre/pre.sql", "PRE __SOURCE__ __TARGET__");
+        createFile(tempDir, "db/import-hooks/post/post.sql", "POST __SOURCE__ __TARGET__");
+
+        final RecordingDriver driver = new RecordingDriver();
+        final RuntimeEngine engine = new RuntimeEngine(driver, new FileResolver());
+        final RepositoryConfig repository = new RepositoryConfig(
+                List.of("MyModule"),
+                Map.of(),
+                Map.of("MyModule", List.of("[MyModule].[foo]", "[MyModule].[bar]")),
+                Map.of("MyModule", List.of()));
+        final ImportConfig importConfig = new ImportConfig(
+                "default", List.of("MyModule"), "import", List.of("import-hooks/pre"), List.of("import-hooks/post"));
+        final RuntimeDatabase database = runtimeDatabase(
+                "default",
+                repository,
+                List.of(tempDir.resolve("db")),
+                Map.of(),
+                List.of("defaultDataset"),
+                Map.of("default", importConfig));
+
+        engine.databaseImport(database, "default", null, connection, sourceConnection, null);
+
+        assertThat(driver.calls)
+                .containsExactly(
+                        "open(false)",
+                        "execute(true):PRE IMPORT_DB DBT_TEST",
+                        "execute(false):DELETE FROM [MyModule].[bar]",
+                        "execute(false):DELETE FROM [MyModule].[foo]",
+                        "preTableImport(default,[MyModule].[foo])",
+                        "columnNamesForTable([MyModule].[foo])",
+                        "execute(true):INSERT INTO [DBT_TEST].[MyModule].[foo]([ID])\n  SELECT [ID] FROM [IMPORT_DB].[MyModule].[foo]",
+                        "postTableImport(default,[MyModule].[foo])",
+                        "preTableImport(default,[MyModule].[bar])",
+                        "columnNamesForTable([MyModule].[bar])",
+                        "execute(true):INSERT INTO [DBT_TEST].[MyModule].[bar]([ID])\n  SELECT [ID] FROM [IMPORT_DB].[MyModule].[bar]",
+                        "postTableImport(default,[MyModule].[bar])",
+                        "postDataModuleImport(default,MyModule)",
+                        "execute(true):POST IMPORT_DB DBT_TEST",
+                        "postDatabaseImport(default)",
+                        "close");
+    }
+
+    @Test
+    void importResumesAtTableAndErrorsOnUnknownResume(@TempDir final Path tempDir) {
+        final RecordingDriver driver = new RecordingDriver();
+        final RuntimeEngine engine = new RuntimeEngine(driver, new FileResolver());
+        final RepositoryConfig repository = new RepositoryConfig(
+                List.of("MyModule"),
+                Map.of(),
+                Map.of("MyModule", List.of("[MyModule].[foo]", "[MyModule].[bar]", "[MyModule].[baz]")),
+                Map.of("MyModule", List.of()));
+        final RuntimeDatabase database = runtimeDatabase("default", repository, List.of(tempDir.resolve("db")));
+
+        engine.databaseImport(database, "default", null, connection, sourceConnection, "MyModule.bar");
+        assertThat(driver.calls)
+                .containsSubsequence(
+                        "open(false)",
+                        "execute(false):DELETE FROM [MyModule].[bar]",
+                        "preTableImport(default,[MyModule].[bar])",
+                        "preTableImport(default,[MyModule].[baz])",
+                        "postDatabaseImport(default)",
+                        "close");
+        assertThat(driver.calls).doesNotContain("execute(false):DELETE FROM [MyModule].[foo]");
+
+        driver.calls.clear();
+        assertThatThrownBy(() ->
+                        engine.databaseImport(database, "default", null, connection, sourceConnection, "Missing.Table"))
+                .isInstanceOf(RuntimeExecutionException.class)
+                .hasMessageContaining("Partial import unable to be completed");
+    }
+
+    @Test
+    void importWithModuleGroupDeletesAllBeforeImport(@TempDir final Path tempDir) {
+        final RecordingDriver driver = new RecordingDriver();
+        final RuntimeEngine engine = new RuntimeEngine(driver, new FileResolver());
+        final RepositoryConfig repository = RepositoryConfigTestData.twoModules();
+        final RuntimeDatabase database = runtimeDatabase(
+                "default",
+                repository,
+                List.of(tempDir.resolve("db")),
+                Map.of("grp", new ModuleGroupConfig("grp", List.of("MyModule", "MyOtherModule"), true)),
+                List.of(),
+                Map.of("default", new ImportConfig("default", repository.modules(), "import", List.of(), List.of())));
+
+        engine.databaseImport(database, "default", "grp", connection, sourceConnection, null);
+
+        final int firstDelete = indexOf(driver.calls, "execute(false):DELETE FROM [MyModule].[bar]");
+        final int secondDelete = indexOf(driver.calls, "execute(false):DELETE FROM [MyModule].[foo]");
+        final int thirdDelete = indexOf(driver.calls, "execute(false):DELETE FROM [MyOtherModule].[bark]");
+        final int firstImport = indexOf(driver.calls, "preTableImport(default,[MyModule].[foo])");
+
+        assertThat(firstDelete).isNotNegative();
+        assertThat(secondDelete).isNotNegative();
+        assertThat(thirdDelete).isNotNegative();
+        assertThat(firstImport).isGreaterThan(secondDelete).isGreaterThan(thirdDelete);
+    }
+
+    @Test
+    void importRejectsUnexpectedImportFiles(@TempDir final Path tempDir) throws IOException {
+        createFile(tempDir, "db/MyModule/import/unexpected.sql", "SELECT 1");
+        final RecordingDriver driver = new RecordingDriver();
+        final RuntimeEngine engine = new RuntimeEngine(driver, new FileResolver());
+        final RuntimeDatabase database =
+                runtimeDatabase("default", RepositoryConfigTestData.singleModule(), List.of(tempDir.resolve("db")));
+
+        assertThatThrownBy(() -> engine.databaseImport(database, "default", null, connection, sourceConnection, null))
+                .isInstanceOf(RuntimeExecutionException.class)
+                .hasMessageContaining("Discovered additional files in import directory");
+    }
+
+    @Test
+    void createWithDatasetRunsDatasetHooksAndFixtureLoad(@TempDir final Path tempDir) throws IOException {
+        createFile(tempDir, "db/MyModule/./up.sql", "UP");
+        createFile(tempDir, "db/MyModule/finalize/final.sql", "FINAL");
+        createFile(tempDir, "db/datasets/myset/pre/pre.sql", "DSPRE");
+        createFile(tempDir, "db/datasets/myset/post/post.sql", "DSPOST");
+        createFile(tempDir, "db/MyModule/datasets/myset/MyModule.foo.yml", "1:\n  ID: 2\n");
+
+        final RecordingDriver driver = new RecordingDriver();
+        final RuntimeEngine engine = new RuntimeEngine(driver, new FileResolver());
+        final RuntimeDatabase database = runtimeDatabase(
+                "default",
+                RepositoryConfigTestData.singleModule(),
+                List.of(tempDir.resolve("db")),
+                Map.of(),
+                List.of("myset"));
+
+        engine.createWithDataset(database, connection, false, "myset");
+
+        assertThat(driver.calls)
+                .containsSubsequence(
+                        "open(true)",
+                        "drop(default)",
+                        "createDatabase(default)",
+                        "open(false)",
+                        "createSchema(MyModule)",
+                        "execute(false):UP",
+                        "execute(false):DSPRE",
+                        "execute(false):DELETE FROM [MyModule].[foo]",
+                        "preFixtureImport([MyModule].[foo])",
+                        "insert([MyModule].[foo],{ID=2})",
+                        "execute(false):DSPOST",
+                        "execute(false):FINAL");
+    }
+
+    @Test
+    void createByImportSkipsCreatePathWhenResuming(@TempDir final Path tempDir) {
+        final RecordingDriver driver = new RecordingDriver();
+        final RuntimeEngine engine = new RuntimeEngine(driver, new FileResolver());
+        final RepositoryConfig repository = new RepositoryConfig(
+                List.of("MyModule"),
+                Map.of(),
+                Map.of("MyModule", List.of("[MyModule].[foo]", "[MyModule].[bar]")),
+                Map.of("MyModule", List.of()));
+        final RuntimeDatabase database = runtimeDatabase("default", repository, List.of(tempDir.resolve("db")));
+
+        engine.createByImport(database, "default", connection, sourceConnection, "MyModule.bar", false);
+
+        assertThat(driver.calls)
+                .containsSubsequence(
+                        "open(false)",
+                        "execute(false):DELETE FROM [MyModule].[bar]",
+                        "preTableImport(default,[MyModule].[bar])",
+                        "postDatabaseImport(default)",
+                        "close");
+        assertThat(driver.calls).doesNotContain("open(true)", "drop(default)", "createSchema(MyModule)");
+    }
+
+    @Test
+    void importIncludesSequenceProcessingAndModuleGroupValidation(@TempDir final Path tempDir) throws IOException {
+        createFile(tempDir, "db/MyModule/import/MyModule.fooSeq.yml", "--- 23\n");
+        final RecordingDriver driver = new RecordingDriver();
+        final RuntimeEngine engine = new RuntimeEngine(driver, new FileResolver());
+        final RepositoryConfig repository = new RepositoryConfig(
+                List.of("MyModule"),
+                Map.of(),
+                Map.of("MyModule", List.of("[MyModule].[foo]")),
+                Map.of("MyModule", List.of("[MyModule].[fooSeq]")));
+        final RuntimeDatabase database = runtimeDatabase("default", repository, List.of(tempDir.resolve("db")));
+
+        engine.databaseImport(database, "default", null, connection, sourceConnection, null);
+        assertThat(driver.calls).contains("updateSequence([MyModule].[fooSeq],23)");
+
+        assertThatThrownBy(
+                        () -> engine.databaseImport(database, "default", "missing", connection, sourceConnection, null))
+                .isInstanceOf(RuntimeExecutionException.class)
+                .hasMessageContaining("Unable to locate module group definition");
+    }
+
+    @Test
+    void importUsesArtifactLocationsWhenImportFilesInZip(@TempDir final Path tempDir) {
+        final RecordingDriver driver = new RecordingDriver();
+        final RuntimeEngine engine = new RuntimeEngine(driver, new FileResolver());
+        final RepositoryConfig repository = RepositoryConfigTestData.singleModule();
+        final RuntimeDatabase database = new RuntimeDatabase(
+                "default",
+                repository,
+                List.of(tempDir.resolve("db")),
+                List.of(),
+                List.of(new InMemoryArtifact(
+                        "post", Map.of("MyModule/import/MyModule.foo.sql", "SELECT __SOURCE__ __TARGET__"))),
+                "index.txt",
+                List.of("."),
+                List.of("down"),
+                List.of("finalize"),
+                List.of("db-hooks/pre"),
+                List.of("db-hooks/post"),
+                "fixtures",
+                "datasets",
+                List.of("pre"),
+                List.of("post"),
+                List.of("defaultDataset"),
+                true,
+                "1",
+                "hash",
+                Map.of("default", new ImportConfig("default", repository.modules(), "import", List.of(), List.of())),
+                Map.of());
+
+        engine.databaseImport(database, "default", null, connection, sourceConnection, null);
+        assertThat(driver.calls).contains("execute(true):SELECT IMPORT_DB DBT_TEST");
+    }
+
     private RuntimeDatabase runtimeDatabase(
             final String key, final RepositoryConfig repository, final List<Path> searchDirs) {
         return runtimeDatabase(key, repository, searchDirs, Map.of(), List.of("defaultDataset"));
@@ -174,6 +401,22 @@ final class RuntimeEngineTest {
             final List<Path> searchDirs,
             final Map<String, ModuleGroupConfig> moduleGroups,
             final List<String> datasets) {
+        return runtimeDatabase(
+                key,
+                repository,
+                searchDirs,
+                moduleGroups,
+                datasets,
+                Map.of("default", new ImportConfig("default", repository.modules(), "import", List.of(), List.of())));
+    }
+
+    private RuntimeDatabase runtimeDatabase(
+            final String key,
+            final RepositoryConfig repository,
+            final List<Path> searchDirs,
+            final Map<String, ModuleGroupConfig> moduleGroups,
+            final List<String> datasets,
+            final Map<String, ImportConfig> imports) {
         return new RuntimeDatabase(
                 key,
                 repository,
@@ -194,8 +437,17 @@ final class RuntimeEngineTest {
                 true,
                 "1",
                 "hash",
-                Map.of("default", new ImportConfig("default", repository.modules(), "import", List.of(), List.of())),
+                imports,
                 moduleGroups);
+    }
+
+    private int indexOf(final List<String> values, final String expected) {
+        for (int i = 0; i < values.size(); i++) {
+            if (expected.equals(values.get(i))) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     private void createFile(final Path root, final String relativePath, final String content) throws IOException {
@@ -260,6 +512,48 @@ final class RuntimeEngineTest {
         @Override
         public void updateSequence(final String sequenceName, final long value) {
             calls.add("updateSequence(" + sequenceName + ',' + value + ")");
+        }
+
+        @Override
+        public void preTableImport(final ImportConfig importConfig, final String tableName) {
+            calls.add("preTableImport(" + importConfig.key() + ',' + tableName + ")");
+        }
+
+        @Override
+        public void postTableImport(final ImportConfig importConfig, final String tableName) {
+            calls.add("postTableImport(" + importConfig.key() + ',' + tableName + ")");
+        }
+
+        @Override
+        public void postDataModuleImport(final ImportConfig importConfig, final String moduleName) {
+            calls.add("postDataModuleImport(" + importConfig.key() + ',' + moduleName + ")");
+        }
+
+        @Override
+        public void postDatabaseImport(final ImportConfig importConfig) {
+            calls.add("postDatabaseImport(" + importConfig.key() + ")");
+        }
+
+        @Override
+        public List<String> columnNamesForTable(final String tableName) {
+            calls.add("columnNamesForTable(" + tableName + ")");
+            return List.of("[ID]");
+        }
+    }
+
+    private record InMemoryArtifact(String id, Map<String, String> entries) implements ArtifactContent {
+        @Override
+        public List<String> files() {
+            return List.copyOf(entries.keySet());
+        }
+
+        @Override
+        public String readText(final String path) {
+            final String value = entries.get(path);
+            if (null == value) {
+                throw new RuntimeExecutionException("Missing artifact entry " + path);
+            }
+            return value;
         }
     }
 
