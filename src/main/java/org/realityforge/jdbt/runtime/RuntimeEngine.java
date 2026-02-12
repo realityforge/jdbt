@@ -5,6 +5,7 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -109,14 +110,14 @@ public final class RuntimeEngine {
         final ModuleGroupConfig moduleGroup = moduleGroup(database, moduleGroupKey);
         withDatabaseConnection(target, false, () -> {
             final List<String> modules = new ArrayList<>(database.repository().modules());
-            java.util.Collections.reverse(modules);
+            Collections.reverse(modules);
             for (final String moduleName : modules) {
                 if (!moduleGroup.modules().contains(moduleName)) {
                     continue;
                 }
                 processModule(database, moduleName, ModuleMode.DOWN);
                 final List<String> tables = new ArrayList<>(database.tableOrdering(moduleName));
-                java.util.Collections.reverse(tables);
+                Collections.reverse(tables);
                 db.dropSchema(database.schemaNameForModule(moduleName), tables);
             }
         });
@@ -198,7 +199,7 @@ public final class RuntimeEngine {
             final List<String> deleteOrder = new ArrayList<>();
             for (final String moduleName : selectedModules) {
                 final List<String> tables = new ArrayList<>(database.tableOrdering(moduleName));
-                java.util.Collections.reverse(tables);
+                Collections.reverse(tables);
                 deleteOrder.addAll(tables);
             }
             for (final String table : deleteOrder) {
@@ -617,7 +618,7 @@ public final class RuntimeEngine {
 
         final List<String> modules = new ArrayList<>(database.repository().modules());
         final List<String> reversedModules = new ArrayList<>(modules);
-        java.util.Collections.reverse(reversedModules);
+        Collections.reverse(reversedModules);
         for (final String moduleName : reversedModules) {
             downFixtures(database, moduleName, fixtures);
         }
@@ -646,7 +647,7 @@ public final class RuntimeEngine {
     private void downFixtures(
             final RuntimeDatabase database, final String moduleName, final Map<String, String> fixtures) {
         final List<String> tables = new ArrayList<>(database.tableOrdering(moduleName));
-        java.util.Collections.reverse(tables);
+        Collections.reverse(tables);
         for (final String tableName : tables) {
             if (fixtures.containsKey(tableName)) {
                 db.execute("DELETE FROM " + tableName, false);
@@ -654,7 +655,7 @@ public final class RuntimeEngine {
         }
 
         final List<String> sequences = new ArrayList<>(database.sequenceOrdering(moduleName));
-        java.util.Collections.reverse(sequences);
+        Collections.reverse(sequences);
         for (final String sequenceName : sequences) {
             if (fixtures.containsKey(sequenceName)) {
                 db.updateSequence(sequenceName, 1L);

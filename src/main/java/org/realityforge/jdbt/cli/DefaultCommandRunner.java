@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Comparator;
 import org.jspecify.annotations.Nullable;
 import org.realityforge.jdbt.db.DatabaseConnection;
 import org.realityforge.jdbt.db.DbDriver;
@@ -163,7 +164,7 @@ public final class DefaultCommandRunner implements CommandRunner {
             return;
         }
         try (var stream = Files.walk(directory)) {
-            stream.sorted(java.util.Comparator.reverseOrder()).forEach(path -> {
+            stream.sorted(Comparator.reverseOrder()).forEach(path -> {
                 try {
                     Files.deleteIfExists(path);
                 } catch (final IOException ioe) {

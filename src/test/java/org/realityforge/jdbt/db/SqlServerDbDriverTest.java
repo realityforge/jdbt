@@ -7,6 +7,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -179,7 +180,7 @@ final class SqlServerDbDriverTest {
                         Map.of(),
                         Map.of("MyModule", List.of("[MyModule].[foo]")),
                         Map.of("MyModule", List.of())),
-                List.of(java.nio.file.Path.of(".")),
+                List.of(Path.of(".")),
                 List.of(),
                 List.of(),
                 "index.txt",

@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import org.jspecify.annotations.Nullable;
 import org.realityforge.jdbt.files.ArtifactContent;
 import org.realityforge.jdbt.files.FileResolver;
@@ -158,7 +159,7 @@ public final class DatabaseDataPackager {
             final @Nullable String fixedExtension) {
         final Set<String> knownElementNames = database.orderedElementsForModule(moduleName).stream()
                 .map(DatabaseDataPackager::cleanObjectName)
-                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+                .collect(Collectors.toUnmodifiableSet());
         final List<String> output = new ArrayList<>();
         for (final String file : files) {
             final String basename = basename(file);

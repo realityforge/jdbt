@@ -1,7 +1,9 @@
 package org.realityforge.jdbt.repository;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.realityforge.jdbt.config.ConfigException;
 
 public record RepositoryConfig(
@@ -19,8 +21,7 @@ public record RepositoryConfig(
 
     private static Map<String, List<String>> normalize(final Map<String, List<String>> source) {
         return source.entrySet().stream()
-                .collect(java.util.stream.Collectors.toUnmodifiableMap(
-                        Map.Entry::getKey, entry -> List.copyOf(entry.getValue())));
+                .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, entry -> List.copyOf(entry.getValue())));
     }
 
     public String schemaNameForModule(final String moduleName) {
@@ -51,7 +52,7 @@ public record RepositoryConfig(
     }
 
     public List<String> orderedElementsForModule(final String moduleName) {
-        final List<String> values = new java.util.ArrayList<>(tableOrdering(moduleName));
+        final List<String> values = new ArrayList<>(tableOrdering(moduleName));
         values.addAll(sequenceOrdering(moduleName));
         return List.copyOf(values);
     }

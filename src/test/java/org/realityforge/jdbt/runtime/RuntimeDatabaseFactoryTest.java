@@ -2,6 +2,7 @@ package org.realityforge.jdbt.runtime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -46,10 +47,10 @@ final class RuntimeDatabaseFactoryTest {
                 List.of(),
                 List.of(),
                 "hash",
-                java.nio.file.Path.of("dbRoot"));
+                Path.of("dbRoot"));
 
         assertThat(runtimeDatabase.key()).isEqualTo("default");
-        assertThat(runtimeDatabase.searchDirs()).containsExactly(java.nio.file.Path.of("dbRoot"));
+        assertThat(runtimeDatabase.searchDirs()).containsExactly(Path.of("dbRoot"));
         assertThat(runtimeDatabase.indexFileName()).isEqualTo("index.txt");
         assertThat(runtimeDatabase.schemaHash()).isEqualTo("hash");
         assertThat(runtimeDatabase.migrationsAppliedAtCreate()).isTrue();

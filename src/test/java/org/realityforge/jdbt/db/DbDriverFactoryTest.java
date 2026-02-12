@@ -3,11 +3,13 @@ package org.realityforge.jdbt.db;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.realityforge.jdbt.config.ConfigException;
 import org.realityforge.jdbt.config.ImportConfig;
+import org.realityforge.jdbt.repository.RepositoryConfig;
 import org.realityforge.jdbt.runtime.RuntimeDatabase;
 
 final class DbDriverFactoryTest {
@@ -41,12 +43,12 @@ final class DbDriverFactoryTest {
         final var connection = new DatabaseConnection("127.0.0.1", 1433, "db", "sa", "secret");
         final var database = new RuntimeDatabase(
                 "default",
-                new org.realityforge.jdbt.repository.RepositoryConfig(
+                new RepositoryConfig(
                         List.of("MyModule"),
                         Map.of(),
                         Map.of("MyModule", List.of("[MyModule].[foo]")),
                         Map.of("MyModule", List.of())),
-                List.of(java.nio.file.Path.of(".")),
+                List.of(Path.of(".")),
                 List.of(),
                 List.of(),
                 "index.txt",

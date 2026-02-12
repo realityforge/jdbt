@@ -8,6 +8,7 @@ import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -133,6 +134,7 @@ public final class ProjectRuntimeLoader {
         return repositoryConfigLoader.load(readFile(repositoryFile), repositoryFile.toString());
     }
 
+    @SuppressWarnings("UnusedException")
     private List<RepositoryConfig> repositoryFromArtifacts(
             final List<ArtifactContent> artifacts, final String artifactSourceName) {
         final List<RepositoryConfig> repositories = new ArrayList<>();
@@ -187,7 +189,7 @@ public final class ProjectRuntimeLoader {
         try {
             final MessageDigest digest = MessageDigest.getInstance("SHA-1");
             final byte[] hash = digest.digest(buffer.toString().getBytes(StandardCharsets.UTF_8));
-            return java.util.HexFormat.of().formatHex(hash);
+            return HexFormat.of().formatHex(hash);
         } catch (final NoSuchAlgorithmException nsae) {
             throw new IllegalStateException("Unable to create schema hash", nsae);
         }

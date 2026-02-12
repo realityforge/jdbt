@@ -3,16 +3,18 @@ package org.realityforge.jdbt.config;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.realityforge.jdbt.repository.RepositoryConfig;
 
 final class JdbtProjectConfigLoaderTest {
     private final JdbtProjectConfigLoader loader = new JdbtProjectConfigLoader();
     private final RepositoryConfig repository = new RepositoryConfig(
-            java.util.List.of("Core", "Geo"),
-            java.util.Map.of(),
-            java.util.Map.of("Core", java.util.List.of("[Core].[tblA]"), "Geo", java.util.List.of("[Geo].[tblB]")),
-            java.util.Map.of("Core", java.util.List.of(), "Geo", java.util.List.of()));
+            List.of("Core", "Geo"),
+            Map.of(),
+            Map.of("Core", List.of("[Core].[tblA]"), "Geo", List.of("[Geo].[tblB]")),
+            Map.of("Core", List.of(), "Geo", List.of()));
 
     @Test
     void loadAppliesHardcodedDefaultsAndBuildsDatabaseConfig() {

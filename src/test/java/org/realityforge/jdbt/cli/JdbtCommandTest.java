@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.Map;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.realityforge.jdbt.db.DatabaseConnection;
@@ -15,7 +16,7 @@ final class JdbtCommandTest {
         final var runner = new RecordingRunner();
 
         final int exitCode = JdbtCommand.execute(
-                new String[0], runner, new PasswordResolver(java.util.Map.of(), new ByteArrayInputStream(new byte[0])));
+                new String[0], runner, new PasswordResolver(Map.of(), new ByteArrayInputStream(new byte[0])));
 
         assertThat(exitCode).isZero();
         assertThat(runner.lastCall).isEmpty();
@@ -28,7 +29,7 @@ final class JdbtCommandTest {
         final int exitCode = JdbtCommand.execute(
                 new String[] {"status", "--database", "default"},
                 runner,
-                new PasswordResolver(java.util.Map.of(), new ByteArrayInputStream(new byte[0])));
+                new PasswordResolver(Map.of(), new ByteArrayInputStream(new byte[0])));
 
         assertThat(exitCode).isZero();
         assertThat(runner.lastCall).isEqualTo("status");
@@ -58,7 +59,7 @@ final class JdbtCommandTest {
                     "--no-create"
                 },
                 runner,
-                new PasswordResolver(java.util.Map.of(), new ByteArrayInputStream(new byte[0])));
+                new PasswordResolver(Map.of(), new ByteArrayInputStream(new byte[0])));
 
         assertThat(exitCode).isZero();
         assertThat(runner.lastCall).isEqualTo("create");
@@ -103,7 +104,7 @@ final class JdbtCommandTest {
                 },
                 runner,
                 new PasswordResolver(
-                        java.util.Map.of("T_PASS", "target-secret", "S_PASS", "source-secret"),
+                        Map.of("T_PASS", "target-secret", "S_PASS", "source-secret"),
                         new ByteArrayInputStream(new byte[0])));
 
         assertThat(exitCode).isZero();
@@ -144,7 +145,7 @@ final class JdbtCommandTest {
                     "--source-password-stdin"
                 },
                 runner,
-                new PasswordResolver(java.util.Map.of(), new ByteArrayInputStream(stdin)));
+                new PasswordResolver(Map.of(), new ByteArrayInputStream(stdin)));
 
         assertThat(exitCode).isZero();
         assertThat(runner.lastCall).isEqualTo("create-by-import");
@@ -159,7 +160,7 @@ final class JdbtCommandTest {
         final int exitCode = JdbtCommand.execute(
                 new String[] {"package-data", "--database", "default", "--output", "build/out.zip"},
                 runner,
-                new PasswordResolver(java.util.Map.of(), new ByteArrayInputStream(new byte[0])));
+                new PasswordResolver(Map.of(), new ByteArrayInputStream(new byte[0])));
 
         assertThat(exitCode).isZero();
         assertThat(runner.lastCall).isEqualTo("package-data");
@@ -183,7 +184,7 @@ final class JdbtCommandTest {
                     "sa"
                 },
                 runner,
-                new PasswordResolver(java.util.Map.of(), new ByteArrayInputStream(new byte[0])));
+                new PasswordResolver(Map.of(), new ByteArrayInputStream(new byte[0])));
 
         assertThat(exitCode).isEqualTo(JdbtCommand.USAGE_EXIT_CODE);
     }

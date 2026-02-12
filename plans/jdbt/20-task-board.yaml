@@ -625,6 +625,41 @@ tasks:
       hash: db40233
       message: Flatten jdbt.yml to single implicit database config
 
+  - id: T23
+    title: Enable additional requested Error Prone checks and remediate FQCN findings
+    status: completed
+    priority: medium
+    depends_on:
+      - T22
+    acceptance_criteria:
+      - all requested valid Error Prone checks are enabled as errors
+      - invalid checker ids are excluded
+      - "`UnusedException` is explicitly suppressed where intentionally accepted"
+      - "all `UnnecessarilyFullyQualified` violations are remediated in production and test code"
+      - required full gates pass
+    files_touched:
+      - build.gradle.kts
+      - src/main/java/org/realityforge/jdbt/cli/DefaultCommandRunner.java
+      - src/main/java/org/realityforge/jdbt/cli/ProjectRuntimeLoader.java
+      - src/main/java/org/realityforge/jdbt/files/ZipArtifactContent.java
+      - src/main/java/org/realityforge/jdbt/packaging/DatabaseDataPackager.java
+      - src/main/java/org/realityforge/jdbt/repository/RepositoryConfig.java
+      - src/main/java/org/realityforge/jdbt/runtime/RuntimeEngine.java
+      - src/test/java/org/realityforge/jdbt/cli/JdbtCommandTest.java
+      - src/test/java/org/realityforge/jdbt/cli/PasswordResolverTest.java
+      - src/test/java/org/realityforge/jdbt/config/JdbtProjectConfigLoaderTest.java
+      - src/test/java/org/realityforge/jdbt/db/DbDriverFactoryTest.java
+      - src/test/java/org/realityforge/jdbt/db/SqlServerDbDriverTest.java
+      - src/test/java/org/realityforge/jdbt/runtime/RuntimeDatabaseFactoryTest.java
+      - plans/jdbt/10-implementation-plan.md
+      - plans/jdbt/20-task-board.yaml
+    evidence:
+      - command: ./gradlew clean spotlessCheck check fatJar
+        result: pass
+    commit:
+      hash: pending
+      message: Enable additional Error Prone checks and fix fully-qualified references
+
 history:
   - timestamp: 2026-02-12
     task: T01
@@ -714,3 +749,7 @@ history:
     task: T22
     commit: db40233
     note: Flattened jdbt.yml to top-level single-database configuration semantics.
+  - timestamp: 2026-02-12
+    task: T23
+    commit: pending
+    note: Enabled additional valid Error Prone checks and remediated fully-qualified-name diagnostics.

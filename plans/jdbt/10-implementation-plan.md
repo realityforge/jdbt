@@ -23,6 +23,7 @@
 19. Mark all source and test packages as `@NullMarked`.
 20. Enable requested Error Prone checks and remediate violations in production and test code.
 21. Flatten `jdbt.yml` to a single implicit database configuration model.
+22. Enable additional requested Error Prone checks, suppress accepted `UnusedException`, and fix `UnnecessarilyFullyQualified` violations.
 
 ## Delivery Approach
 

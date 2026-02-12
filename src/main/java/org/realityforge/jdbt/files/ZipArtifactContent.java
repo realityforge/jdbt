@@ -5,6 +5,7 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,7 +48,7 @@ public final class ZipArtifactContent implements ArtifactContent {
         final String prefix = dataPrefix + '/';
         final Map<String, byte[]> entries = new LinkedHashMap<>();
         try (ZipFile zipFile = new ZipFile(zipPath.toFile())) {
-            final List<? extends ZipEntry> zipEntries = java.util.Collections.list(zipFile.entries());
+            final List<? extends ZipEntry> zipEntries = Collections.list(zipFile.entries());
             for (final ZipEntry entry : zipEntries) {
                 if (entry.isDirectory() || !entry.getName().startsWith(prefix)) {
                     continue;
