@@ -90,11 +90,9 @@ final class DefaultCommandRunnerTest {
 
     private String projectConfig(final boolean withMigrations) {
         return """
-            defaults:
-              defaultDatabase: default
-              searchDirs: [db]
             databases:
               default:
+                searchDirs: [db]
                 datasets: [seed]
                 migrations: %s
                 imports:
@@ -108,11 +106,9 @@ final class DefaultCommandRunnerTest {
 
     private String projectConfigWithoutImports() {
         return """
-            defaults:
-              defaultDatabase: default
-              searchDirs: [db]
             databases:
               default:
+                searchDirs: [db]
                 datasets: [seed]
                 imports: {}
                 moduleGroups:

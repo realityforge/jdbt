@@ -17,11 +17,9 @@ final class ProjectRuntimeLoaderTest {
     @Test
     void loadMergesRepositoryFromPreLocalAndPostArtifacts(@TempDir final Path tempDir) throws IOException {
         writeFile(tempDir, "jdbt.yml", """
-                defaults:
-                  defaultDatabase: default
-                  searchDirs: [db]
                 databases:
                   default:
+                    searchDirs: [db]
                     preDbArtifacts: [pre.zip]
                     postDbArtifacts: [post.zip]
                 """);
@@ -55,8 +53,6 @@ final class ProjectRuntimeLoaderTest {
     @Test
     void loadRejectsDuplicateRepositoryFilesInSearchPath(@TempDir final Path tempDir) throws IOException {
         writeFile(tempDir, "jdbt.yml", """
-                defaults:
-                  defaultDatabase: default
                 databases:
                   default:
                     searchDirs: [dbA, dbB]
@@ -80,7 +76,7 @@ final class ProjectRuntimeLoaderTest {
     }
 
     @Test
-    void loadRequiresDatabaseSelectionWhenNoDefault(@TempDir final Path tempDir) throws IOException {
+    void loadUsesHardcodedDefaultDatabaseKey(@TempDir final Path tempDir) throws IOException {
         writeFile(tempDir, "jdbt.yml", """
                 databases:
                   default:
@@ -93,16 +89,32 @@ final class ProjectRuntimeLoaderTest {
                     sequences: []
                 """);
 
+        final ProjectRuntimeLoader.LoadedRuntime runtime = new ProjectRuntimeLoader(tempDir).load(null);
+        assertThat(runtime.database().key()).isEqualTo("default");
+    }
+
+    @Test
+    void loadFailsWhenHardcodedDefaultDatabaseKeyMissing(@TempDir final Path tempDir) throws IOException {
+        writeFile(tempDir, "jdbt.yml", """
+                databases:
+                  custom:
+                    searchDirs: [db]
+                """);
+        writeFile(tempDir, "db/repository.yml", """
+                modules:
+                  A:
+                    tables: []
+                    sequences: []
+                """);
+
         assertThatThrownBy(() -> new ProjectRuntimeLoader(tempDir).load(null))
                 .isInstanceOf(ConfigException.class)
-                .hasMessageContaining("No database specified via --database");
+                .hasMessageContaining("Unable to locate database 'default'");
     }
 
     @Test
     void loadRejectsArtifactMissingRepositoryYml(@TempDir final Path tempDir) throws IOException {
         writeFile(tempDir, "jdbt.yml", """
-                defaults:
-                  defaultDatabase: default
                 databases:
                   default:
                     searchDirs: [db]

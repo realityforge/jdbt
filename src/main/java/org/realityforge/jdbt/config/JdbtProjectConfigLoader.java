@@ -10,9 +10,9 @@ import org.realityforge.jdbt.repository.RepositoryConfig;
 public final class JdbtProjectConfigLoader {
     public JdbtProjectConfig load(final String yaml, final String sourceName, final RepositoryConfig repository) {
         final Map<String, Object> root = YamlMapSupport.parseRoot(yaml, sourceName);
-        YamlMapSupport.assertKeys(root, Set.of("defaults", "databases"), sourceName);
+        YamlMapSupport.assertKeys(root, Set.of("databases"), sourceName);
 
-        final DefaultsConfig defaults = loadDefaults(root, sourceName);
+        final DefaultsConfig defaults = DefaultsConfig.rubyCompatibleDefaults();
         final Map<String, Object> databasesNode = YamlMapSupport.requireMap(root, "databases", sourceName);
         if (databasesNode.isEmpty()) {
             throw new ConfigException("No databases defined in " + sourceName + '.');
@@ -33,55 +33,6 @@ public final class JdbtProjectConfigLoader {
         }
 
         return new JdbtProjectConfig(defaults, databases);
-    }
-
-    private DefaultsConfig loadDefaults(final Map<String, Object> root, final String sourceName) {
-        final Map<String, Object> defaultsNode = YamlMapSupport.optionalMap(root, "defaults", sourceName);
-        final DefaultsConfig rubyDefaults = DefaultsConfig.rubyCompatibleDefaults();
-        if (defaultsNode == null) {
-            return rubyDefaults;
-        }
-
-        YamlMapSupport.assertKeys(
-                defaultsNode,
-                Set.of(
-                        "searchDirs",
-                        "upDirs",
-                        "downDirs",
-                        "finalizeDirs",
-                        "preCreateDirs",
-                        "postCreateDirs",
-                        "preImportDirs",
-                        "postImportDirs",
-                        "importDir",
-                        "datasetsDirName",
-                        "preDatasetDirs",
-                        "postDatasetDirs",
-                        "fixtureDirName",
-                        "migrationsDirName",
-                        "indexFileName",
-                        "defaultDatabase",
-                        "defaultImport"),
-                sourceName + ".defaults");
-
-        return rubyDefaults.merge(
-                optionalList(defaultsNode, "searchDirs", sourceName + ".defaults"),
-                optionalList(defaultsNode, "upDirs", sourceName + ".defaults"),
-                optionalList(defaultsNode, "downDirs", sourceName + ".defaults"),
-                optionalList(defaultsNode, "finalizeDirs", sourceName + ".defaults"),
-                optionalList(defaultsNode, "preCreateDirs", sourceName + ".defaults"),
-                optionalList(defaultsNode, "postCreateDirs", sourceName + ".defaults"),
-                optionalList(defaultsNode, "preImportDirs", sourceName + ".defaults"),
-                optionalList(defaultsNode, "postImportDirs", sourceName + ".defaults"),
-                YamlMapSupport.optionalString(defaultsNode, "importDir", sourceName + ".defaults"),
-                YamlMapSupport.optionalString(defaultsNode, "datasetsDirName", sourceName + ".defaults"),
-                optionalList(defaultsNode, "preDatasetDirs", sourceName + ".defaults"),
-                optionalList(defaultsNode, "postDatasetDirs", sourceName + ".defaults"),
-                YamlMapSupport.optionalString(defaultsNode, "fixtureDirName", sourceName + ".defaults"),
-                YamlMapSupport.optionalString(defaultsNode, "migrationsDirName", sourceName + ".defaults"),
-                YamlMapSupport.optionalString(defaultsNode, "indexFileName", sourceName + ".defaults"),
-                YamlMapSupport.optionalString(defaultsNode, "defaultDatabase", sourceName + ".defaults"),
-                YamlMapSupport.optionalString(defaultsNode, "defaultImport", sourceName + ".defaults"));
     }
 
     private DatabaseConfig loadDatabase(
@@ -119,8 +70,7 @@ public final class JdbtProjectConfigLoader {
         final List<String> searchDirs =
                 YamlMapSupport.optionalStringList(body, "searchDirs", path, defaults.searchDirs());
         if (searchDirs.isEmpty()) {
-            throw new ConfigException(
-                    "Database '" + key + "' must define non-empty searchDirs (directly or via defaults).");
+            throw new ConfigException("Database '" + key + "' must define non-empty searchDirs.");
         }
 
         final @Nullable Boolean migrationsValue = YamlMapSupport.optionalBoolean(body, "migrations", path);
@@ -232,10 +182,6 @@ public final class JdbtProjectConfigLoader {
             groups.put(groupKey, new ModuleGroupConfig(groupKey, modules, importEnabled));
         }
         return Map.copyOf(groups);
-    }
-
-    private @Nullable List<String> optionalList(final Map<String, Object> map, final String key, final String path) {
-        return map.containsKey(key) ? YamlMapSupport.requireStringList(map, key, path) : null;
     }
 
     private void validateModulesExist(

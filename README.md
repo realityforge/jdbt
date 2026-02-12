@@ -48,11 +48,9 @@ java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar status --database default
 `jdbt.yml`
 
 ```yaml
-defaults:
-  defaultDatabase: default
-  searchDirs: [db]
 databases:
   default:
+    searchDirs: [db]
     migrations: true
     datasets: [seed]
     imports:
@@ -84,5 +82,6 @@ modules:
 ## Notes
 
 - Configuration file name is fixed: `jdbt.yml`.
+- Top-level `defaults` is not supported in `jdbt.yml`; runtime defaults are hardcoded.
 - There is no template processing in configs or fixture files.
 - Import resume uses `--resume-at` (not environment variables).

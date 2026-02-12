@@ -20,9 +20,11 @@ Port Ruby `dbt` in `vendor/dbt` to Java while preserving behavior-critical seman
 ## Configuration Model
 
 - Project config file is fixed and non-configurable: `jdbt.yml`.
+- `jdbt.yml` accepts top-level `databases` only; top-level `defaults` is not supported.
 - `repository.yml` remains first-class and layout-compatible.
 - Runtime instance settings are supplied by CLI args only.
 - No instance settings file in v1.
+- Runtime defaults are hardcoded in code, not declared in `jdbt.yml`.
 - No templating support in config, fixture, or SQL loading.
 
 ## CLI Contract

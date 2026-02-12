@@ -410,6 +410,38 @@ tasks:
       hash: 38c790a
       message: Default empty CLI invocation to help output
 
+  - id: T16
+    title: Remove top-level defaults from jdbt.yml
+    status: completed
+    priority: medium
+    depends_on:
+      - T04
+      - T11
+    acceptance_criteria:
+      - jdbt.yml rejects top-level defaults key
+      - runtime uses hardcoded defaults for database/import fallback semantics
+      - config and loader tests cover new defaults behavior
+      - README and user guide reflect updated config contract
+      - required full gates pass
+    files_touched:
+      - src/main/java/org/realityforge/jdbt/config/JdbtProjectConfigLoader.java
+      - src/main/java/org/realityforge/jdbt/cli/ProjectRuntimeLoader.java
+      - src/test/java/org/realityforge/jdbt/config/JdbtProjectConfigLoaderTest.java
+      - src/test/java/org/realityforge/jdbt/cli/ProjectRuntimeLoaderTest.java
+      - src/test/java/org/realityforge/jdbt/cli/DefaultCommandRunnerTest.java
+      - README.md
+      - docs/user-guide.md
+      - plans/jdbt/00-requirements.md
+      - plans/jdbt/10-implementation-plan.md
+      - plans/jdbt/20-task-board.yaml
+      - plans/jdbt/30-compatibility-matrix.md
+    evidence:
+      - command: ./gradlew clean spotlessCheck check fatJar
+        result: pass
+    commit:
+      hash: pending
+      message: pending
+
 history:
   - timestamp: 2026-02-12
     task: T01
@@ -471,3 +503,7 @@ history:
     task: T15
     commit: 38c790a
     note: Updated CLI no-arg behavior to default to help output.
+  - timestamp: 2026-02-12
+    task: T16
+    commit: pending
+    note: Removed top-level defaults key from jdbt.yml and switched to hardcoded defaults.

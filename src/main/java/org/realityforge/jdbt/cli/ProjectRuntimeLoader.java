@@ -76,16 +76,9 @@ public final class ProjectRuntimeLoader {
 
     private BootstrapProject loadBootstrap(final String yaml) {
         final Map<String, Object> root = YamlMapSupport.parseRoot(yaml, PROJECT_CONFIG_FILE);
-        YamlMapSupport.assertKeys(root, Set.of("defaults", "databases"), PROJECT_CONFIG_FILE);
+        YamlMapSupport.assertKeys(root, Set.of("databases"), PROJECT_CONFIG_FILE);
 
-        final Map<String, Object> defaults = YamlMapSupport.optionalMap(root, "defaults", PROJECT_CONFIG_FILE);
-        final @Nullable String defaultDatabase = null == defaults
-                ? null
-                : YamlMapSupport.optionalString(defaults, "defaultDatabase", PROJECT_CONFIG_FILE + ".defaults");
-        final List<String> defaultSearchDirs = null == defaults
-                ? List.of()
-                : YamlMapSupport.optionalStringList(
-                        defaults, "searchDirs", PROJECT_CONFIG_FILE + ".defaults", List.of());
+        final DefaultsConfig defaults = DefaultsConfig.rubyCompatibleDefaults();
 
         final Map<String, Object> databasesNode = YamlMapSupport.requireMap(root, "databases", PROJECT_CONFIG_FILE);
         if (databasesNode.isEmpty()) {
@@ -101,10 +94,9 @@ public final class ProjectRuntimeLoader {
             final String path = PROJECT_CONFIG_FILE + ".databases." + key;
             final Map<String, Object> databaseNode = YamlMapSupport.toStringMap(body, path);
             final List<String> searchDirs =
-                    YamlMapSupport.optionalStringList(databaseNode, "searchDirs", path, defaultSearchDirs);
+                    YamlMapSupport.optionalStringList(databaseNode, "searchDirs", path, defaults.searchDirs());
             if (searchDirs.isEmpty()) {
-                throw new ConfigException(
-                        "Database '" + key + "' must define non-empty searchDirs (directly or via defaults).");
+                throw new ConfigException("Database '" + key + "' must define non-empty searchDirs.");
             }
             final List<String> preDbArtifacts =
                     YamlMapSupport.optionalStringList(databaseNode, "preDbArtifacts", path, List.of());
@@ -113,18 +105,11 @@ public final class ProjectRuntimeLoader {
             databases.put(key, new BootstrapDatabase(searchDirs, preDbArtifacts, postDbArtifacts));
         }
 
-        return new BootstrapProject(defaultDatabase, Map.copyOf(databases));
+        return new BootstrapProject(defaults.defaultDatabase(), Map.copyOf(databases));
     }
 
     private String resolveDatabaseKey(final @Nullable String selectedDatabaseKey, final BootstrapProject bootstrap) {
-        if (null != selectedDatabaseKey) {
-            return selectedDatabaseKey;
-        }
-        if (null != bootstrap.defaultDatabase()) {
-            return bootstrap.defaultDatabase();
-        }
-        throw new ConfigException(
-                "No database specified via --database and no defaults.defaultDatabase in " + PROJECT_CONFIG_FILE + '.');
+        return null != selectedDatabaseKey ? selectedDatabaseKey : bootstrap.defaultDatabase();
     }
 
     private RepositoryConfig loadRepository(
@@ -222,7 +207,7 @@ public final class ProjectRuntimeLoader {
         }
     }
 
-    private record BootstrapProject(@Nullable String defaultDatabase, Map<String, BootstrapDatabase> databases) {}
+    private record BootstrapProject(String defaultDatabase, Map<String, BootstrapDatabase> databases) {}
 
     private record BootstrapDatabase(
             List<String> searchDirs, List<String> preDbArtifacts, List<String> postDbArtifacts) {

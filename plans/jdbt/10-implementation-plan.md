@@ -16,6 +16,7 @@
 12. Documentation and parity closure.
 13. PostgreSQL support (Phase 2).
 14. End-user documentation (`README.md` and usage guide).
+15. Remove top-level `defaults` from `jdbt.yml`; use hardcoded runtime defaults.
 
 ## Delivery Approach
 

@@ -26,16 +26,14 @@ java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar --help
 
 Top-level keys:
 
-- `defaults`
 - `databases`
 
 `databases` must contain at least one entry.
 
-#### `defaults` keys
+`jdbt.yml` no longer supports a top-level `defaults` key.
 
-All keys are optional.
+Runtime defaults are hardcoded and currently match Ruby-compatible defaults for:
 
-- `searchDirs`
 - `upDirs`
 - `downDirs`
 - `finalizeDirs`
@@ -50,14 +48,12 @@ All keys are optional.
 - `fixtureDirName`
 - `migrationsDirName`
 - `indexFileName`
-- `defaultDatabase`
-- `defaultImport`
-
-Ruby-compatible defaults are applied when values are not provided.
+- default database key (`default`)
+- default import key (`default`)
 
 #### `databases.<key>` keys
 
-- `searchDirs` (required directly or via defaults)
+- `searchDirs` (required)
 - `upDirs`
 - `downDirs`
 - `finalizeDirs`
@@ -163,7 +159,7 @@ Global options available on subcommands:
 - `--database <databaseKey>`
 - `--driver <sqlserver|postgres>` (default: `sqlserver`)
 
-If `--database` is omitted, `defaults.defaultDatabase` is used.
+If `--database` is omitted, the hardcoded default database key `default` is used.
 
 ### Connection options
 
@@ -308,7 +304,7 @@ java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar package-data \
 
 ## Troubleshooting
 
-- `No database specified via --database ...`: set `defaults.defaultDatabase` or pass `--database`.
-- `Unable to locate import definition by key ...`: set `defaults.defaultImport`, pass `--import`, or define the import key in `jdbt.yml`.
+- `Unable to locate database 'default' ...`: either define a `default` database key in `jdbt.yml` or pass `--database <key>`.
+- `Unable to locate import definition by key ...`: pass `--import`, or define an import named `default` in `jdbt.yml`.
 - `Duplicate copies of repository.yml found in database search path`: ensure only one local `repository.yml` is present across `searchDirs`.
 - Fat jar startup security/signature errors: rebuild with `./gradlew clean fatJar` using current build config.
