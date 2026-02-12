@@ -16,11 +16,7 @@ public final class ZipArtifactContent implements ArtifactContent {
     private final String id;
     private final Map<String, byte[]> entries;
 
-    public ZipArtifactContent(final Path zipPath) {
-        this(zipPath.toString(), zipPath, "data");
-    }
-
-    public ZipArtifactContent(final String id, final Path zipPath, final String dataPrefix) {
+  public ZipArtifactContent(final String id, final Path zipPath, final String dataPrefix) {
         this.id = id;
         this.entries = loadEntries(zipPath, dataPrefix);
     }

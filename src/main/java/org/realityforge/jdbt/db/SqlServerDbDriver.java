@@ -16,6 +16,7 @@ import org.realityforge.jdbt.config.ImportConfig;
 import org.realityforge.jdbt.runtime.RuntimeDatabase;
 import org.realityforge.jdbt.runtime.RuntimeExecutionException;
 
+@SuppressWarnings( { "SqlNoDataSourceInspection", "SqlResolve" } )
 public final class SqlServerDbDriver implements DbDriver {
     private static final Logger LOGGER = Logger.getLogger(SqlServerDbDriver.class.getName());
 
