@@ -842,7 +842,7 @@ tasks:
       - command: ./gradlew clean spotlessCheck check fatJar
         result: pass
     commit:
-      hash: pending
+      hash: ffbd54b
       message: Document filterProperties and reserved import token behavior
 
 history:
@@ -960,5 +960,5 @@ history:
     note: Added strict CLI property handling and runtime SQL replacement with import reserved token constraints.
   - timestamp: 2026-02-13
     task: T29
-    commit: pending
+    commit: ffbd54b
     note: Documented filterProperties behavior, strict CLI properties, and reserved import token rules.
