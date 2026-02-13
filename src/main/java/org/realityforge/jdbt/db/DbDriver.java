@@ -36,6 +36,10 @@ public interface DbDriver {
 
     void postDatabaseImport(ImportConfig importConfig);
 
+    default boolean supportsImportAssertFilters() {
+        return false;
+    }
+
     List<String> columnNamesForTable(String tableName);
 
     void setupMigrations();

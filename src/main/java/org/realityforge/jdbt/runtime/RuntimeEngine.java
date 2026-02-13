@@ -437,7 +437,8 @@ public final class RuntimeEngine {
             final String targetDatabase,
             final String sourceDatabase,
             final Map<String, String> declaredFilters) {
-        var effectiveSql = applyDeclaredFilterProperties(sql, declaredFilters);
+        var effectiveSql = db.supportsImportAssertFilters() ? SqlServerImportAssertExpander.expand(sql) : sql;
+        effectiveSql = applyDeclaredFilterProperties(effectiveSql, declaredFilters);
         if (null != tableName) {
             effectiveSql = effectiveSql.replace("__TABLE__", tableName);
         }

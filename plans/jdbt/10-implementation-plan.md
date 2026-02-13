@@ -32,6 +32,8 @@
 28. Apply declared `filterProperties` replacements in SQL execution flow and enforce required/supported values.
 29. Restrict import runtime tokens to `__SOURCE__`, `__TARGET__`, `__TABLE__` with non-overridable tool-provided values.
 30. Document `filterProperties`, strict CLI behavior, and reserved import token semantics.
+31. Port SQL Server import assert macro expansion for ASSERT_ROW_COUNT, ASSERT_DATABASE_VERSION, and ASSERT_UNCHANGED_ROW_COUNT.
+32. Document SQL Server-only import assert macros and parity notes.
 
 ## Delivery Approach
 

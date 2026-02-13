@@ -845,6 +845,35 @@ tasks:
       hash: ffbd54b
       message: Document filterProperties and reserved import token behavior
 
+  - id: T30
+    title: Port SQL Server import assert macro expansion
+    status: completed
+    priority: medium
+    depends_on:
+      - T29
+    acceptance_criteria:
+      - import SQL supports ASSERT_ROW_COUNT, ASSERT_DATABASE_VERSION, and ASSERT_UNCHANGED_ROW_COUNT expansion
+      - assert macro expansion only executes when SQL Server driver is active
+      - macros are expanded in import flows and keep __SOURCE__/__TARGET__/__TABLE__ token semantics
+      - non-SQL Server drivers do not expand assert macros
+      - required full gates pass
+    files_touched:
+      - src/main/java/org/realityforge/jdbt/db/DbDriver.java
+      - src/main/java/org/realityforge/jdbt/db/SqlServerDbDriver.java
+      - src/main/java/org/realityforge/jdbt/runtime/RuntimeEngine.java
+      - src/main/java/org/realityforge/jdbt/runtime/SqlServerImportAssertExpander.java
+      - src/test/java/org/realityforge/jdbt/db/DbDriverFactoryTest.java
+      - src/test/java/org/realityforge/jdbt/runtime/RuntimeEngineTest.java
+      - src/test/java/org/realityforge/jdbt/runtime/SqlServerImportAssertExpanderTest.java
+      - plans/jdbt/10-implementation-plan.md
+      - plans/jdbt/20-task-board.yaml
+    evidence:
+      - command: ./gradlew clean spotlessCheck check fatJar
+        result: pass
+    commit:
+      hash: pending
+      message: Add SQL Server import assert macro expansion
+
 history:
   - timestamp: 2026-02-12
     task: T01
@@ -962,3 +991,7 @@ history:
     task: T29
     commit: ffbd54b
     note: Documented filterProperties behavior, strict CLI properties, and reserved import token rules.
+  - timestamp: 2026-02-13
+    task: T30
+    commit: pending
+    note: Added SQL Server-only import assert macro expansion and runtime gating support.

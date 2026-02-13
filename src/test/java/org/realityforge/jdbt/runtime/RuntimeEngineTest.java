@@ -505,6 +505,40 @@ final class RuntimeEngineTest {
     }
 
     @Test
+    void importExpandsAssertFiltersForSqlServerOnly(@TempDir final Path tempDir) throws IOException {
+        createFile(
+                tempDir,
+                "db/MyModule/import/MyModule.foo.sql",
+                "ASSERT_ROW_COUNT(1)\nASSERT_UNCHANGED_ROW_COUNT()\nASSERT_DATABASE_VERSION('Version_2')");
+
+        final var sqlServerDriver = new RecordingDriver(true);
+        final var sqlServerEngine = new RuntimeEngine(sqlServerDriver, new FileResolver());
+        final var database =
+                runtimeDatabase("default", RepositoryConfigTestData.singleModule(), List.of(tempDir.resolve("db")));
+
+        sqlServerEngine.databaseImport(database, "default", null, connection, sourceConnection, null, Map.of());
+
+        assertThat(String.join("\n", sqlServerDriver.calls))
+                .doesNotContain("ASSERT_ROW_COUNT")
+                .doesNotContain("ASSERT_UNCHANGED_ROW_COUNT")
+                .doesNotContain("ASSERT_DATABASE_VERSION")
+                .contains("COUNT(*) FROM [DBT_TEST].[MyModule].[foo]")
+                .contains("COUNT(*) FROM [IMPORT_DB].[MyModule].[foo]")
+                .contains("DatabaseSchemaVersion")
+                .contains("RAISERROR");
+
+        final var nonSqlServerDriver = new RecordingDriver(false);
+        final var nonSqlServerEngine = new RuntimeEngine(nonSqlServerDriver, new FileResolver());
+
+        nonSqlServerEngine.databaseImport(database, "default", null, connection, sourceConnection, null, Map.of());
+
+        assertThat(String.join("\n", nonSqlServerDriver.calls))
+                .contains("ASSERT_ROW_COUNT(1)")
+                .contains("ASSERT_UNCHANGED_ROW_COUNT()")
+                .contains("ASSERT_DATABASE_VERSION('Version_2')");
+    }
+
+    @Test
     void migrateHonorsShouldMigrateDecisions(@TempDir final Path tempDir) throws IOException {
         createFile(tempDir, "db/migrations/001_a.sql", "M1");
         createFile(tempDir, "db/migrations/002_b.sql", "M2");
@@ -688,6 +722,15 @@ final class RuntimeEngineTest {
     private static final class RecordingDriver implements DbDriver {
         private final List<String> calls = new ArrayList<>();
         private final Map<String, Boolean> migrateDecision = new LinkedHashMap<>();
+        private final boolean supportsImportAssertFilters;
+
+        private RecordingDriver() {
+            this(false);
+        }
+
+        private RecordingDriver(final boolean supportsImportAssertFilters) {
+            this.supportsImportAssertFilters = supportsImportAssertFilters;
+        }
 
         @Override
         public void open(final DatabaseConnection connection, final boolean openControlDatabase) {
@@ -762,6 +805,11 @@ final class RuntimeEngineTest {
         @Override
         public void postDatabaseImport(final ImportConfig importConfig) {
             calls.add("postDatabaseImport(" + importConfig.key() + ")");
+        }
+
+        @Override
+        public boolean supportsImportAssertFilters() {
+            return supportsImportAssertFilters;
         }
 
         @Override

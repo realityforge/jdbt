@@ -152,6 +152,11 @@ public final class SqlServerDbDriver implements DbDriver {
     public void postDatabaseImport(final ImportConfig importConfig) {}
 
     @Override
+    public boolean supportsImportAssertFilters() {
+        return true;
+    }
+
+    @Override
     public List<String> columnNamesForTable(final String tableName) {
         final var sql = "SELECT C.name AS column_name FROM sys.syscolumns C WHERE C.id = OBJECT_ID(?) ORDER BY C.colid";
         final var columns = new ArrayList<String>();
