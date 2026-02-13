@@ -817,7 +817,7 @@ tasks:
       - command: ./gradlew clean spotlessCheck check fatJar
         result: pass
     commit:
-      hash: pending
+      hash: ee93ebe
       message: Add strict CLI property plumbing and SQL filter runtime
 
 history:
@@ -931,5 +931,5 @@ history:
     note: Added filterProperties model with strict key/pattern/default/supportedValues validation.
   - timestamp: 2026-02-13
     task: T28
-    commit: pending
+    commit: ee93ebe
     note: Added strict CLI property handling and runtime SQL replacement with import reserved token constraints.
