@@ -31,6 +31,7 @@
 27. Add strict CLI `--property` parsing and propagate filter values through command/runtime interfaces.
 28. Apply declared `filterProperties` replacements in SQL execution flow and enforce required/supported values.
 29. Restrict import runtime tokens to `__SOURCE__`, `__TARGET__`, `__TABLE__` with non-overridable tool-provided values.
+30. Document `filterProperties`, strict CLI behavior, and reserved import token semantics.
 
 ## Delivery Approach
 

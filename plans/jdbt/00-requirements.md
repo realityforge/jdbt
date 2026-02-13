@@ -27,7 +27,9 @@ Port Ruby `dbt` in `vendor/dbt` to Java while preserving behavior-critical seman
 - Runtime instance settings are supplied by CLI args only.
 - No instance settings file in v1.
 - Runtime defaults are hardcoded in code, not declared in `jdbt.yml`.
-- No templating support in config, fixture, or SQL loading.
+- No templating support in config or fixtures; SQL source supports deterministic token replacement via declared `filterProperties`.
+- `filterProperties` keys are strict, declared in `jdbt.yml`, and optionally constrained with `supportedValues`.
+- Reserved import-only SQL tokens are tool-provided and non-overridable: `__SOURCE__`, `__TARGET__`, `__TABLE__`.
 
 ## CLI Contract
 
@@ -40,6 +42,7 @@ Port Ruby `dbt` in `vendor/dbt` to Java while preserving behavior-critical seman
   - `--password`
   - `--password-env`
   - `--password-stdin`
+- SQL-executing commands accept repeatable `--property key=value` for declared filter properties only.
 
 ## Initial Command Set
 

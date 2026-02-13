@@ -43,6 +43,7 @@ Top-level keys:
 - `resourcePrefix`
 - `preDbArtifacts`
 - `postDbArtifacts`
+- `filterProperties`
 - `imports`
 - `moduleGroups`
 
@@ -94,6 +95,21 @@ If `modules` is missing, all repository modules are used.
 
 - `modules` (required)
 - `importEnabled`
+
+#### `filterProperties`
+
+`filterProperties.<propertyKey>` supports:
+
+- `pattern` (required)
+- `default` (optional; if omitted, the property is required at runtime)
+- `supportedValues` (optional list; if present, runtime values must match one entry exactly)
+
+Rules:
+
+- filter property keys are strict; only declared keys are accepted via CLI `--property`.
+- reserved keys `sourceDatabase`, `targetDatabase`, and `table` are tool-provided and cannot be declared.
+- reserved patterns `__SOURCE__`, `__TARGET__`, and `__TABLE__` cannot be declared.
+- replacement order is deterministic and follows declaration order in `jdbt.yml`.
 
 ### `repository.yml`
 
@@ -161,6 +177,7 @@ Global options available on subcommands:
 
 - `--database <databaseKey>` (optional compatibility flag; only `default` is accepted)
 - `--driver <sqlserver|postgres>` (default: `sqlserver`)
+- `--property <key=value>` (repeatable; available on SQL-executing commands)
 
 If `--database` is omitted, `default` is used.
 
@@ -238,6 +255,14 @@ java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar import \
 ```
 
 Optional: `--module-group <groupKey>`.
+
+Import-only reserved SQL tokens:
+
+- `__SOURCE__` resolves to source database name
+- `__TARGET__` resolves to target database name
+- `__TABLE__` resolves to the current import table/sequence
+
+These values are tool-provided during import/create-by-import and cannot be supplied via `--property`.
 
 `create-by-import`
 

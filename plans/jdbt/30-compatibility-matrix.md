@@ -35,6 +35,7 @@ This matrix tracks parity against Ruby `dbt` implementation and tests.
 | Duplicate basename rejection | `runtime.rb#collect_files` | File resolver | done | Duplicate basename checks implemented with diagnostics. |
 | Fixture resolution | `runtime.rb#collect_fixtures_from_dirs` | Fixture loader | done | Strict rejection of unexpected fixture/sql files implemented and exercised in runtime flows. |
 | Import file strictness | `runtime.rb#import` | Import resolver | done | Unknown import files are rejected in runtime resolver. |
+| SQL filter properties | `filter_container.rb`, runtime filter expansion | `filterProperties` + CLI `--property` + runtime replacements | done | Strict declared properties with optional defaults/supported values; deterministic declaration-order replacement. |
 | SQL batch splitting | `runtime.rb#run_sql_batch` | SQL executor | done | `GO` separator behavior implemented in runtime SQL batch execution. |
 | Migration release-cut behavior | `runtime.rb#perform_migration` | Migration engine | done | Release-boundary skip/mark behavior implemented in runtime migration flow. |
 
@@ -50,6 +51,7 @@ This matrix tracks parity against Ruby `dbt` implementation and tests.
 | Area | Ruby Source | Java Target | Status | Notes |
 | --- | --- | --- | --- | --- |
 | Template processing | ERB usage in config/fixture loading | No templating | intentional_divergence | Permanent policy: deterministic plain data only. |
+| Import token forms | Mixed Ruby-style filter patterns (including `@@...@@`) | Import-only reserved tokens `__SOURCE__`, `__TARGET__`, `__TABLE__` | intentional_divergence | Java only supports double-underscore reserved forms going forward. |
 | Import resume mechanism | `IMPORT_RESUME_AT` env var | `--resume-at` CLI option | intentional_divergence | Equivalent behavior with explicit CLI input. |
 | Module-group delete ordering | TODO noted in `test_runtime_basic.rb` | All deletes before imports | intentional_divergence | Planned behavioral fix. |
 | Query command | `runtime.rb#query` helper | No end-user CLI command | intentional_divergence | Removed from Java CLI command surface. |

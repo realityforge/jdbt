@@ -57,6 +57,11 @@ moduleGroups:
   all:
     modules: [Core]
     importEnabled: true
+filterProperties:
+  environment:
+    pattern: __ENVIRONMENT__
+    default: dev
+    supportedValues: [dev, test, prod]
 ```
 
 `db/repository.yml`
@@ -83,5 +88,7 @@ modules:
 - `jdbt.yml` defines a single implicit database at top-level keys.
 - Top-level `defaults` and `databases` are not supported in `jdbt.yml`; runtime defaults are hardcoded.
 - `searchDirs` is not configurable; jdbt always searches from the directory containing `jdbt.yml`.
-- There is no template processing in configs or fixture files.
+- SQL source filtering is driven by declared `filterProperties` and optional `--property key=value` overrides.
+- Filter properties are strict: only declared keys are accepted; missing `default` means the property is required.
+- Import-only reserved tokens are tool-provided and not overridable: `__SOURCE__`, `__TARGET__`, `__TABLE__`.
 - Import resume uses `--resume-at` (not environment variables).

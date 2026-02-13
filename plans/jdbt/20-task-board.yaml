@@ -820,6 +820,31 @@ tasks:
       hash: ee93ebe
       message: Add strict CLI property plumbing and SQL filter runtime
 
+  - id: T29
+    title: Document filterProperties and reserved import token behavior
+    status: completed
+    priority: medium
+    depends_on:
+      - T28
+    acceptance_criteria:
+      - README documents filterProperties and strict property behavior
+      - user guide documents filterProperties schema and CLI --property usage
+      - requirements and compatibility matrix reflect token and filtering contract
+      - required full gates pass
+    files_touched:
+      - README.md
+      - docs/user-guide.md
+      - plans/jdbt/00-requirements.md
+      - plans/jdbt/10-implementation-plan.md
+      - plans/jdbt/20-task-board.yaml
+      - plans/jdbt/30-compatibility-matrix.md
+    evidence:
+      - command: ./gradlew clean spotlessCheck check fatJar
+        result: pass
+    commit:
+      hash: pending
+      message: Document filterProperties and reserved import token behavior
+
 history:
   - timestamp: 2026-02-12
     task: T01
@@ -933,3 +958,7 @@ history:
     task: T28
     commit: ee93ebe
     note: Added strict CLI property handling and runtime SQL replacement with import reserved token constraints.
+  - timestamp: 2026-02-13
+    task: T29
+    commit: pending
+    note: Documented filterProperties behavior, strict CLI properties, and reserved import token rules.
