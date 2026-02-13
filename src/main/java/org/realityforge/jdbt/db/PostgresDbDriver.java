@@ -13,7 +13,7 @@ import org.realityforge.jdbt.config.ImportConfig;
 import org.realityforge.jdbt.runtime.RuntimeDatabase;
 import org.realityforge.jdbt.runtime.RuntimeExecutionException;
 
-public final class PostgresDbDriver implements DbDriver {
+final class PostgresDbDriver implements DbDriver {
     private static final Logger LOGGER = Logger.getLogger(PostgresDbDriver.class.getName());
 
     @FunctionalInterface
@@ -26,7 +26,7 @@ public final class PostgresDbDriver implements DbDriver {
     private @Nullable Connection targetConnection;
     private @Nullable Connection controlConnection;
 
-    public PostgresDbDriver() {
+    PostgresDbDriver() {
         this(PostgresDbDriver::openPostgresConnection);
     }
 

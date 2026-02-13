@@ -8,20 +8,20 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.realityforge.jdbt.config.ConfigException;
 
-public final class PasswordResolver {
+final class PasswordResolver {
     private final Map<String, String> environment;
     private final BufferedReader stdin;
 
-    public PasswordResolver(final Map<String, String> environment, final InputStream stdin) {
+    PasswordResolver(final Map<String, String> environment, final InputStream stdin) {
         this.environment = Map.copyOf(environment);
         this.stdin = new BufferedReader(new InputStreamReader(stdin, StandardCharsets.UTF_8));
     }
 
-    public String fromDirectValue(final String value) {
+    String fromDirectValue(final String value) {
         return value;
     }
 
-    public String fromEnvironment(final String variableName) {
+    String fromEnvironment(final String variableName) {
         final var value = environment.get(variableName);
         if (null == value) {
             throw new ConfigException("No value found in environment variable '" + variableName + "'.");
@@ -29,7 +29,7 @@ public final class PasswordResolver {
         return value;
     }
 
-    public String fromStdin() {
+    String fromStdin() {
         try {
             final var value = stdin.readLine();
             if (null == value) {

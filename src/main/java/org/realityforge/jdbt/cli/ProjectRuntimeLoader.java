@@ -26,7 +26,7 @@ import org.realityforge.jdbt.repository.RepositoryConfigMerger;
 import org.realityforge.jdbt.runtime.RuntimeDatabase;
 import org.realityforge.jdbt.runtime.RuntimeDatabaseFactory;
 
-public final class ProjectRuntimeLoader {
+final class ProjectRuntimeLoader {
     private static final String PROJECT_CONFIG_FILE = "jdbt.yml";
     private static final String REPOSITORY_CONFIG_FILE = "repository.yml";
 
@@ -36,11 +36,11 @@ public final class ProjectRuntimeLoader {
     private final RuntimeDatabaseFactory runtimeDatabaseFactory = new RuntimeDatabaseFactory();
     private final RepositoryConfigMerger repositoryConfigMerger = new RepositoryConfigMerger();
 
-    public ProjectRuntimeLoader(final Path baseDirectory) {
+    ProjectRuntimeLoader(final Path baseDirectory) {
         this.baseDirectory = baseDirectory;
     }
 
-    public LoadedRuntime load(final @Nullable String selectedDatabaseKey) {
+    LoadedRuntime load(final @Nullable String selectedDatabaseKey) {
         final var projectYaml = readFile(baseDirectory.resolve(PROJECT_CONFIG_FILE));
         final var bootstrap = loadBootstrap(projectYaml);
         final var databaseKey = resolveDatabaseKey(selectedDatabaseKey, bootstrap);
@@ -202,5 +202,5 @@ public final class ProjectRuntimeLoader {
         }
     }
 
-    public record LoadedRuntime(RuntimeDatabase database, DefaultsConfig defaults) {}
+    record LoadedRuntime(RuntimeDatabase database, DefaultsConfig defaults) {}
 }

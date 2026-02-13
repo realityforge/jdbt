@@ -9,7 +9,7 @@ public final class Main {
         System.exit(run(args));
     }
 
-    public static int run(final String[] args) {
+    static int run(final String[] args) {
         return JdbtCommand.execute(args);
     }
 }

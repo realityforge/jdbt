@@ -9,7 +9,7 @@ final class SqlServerImportAssertExpander {
         return replaceArgumentMacro(output, "ASSERT_ROW_COUNT", SqlServerImportAssertExpander::rowCountAssertion);
     }
 
-    @SuppressWarnings( "SameParameterValue" )
+    @SuppressWarnings("SameParameterValue")
     private static String replaceNoArgumentMacro(
             final String sql, final String macroName, final MacroWithoutArgumentsReplacement replacement) {
         final var token = macroName + '(';

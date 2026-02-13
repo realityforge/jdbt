@@ -15,7 +15,6 @@ import org.junit.jupiter.api.io.TempDir;
 import org.realityforge.jdbt.db.DatabaseConnection;
 import org.realityforge.jdbt.db.DbDriver;
 import org.realityforge.jdbt.db.DbDriverFactory;
-import org.realityforge.jdbt.db.NoOpDbDriver;
 import org.realityforge.jdbt.files.FileResolver;
 import org.realityforge.jdbt.runtime.RuntimeExecutionException;
 
@@ -135,7 +134,7 @@ final class DefaultCommandRunnerTest {
     private static final class TestDriverFactory extends DbDriverFactory {
         @Override
         public DbDriver create(final String driver) {
-            return new NoOpDbDriver();
+            return super.create("noop");
         }
     }
 }

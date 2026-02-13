@@ -5,7 +5,7 @@ import java.util.Map;
 import org.jspecify.annotations.Nullable;
 import org.realityforge.jdbt.db.DatabaseConnection;
 
-public interface CommandRunner {
+interface CommandRunner {
     void status(@Nullable String databaseKey, String driver);
 
     void create(

@@ -15,12 +15,12 @@ import org.realityforge.jdbt.packaging.DeterministicZipPackager;
 import org.realityforge.jdbt.runtime.RuntimeEngine;
 import org.realityforge.jdbt.runtime.RuntimeExecutionException;
 
-public final class DefaultCommandRunner implements CommandRunner {
+final class DefaultCommandRunner implements CommandRunner {
     private final ProjectRuntimeLoader projectRuntimeLoader;
     private final DbDriverFactory dbDriverFactory;
     private final FileResolver fileResolver;
 
-    public DefaultCommandRunner(final ProjectRuntimeLoader projectRuntimeLoader) {
+    DefaultCommandRunner(final ProjectRuntimeLoader projectRuntimeLoader) {
         this(projectRuntimeLoader, new DbDriverFactory(), new FileResolver());
     }
 

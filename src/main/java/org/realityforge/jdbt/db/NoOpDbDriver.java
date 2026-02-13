@@ -5,7 +5,7 @@ import java.util.Map;
 import org.realityforge.jdbt.config.ImportConfig;
 import org.realityforge.jdbt.runtime.RuntimeDatabase;
 
-public final class NoOpDbDriver implements DbDriver {
+final class NoOpDbDriver implements DbDriver {
     @Override
     public void open(final DatabaseConnection connection, final boolean openControlDatabase) {}
 

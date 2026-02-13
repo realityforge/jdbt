@@ -621,7 +621,7 @@ final class RuntimeEngineTest {
         assertThat(driver.calls).doesNotContain("execute(false):M1", "shouldMigrate(default,001_x)");
     }
 
-    @SuppressWarnings( "SameParameterValue" )
+    @SuppressWarnings("SameParameterValue")
     private static RuntimeDatabase runtimeDatabase(
             final String key, final RepositoryConfig repository, final List<Path> searchDirs) {
         return runtimeDatabase(key, repository, searchDirs, Map.of(), List.of("defaultDataset"));
@@ -643,7 +643,7 @@ final class RuntimeEngineTest {
                 Map.of());
     }
 
-    @SuppressWarnings( "SameParameterValue" )
+    @SuppressWarnings("SameParameterValue")
     private static RuntimeDatabase runtimeDatabase(
             final String key,
             final RepositoryConfig repository,
@@ -667,7 +667,7 @@ final class RuntimeEngineTest {
                 key, repository, searchDirs, moduleGroups, datasets, imports, filterProperties, true, false, "1");
     }
 
-    @SuppressWarnings( "SameParameterValue" )
+    @SuppressWarnings("SameParameterValue")
     private static RuntimeDatabase runtimeDatabase(
             final String key,
             final RepositoryConfig repository,
