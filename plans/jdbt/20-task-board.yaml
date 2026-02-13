@@ -895,7 +895,7 @@ tasks:
       - command: ./gradlew clean spotlessCheck check fatJar
         result: pass
     commit:
-      hash: pending
+      hash: 70aadd8
       message: Document SQL Server import assert macro behavior
 
 history:
@@ -1021,5 +1021,5 @@ history:
     note: Added SQL Server-only import assert macro expansion and runtime gating support.
   - timestamp: 2026-02-13
     task: T31
-    commit: pending
+    commit: 70aadd8
     note: Documented SQL Server import assert macro behavior and compatibility scope.
