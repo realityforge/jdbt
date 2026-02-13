@@ -871,7 +871,7 @@ tasks:
       - command: ./gradlew clean spotlessCheck check fatJar
         result: pass
     commit:
-      hash: pending
+      hash: 201a50a
       message: Add SQL Server import assert macro expansion
 
 history:
@@ -993,5 +993,5 @@ history:
     note: Documented filterProperties behavior, strict CLI properties, and reserved import token rules.
   - timestamp: 2026-02-13
     task: T30
-    commit: pending
+    commit: 201a50a
     note: Added SQL Server-only import assert macro expansion and runtime gating support.
