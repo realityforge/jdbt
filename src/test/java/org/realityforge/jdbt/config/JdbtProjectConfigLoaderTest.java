@@ -134,4 +134,83 @@ final class JdbtProjectConfigLoaderTest {
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("Unknown key 'searchDirs'");
     }
+
+    @Test
+    void loadParsesFilterPropertiesWithDefaultAndSupportedValues() {
+        final var config = loader.load("""
+            filterProperties:
+              mode:
+                pattern: __MODE__
+                default: bulk
+                supportedValues: [bulk, delta]
+              tenant:
+                pattern: __TENANT__
+            """, "jdbt.yml", repository);
+
+        assertThat(config.database().filterProperties().keySet()).containsExactly("mode", "tenant");
+        assertThat(config.database().filterProperties().get("mode"))
+                .isEqualTo(new FilterPropertyConfig("__MODE__", "bulk", List.of("bulk", "delta")));
+        assertThat(config.database().filterProperties().get("tenant"))
+                .isEqualTo(new FilterPropertyConfig("__TENANT__", null, List.of()));
+    }
+
+    @Test
+    void loadRejectsReservedFilterPropertyKeys() {
+        assertThatThrownBy(() -> loader.load("""
+                    filterProperties:
+                      sourceDatabase:
+                        pattern: __SRC_DB__
+                    """, "jdbt.yml", repository))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("reserved and tool-provided");
+    }
+
+    @Test
+    void loadRejectsReservedFilterPropertyPatterns() {
+        assertThatThrownBy(() -> loader.load("""
+                    filterProperties:
+                      mode:
+                        pattern: __SOURCE__
+                    """, "jdbt.yml", repository))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("reserved pattern '__SOURCE__'");
+    }
+
+    @Test
+    void loadRejectsEmptySupportedValuesWhenSpecified() {
+        assertThatThrownBy(() -> loader.load("""
+                    filterProperties:
+                      mode:
+                        pattern: __MODE__
+                        supportedValues: []
+                    """, "jdbt.yml", repository))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("non-empty 'supportedValues'");
+    }
+
+    @Test
+    void loadRejectsDefaultOutsideSupportedValues() {
+        assertThatThrownBy(() -> loader.load("""
+                    filterProperties:
+                      mode:
+                        pattern: __MODE__
+                        default: bulk
+                        supportedValues: [delta]
+                    """, "jdbt.yml", repository))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("declares default 'bulk' not present in supportedValues");
+    }
+
+    @Test
+    void loadRejectsDuplicateFilterPatterns() {
+        assertThatThrownBy(() -> loader.load("""
+                    filterProperties:
+                      first:
+                        pattern: __MODE__
+                      second:
+                        pattern: __MODE__
+                    """, "jdbt.yml", repository))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("Duplicate filter pattern '__MODE__'");
+    }
 }

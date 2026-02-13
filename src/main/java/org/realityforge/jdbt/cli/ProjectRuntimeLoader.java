@@ -91,6 +91,7 @@ public final class ProjectRuntimeLoader {
                         "resourcePrefix",
                         "preDbArtifacts",
                         "postDbArtifacts",
+                        "filterProperties",
                         "imports",
                         "moduleGroups"),
                 PROJECT_CONFIG_FILE);

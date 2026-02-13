@@ -755,6 +755,35 @@ tasks:
       hash: 709cacb
       message: Use var in foreach and try-with-resources declarations
 
+  - id: T27
+    title: Add filterProperties config model and strict validation
+    status: completed
+    priority: medium
+    depends_on:
+      - T26
+    acceptance_criteria:
+      - jdbt.yml accepts top-level filterProperties map
+      - each filter property supports pattern, optional default, optional supportedValues
+      - reserved property keys sourceDatabase/targetDatabase/table are rejected
+      - reserved patterns __SOURCE__/__TARGET__/__TABLE__ are rejected in declarations
+      - duplicate patterns and invalid supportedValues/default combinations are rejected
+      - declaration order is preserved for downstream deterministic replacement
+      - required full gates pass
+    files_touched:
+      - src/main/java/org/realityforge/jdbt/config/FilterPropertyConfig.java
+      - src/main/java/org/realityforge/jdbt/config/DatabaseConfig.java
+      - src/main/java/org/realityforge/jdbt/config/JdbtProjectConfigLoader.java
+      - src/main/java/org/realityforge/jdbt/cli/ProjectRuntimeLoader.java
+      - src/test/java/org/realityforge/jdbt/config/JdbtProjectConfigLoaderTest.java
+      - plans/jdbt/10-implementation-plan.md
+      - plans/jdbt/20-task-board.yaml
+    evidence:
+      - command: ./gradlew clean spotlessCheck check fatJar
+        result: pass
+    commit:
+      hash: pending
+      message: Add filterProperties config model and validation
+
 history:
   - timestamp: 2026-02-12
     task: T01
@@ -860,3 +889,7 @@ history:
     task: T26
     commit: 709cacb
     note: Updated foreach and try-with-resources declarations to prefer var.
+  - timestamp: 2026-02-13
+    task: T27
+    commit: pending
+    note: Added filterProperties model with strict key/pattern/default/supportedValues validation.

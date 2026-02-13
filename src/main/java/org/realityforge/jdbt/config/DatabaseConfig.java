@@ -1,5 +1,7 @@
 package org.realityforge.jdbt.config;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.jspecify.annotations.Nullable;
@@ -23,6 +25,7 @@ public record DatabaseConfig(
         @Nullable String resourcePrefix,
         List<String> preDbArtifacts,
         List<String> postDbArtifacts,
+        Map<String, FilterPropertyConfig> filterProperties,
         Map<String, ImportConfig> imports,
         Map<String, ModuleGroupConfig> moduleGroups) {
 
@@ -37,7 +40,53 @@ public record DatabaseConfig(
         postDatasetDirs = List.copyOf(postDatasetDirs);
         preDbArtifacts = List.copyOf(preDbArtifacts);
         postDbArtifacts = List.copyOf(postDbArtifacts);
+        filterProperties = Collections.unmodifiableMap(new LinkedHashMap<>(filterProperties));
         imports = Map.copyOf(imports);
         moduleGroups = Map.copyOf(moduleGroups);
+    }
+
+    public DatabaseConfig(
+            final String key,
+            final List<String> upDirs,
+            final List<String> downDirs,
+            final List<String> finalizeDirs,
+            final List<String> preCreateDirs,
+            final List<String> postCreateDirs,
+            final List<String> datasets,
+            final String datasetsDirName,
+            final List<String> preDatasetDirs,
+            final List<String> postDatasetDirs,
+            final String fixtureDirName,
+            final boolean migrations,
+            final boolean migrationsAppliedAtCreate,
+            final String migrationsDirName,
+            final @Nullable String version,
+            final @Nullable String resourcePrefix,
+            final List<String> preDbArtifacts,
+            final List<String> postDbArtifacts,
+            final Map<String, ImportConfig> imports,
+            final Map<String, ModuleGroupConfig> moduleGroups) {
+        this(
+                key,
+                upDirs,
+                downDirs,
+                finalizeDirs,
+                preCreateDirs,
+                postCreateDirs,
+                datasets,
+                datasetsDirName,
+                preDatasetDirs,
+                postDatasetDirs,
+                fixtureDirName,
+                migrations,
+                migrationsAppliedAtCreate,
+                migrationsDirName,
+                version,
+                resourcePrefix,
+                preDbArtifacts,
+                postDbArtifacts,
+                Map.of(),
+                imports,
+                moduleGroups);
     }
 }

@@ -1,5 +1,6 @@
 package org.realityforge.jdbt.config;
 
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -7,6 +8,10 @@ import java.util.Set;
 import org.realityforge.jdbt.repository.RepositoryConfig;
 
 public final class JdbtProjectConfigLoader {
+    private static final Set<String> RESERVED_FILTER_PROPERTY_KEYS =
+            Set.of("sourceDatabase", "targetDatabase", "table");
+    private static final Set<String> RESERVED_FILTER_PATTERNS = Set.of("__SOURCE__", "__TARGET__", "__TABLE__");
+
     public JdbtProjectConfig load(final String yaml, final String sourceName, final RepositoryConfig repository) {
         final var root = YamlMapSupport.parseRoot(yaml, sourceName);
         YamlMapSupport.assertKeys(
@@ -29,6 +34,7 @@ public final class JdbtProjectConfigLoader {
                         "resourcePrefix",
                         "preDbArtifacts",
                         "postDbArtifacts",
+                        "filterProperties",
                         "imports",
                         "moduleGroups"),
                 sourceName);
@@ -65,6 +71,7 @@ public final class JdbtProjectConfigLoader {
                         "resourcePrefix",
                         "preDbArtifacts",
                         "postDbArtifacts",
+                        "filterProperties",
                         "imports",
                         "moduleGroups"),
                 path);
@@ -73,6 +80,7 @@ public final class JdbtProjectConfigLoader {
         final var migrations = migrationsValue != null && migrationsValue;
         final var migrationsAppliedAtCreate = YamlMapSupport.optionalBoolean(body, "migrationsAppliedAtCreate", path);
 
+        final var filterProperties = loadFilterProperties(body, path);
         final var imports = loadImports(key, body, defaults, repository, path);
         final var moduleGroups = loadModuleGroups(key, body, repository, path);
 
@@ -101,8 +109,102 @@ public final class JdbtProjectConfigLoader {
                 YamlMapSupport.optionalString(body, "resourcePrefix", path),
                 YamlMapSupport.optionalStringList(body, "preDbArtifacts", path, List.of()),
                 YamlMapSupport.optionalStringList(body, "postDbArtifacts", path, List.of()),
+                filterProperties,
                 imports,
                 moduleGroups);
+    }
+
+    private static Map<String, FilterPropertyConfig> loadFilterProperties(
+            final Map<String, Object> body, final String databasePath) {
+        final var propertiesNode = YamlMapSupport.optionalMap(body, "filterProperties", databasePath);
+        if (null == propertiesNode) {
+            return Map.of();
+        }
+
+        final var filterProperties = new LinkedHashMap<String, FilterPropertyConfig>();
+        final var seenPatterns = new LinkedHashMap<String, String>();
+        for (final var entry : propertiesNode.entrySet()) {
+            final var propertyKey = entry.getKey();
+            if (RESERVED_FILTER_PROPERTY_KEYS.contains(propertyKey)) {
+                throw new ConfigException("Filter property '"
+                        + propertyKey
+                        + "' in "
+                        + databasePath
+                        + ".filterProperties is reserved and tool-provided.");
+            }
+            if (!(entry.getValue() instanceof Map<?, ?> propertyBody)) {
+                throw new ConfigException(
+                        "Expected map for filter property '" + propertyKey + "' in " + databasePath + '.');
+            }
+
+            final var propertyPath = databasePath + ".filterProperties." + propertyKey;
+            final var propertyNode = YamlMapSupport.toStringMap(propertyBody, propertyPath);
+            YamlMapSupport.assertKeys(propertyNode, Set.of("pattern", "default", "supportedValues"), propertyPath);
+
+            final var pattern = YamlMapSupport.requireString(propertyNode, "pattern", propertyPath);
+            if (RESERVED_FILTER_PATTERNS.contains(pattern)) {
+                throw new ConfigException("Filter property '"
+                        + propertyKey
+                        + "' in "
+                        + propertyPath
+                        + " defines reserved pattern '"
+                        + pattern
+                        + "'.");
+            }
+            final var existingPatternOwner = seenPatterns.putIfAbsent(pattern, propertyKey);
+            if (null != existingPatternOwner) {
+                throw new ConfigException("Duplicate filter pattern '"
+                        + pattern
+                        + "' declared for '"
+                        + propertyKey
+                        + "' and '"
+                        + existingPatternOwner
+                        + "' in "
+                        + databasePath
+                        + ".filterProperties.");
+            }
+
+            final var defaultValue = YamlMapSupport.optionalString(propertyNode, "default", propertyPath);
+            final List<String> supportedValues;
+            if (propertyNode.containsKey("supportedValues")) {
+                supportedValues = YamlMapSupport.requireStringList(propertyNode, "supportedValues", propertyPath);
+                if (supportedValues.isEmpty()) {
+                    throw new ConfigException("Filter property '"
+                            + propertyKey
+                            + "' in "
+                            + propertyPath
+                            + " must define non-empty 'supportedValues' when specified.");
+                }
+                final var uniqueValues = new LinkedHashMap<String, Boolean>();
+                for (final var value : supportedValues) {
+                    uniqueValues.put(value, Boolean.TRUE);
+                }
+                if (uniqueValues.size() != supportedValues.size()) {
+                    throw new ConfigException("Filter property '"
+                            + propertyKey
+                            + "' in "
+                            + propertyPath
+                            + " contains duplicate entries in 'supportedValues'.");
+                }
+                if (null != defaultValue && !supportedValues.contains(defaultValue)) {
+                    throw new ConfigException("Filter property '"
+                            + propertyKey
+                            + "' in "
+                            + propertyPath
+                            + " declares default '"
+                            + defaultValue
+                            + "' not present in supportedValues "
+                            + supportedValues
+                            + '.');
+                }
+            } else {
+                supportedValues = List.of();
+            }
+
+            filterProperties.put(propertyKey, new FilterPropertyConfig(pattern, defaultValue, supportedValues));
+        }
+
+        return Collections.unmodifiableMap(new LinkedHashMap<>(filterProperties));
     }
 
     private static Map<String, ImportConfig> loadImports(
