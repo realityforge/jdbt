@@ -40,7 +40,6 @@ Top-level keys:
 - `migrationsAppliedAtCreate`
 - `migrationsDirName`
 - `version`
-- `resourcePrefix`
 - `preDbArtifacts`
 - `postDbArtifacts`
 - `filterProperties`
@@ -48,6 +47,8 @@ Top-level keys:
 - `moduleGroups`
 
 `jdbt.yml` no longer supports a top-level `defaults` key.
+
+Classpath resource loading is not supported; jdbt resolves database assets from the project filesystem root and configured zip artifacts.
 
 Runtime defaults are hardcoded and currently match Ruby-compatible defaults for:
 

@@ -34,6 +34,7 @@
 30. Document `filterProperties`, strict CLI behavior, and reserved import token semantics.
 31. Port SQL Server import assert macro expansion for ASSERT_ROW_COUNT, ASSERT_DATABASE_VERSION, and ASSERT_UNCHANGED_ROW_COUNT.
 32. Document SQL Server-only import assert macros and parity notes.
+33. Remove unsupported `resourcePrefix` config surface and document classpath-loading divergence.
 
 ## Delivery Approach
 

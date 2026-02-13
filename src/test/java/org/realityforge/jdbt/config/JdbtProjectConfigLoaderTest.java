@@ -136,6 +136,15 @@ final class JdbtProjectConfigLoaderTest {
     }
 
     @Test
+    void loadRejectsResourcePrefixKey() {
+        assertThatThrownBy(() -> loader.load("""
+                    resourcePrefix: data
+                    """, "jdbt.yml", repository))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("Unknown key 'resourcePrefix'");
+    }
+
+    @Test
     void loadParsesFilterPropertiesWithDefaultAndSupportedValues() {
         final var config = loader.load("""
             filterProperties:

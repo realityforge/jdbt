@@ -35,7 +35,6 @@ final class RuntimeDatabaseFactoryTest {
                 true,
                 "migrations",
                 "v1",
-                null,
                 List.of(),
                 List.of(),
                 Map.of("mode", new FilterPropertyConfig("__MODE__", "bulk", List.of("bulk", "delta"))),

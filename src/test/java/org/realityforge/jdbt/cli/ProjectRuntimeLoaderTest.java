@@ -65,6 +65,23 @@ final class ProjectRuntimeLoaderTest {
     }
 
     @Test
+    void loadRejectsResourcePrefixSetting(@TempDir final Path tempDir) throws IOException {
+        writeFile(tempDir, "jdbt.yml", """
+                resourcePrefix: data
+                """);
+        writeFile(tempDir, "repository.yml", """
+                modules:
+                  A:
+                    tables: []
+                    sequences: []
+                """);
+
+        assertThatThrownBy(() -> new ProjectRuntimeLoader(tempDir).load(null))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("Unknown key 'resourcePrefix'");
+    }
+
+    @Test
     void loadUsesHardcodedDefaultDatabaseKey(@TempDir final Path tempDir) throws IOException {
         writeFile(tempDir, "jdbt.yml", "{}\n");
         writeFile(tempDir, "repository.yml", """

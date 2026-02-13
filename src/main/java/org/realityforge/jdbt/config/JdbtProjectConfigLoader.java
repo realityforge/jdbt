@@ -31,7 +31,6 @@ public final class JdbtProjectConfigLoader {
                         "migrationsAppliedAtCreate",
                         "migrationsDirName",
                         "version",
-                        "resourcePrefix",
                         "preDbArtifacts",
                         "postDbArtifacts",
                         "filterProperties",
@@ -68,7 +67,6 @@ public final class JdbtProjectConfigLoader {
                         "migrationsAppliedAtCreate",
                         "migrationsDirName",
                         "version",
-                        "resourcePrefix",
                         "preDbArtifacts",
                         "postDbArtifacts",
                         "filterProperties",
@@ -106,7 +104,6 @@ public final class JdbtProjectConfigLoader {
                         ? defaults.migrationsDirName()
                         : YamlMapSupport.requireString(body, "migrationsDirName", path),
                 YamlMapSupport.optionalString(body, "version", path),
-                YamlMapSupport.optionalString(body, "resourcePrefix", path),
                 YamlMapSupport.optionalStringList(body, "preDbArtifacts", path, List.of()),
                 YamlMapSupport.optionalStringList(body, "postDbArtifacts", path, List.of()),
                 filterProperties,

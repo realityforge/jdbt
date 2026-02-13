@@ -22,6 +22,7 @@ Port Ruby `dbt` in `vendor/dbt` to Java while preserving behavior-critical seman
 - Project config file is fixed and non-configurable: `jdbt.yml`.
 - `jdbt.yml` defines a single implicit database at the top level; top-level `defaults` and `databases` are not supported.
 - `searchDirs` is not supported in `jdbt.yml`.
+- `resourcePrefix` is not supported in `jdbt.yml` (classpath resource loading is out of scope).
 - The only search directory is the directory containing `jdbt.yml`.
 - `repository.yml` remains first-class and layout-compatible.
 - Runtime instance settings are supplied by CLI args only.

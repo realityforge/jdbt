@@ -88,7 +88,6 @@ final class ProjectRuntimeLoader {
                         "migrationsAppliedAtCreate",
                         "migrationsDirName",
                         "version",
-                        "resourcePrefix",
                         "preDbArtifacts",
                         "postDbArtifacts",
                         "filterProperties",
