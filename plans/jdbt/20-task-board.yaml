@@ -925,7 +925,7 @@ tasks:
       - command: ./gradlew clean spotlessCheck check fatJar
         result: pass
     commit:
-      hash: pending
+      hash: af94370
       message: Remove unsupported resourcePrefix config surface
 
 history:
@@ -1055,5 +1055,5 @@ history:
     note: Documented SQL Server import assert macro behavior and compatibility scope.
   - timestamp: 2026-02-13
     task: T32
-    commit: pending
+    commit: af94370
     note: Removed resourcePrefix from config surface and documented classpath-loading divergence.
