@@ -9,6 +9,7 @@ import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.realityforge.jdbt.db.DatabaseConnection;
@@ -38,14 +39,14 @@ final class DefaultCommandRunnerTest {
             System.setOut(originalOut);
         }
 
-        runner.create("default", "noop", target, true);
-        runner.drop("default", "noop", target);
-        runner.migrate("default", "noop", target);
-        runner.databaseImport("default", "noop", null, null, target, source, null);
-        runner.createByImport("default", "noop", null, target, source, null, true);
-        runner.loadDataset("default", "noop", "seed", target);
-        runner.upModuleGroup("default", "noop", "all", target);
-        runner.downModuleGroup("default", "noop", "all", target);
+        runner.create("default", "noop", target, true, Map.of());
+        runner.drop("default", "noop", target, Map.of());
+        runner.migrate("default", "noop", target, Map.of());
+        runner.databaseImport("default", "noop", null, null, target, source, null, Map.of());
+        runner.createByImport("default", "noop", null, target, source, null, true, Map.of());
+        runner.loadDataset("default", "noop", "seed", target, Map.of());
+        runner.upModuleGroup("default", "noop", "all", target, Map.of());
+        runner.downModuleGroup("default", "noop", "all", target, Map.of());
 
         assertThat(output.toString(StandardCharsets.UTF_8))
                 .contains("Database Version")
@@ -83,7 +84,8 @@ final class DefaultCommandRunnerTest {
         writeFile(tempDir, "repository.yml", repositoryConfig());
         final var runner = createRunner(tempDir);
 
-        assertThatThrownBy(() -> runner.databaseImport("default", "sqlserver", null, null, target, source, null))
+        assertThatThrownBy(
+                        () -> runner.databaseImport("default", "sqlserver", null, null, target, source, null, Map.of()))
                 .isInstanceOf(RuntimeExecutionException.class)
                 .hasMessageContaining("Unable to locate import definition by key");
     }

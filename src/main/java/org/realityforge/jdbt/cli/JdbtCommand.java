@@ -1,6 +1,11 @@
 package org.realityforge.jdbt.cli;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Callable;
 import org.jspecify.annotations.Nullable;
@@ -72,6 +77,31 @@ public final class JdbtCommand implements Callable<Integer> {
 
         protected final String driver() {
             return Objects.requireNonNull(executionOptions).driver;
+        }
+    }
+
+    private abstract static class BaseSqlCommand extends BaseCommand {
+        @CommandLine.Option(
+                names = "--property",
+                paramLabel = "KEY=VALUE",
+                description = "SQL filter property override. May be specified multiple times.")
+        private List<String> filterPropertyEntries = new ArrayList<>();
+
+        protected final Map<String, String> filterProperties() {
+            final var values = new LinkedHashMap<String, String>();
+            for (final var entry : filterPropertyEntries) {
+                final var equals = entry.indexOf('=');
+                if (equals <= 0 || equals == entry.length() - 1) {
+                    throw new IllegalArgumentException("Invalid --property value '" + entry + "'. Expected KEY=VALUE.");
+                }
+                final var key = entry.substring(0, equals);
+                final var value = entry.substring(equals + 1);
+                if (values.containsKey(key)) {
+                    throw new IllegalArgumentException("Duplicate --property key '" + key + "'.");
+                }
+                values.put(key, value);
+            }
+            return Collections.unmodifiableMap(new LinkedHashMap<>(values));
         }
     }
 
@@ -199,7 +229,7 @@ public final class JdbtCommand implements Callable<Integer> {
 
     @CommandLine.Command(name = "create", description = "Create database structures")
     @SuppressWarnings("FieldCanBeFinal")
-    static final class CreateCommand extends BaseCommand {
+    static final class CreateCommand extends BaseSqlCommand {
         @CommandLine.Mixin
         private TargetConnectionOptions target = new TargetConnectionOptions();
 
@@ -208,40 +238,45 @@ public final class JdbtCommand implements Callable<Integer> {
 
         @Override
         public Integer call() {
-            runner().create(databaseKey(), driver(), target.toConnection(passwordResolver()), noCreate);
+            runner().create(
+                            databaseKey(),
+                            driver(),
+                            target.toConnection(passwordResolver()),
+                            noCreate,
+                            filterProperties());
             return 0;
         }
     }
 
     @CommandLine.Command(name = "drop", description = "Drop the target database")
     @SuppressWarnings("FieldCanBeFinal")
-    static final class DropCommand extends BaseCommand {
+    static final class DropCommand extends BaseSqlCommand {
         @CommandLine.Mixin
         private TargetConnectionOptions target = new TargetConnectionOptions();
 
         @Override
         public Integer call() {
-            runner().drop(databaseKey(), driver(), target.toConnection(passwordResolver()));
+            runner().drop(databaseKey(), driver(), target.toConnection(passwordResolver()), filterProperties());
             return 0;
         }
     }
 
     @CommandLine.Command(name = "migrate", description = "Run migrations")
     @SuppressWarnings("FieldCanBeFinal")
-    static final class MigrateCommand extends BaseCommand {
+    static final class MigrateCommand extends BaseSqlCommand {
         @CommandLine.Mixin
         private TargetConnectionOptions target = new TargetConnectionOptions();
 
         @Override
         public Integer call() {
-            runner().migrate(databaseKey(), driver(), target.toConnection(passwordResolver()));
+            runner().migrate(databaseKey(), driver(), target.toConnection(passwordResolver()), filterProperties());
             return 0;
         }
     }
 
     @CommandLine.Command(name = "import", description = "Import data from source to target")
     @SuppressWarnings("FieldCanBeFinal")
-    static final class ImportCommand extends BaseCommand {
+    static final class ImportCommand extends BaseSqlCommand {
         @CommandLine.Option(names = "--import", description = "Import key from jdbt.yml")
         private @Nullable String importKey;
 
@@ -266,14 +301,15 @@ public final class JdbtCommand implements Callable<Integer> {
                             moduleGroup,
                             target.toConnection(passwordResolver()),
                             source.toConnection(passwordResolver()),
-                            resumeAt);
+                            resumeAt,
+                            filterProperties());
             return 0;
         }
     }
 
     @CommandLine.Command(name = "create-by-import", description = "Create database and import data")
     @SuppressWarnings("FieldCanBeFinal")
-    static final class CreateByImportCommand extends BaseCommand {
+    static final class CreateByImportCommand extends BaseSqlCommand {
         @CommandLine.Option(names = "--import", description = "Import key from jdbt.yml")
         private @Nullable String importKey;
 
@@ -298,14 +334,15 @@ public final class JdbtCommand implements Callable<Integer> {
                             target.toConnection(passwordResolver()),
                             source.toConnection(passwordResolver()),
                             resumeAt,
-                            noCreate);
+                            noCreate,
+                            filterProperties());
             return 0;
         }
     }
 
     @CommandLine.Command(name = "load-dataset", description = "Load fixtures for a dataset")
     @SuppressWarnings("FieldCanBeFinal")
-    static final class LoadDatasetCommand extends BaseCommand {
+    static final class LoadDatasetCommand extends BaseSqlCommand {
         @CommandLine.Parameters(index = "0", paramLabel = "DATASET", description = "Dataset key")
         private String dataset = "";
 
@@ -314,14 +351,19 @@ public final class JdbtCommand implements Callable<Integer> {
 
         @Override
         public Integer call() {
-            runner().loadDataset(databaseKey(), driver(), dataset, target.toConnection(passwordResolver()));
+            runner().loadDataset(
+                            databaseKey(),
+                            driver(),
+                            dataset,
+                            target.toConnection(passwordResolver()),
+                            filterProperties());
             return 0;
         }
     }
 
     @CommandLine.Command(name = "up-module-group", description = "Create objects for module group")
     @SuppressWarnings("FieldCanBeFinal")
-    static final class UpModuleGroupCommand extends BaseCommand {
+    static final class UpModuleGroupCommand extends BaseSqlCommand {
         @CommandLine.Parameters(index = "0", paramLabel = "MODULE_GROUP", description = "Module group key")
         private String moduleGroup = "";
 
@@ -330,14 +372,19 @@ public final class JdbtCommand implements Callable<Integer> {
 
         @Override
         public Integer call() {
-            runner().upModuleGroup(databaseKey(), driver(), moduleGroup, target.toConnection(passwordResolver()));
+            runner().upModuleGroup(
+                            databaseKey(),
+                            driver(),
+                            moduleGroup,
+                            target.toConnection(passwordResolver()),
+                            filterProperties());
             return 0;
         }
     }
 
     @CommandLine.Command(name = "down-module-group", description = "Drop objects for module group")
     @SuppressWarnings("FieldCanBeFinal")
-    static final class DownModuleGroupCommand extends BaseCommand {
+    static final class DownModuleGroupCommand extends BaseSqlCommand {
         @CommandLine.Parameters(index = "0", paramLabel = "MODULE_GROUP", description = "Module group key")
         private String moduleGroup = "";
 
@@ -346,7 +393,12 @@ public final class JdbtCommand implements Callable<Integer> {
 
         @Override
         public Integer call() {
-            runner().downModuleGroup(databaseKey(), driver(), moduleGroup, target.toConnection(passwordResolver()));
+            runner().downModuleGroup(
+                            databaseKey(),
+                            driver(),
+                            moduleGroup,
+                            target.toConnection(passwordResolver()),
+                            filterProperties());
             return 0;
         }
     }

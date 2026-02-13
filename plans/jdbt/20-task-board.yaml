@@ -784,6 +784,42 @@ tasks:
       hash: 1488792
       message: Add filterProperties config model and validation
 
+  - id: T28
+    title: Add strict CLI property plumbing and SQL filter replacement runtime
+    status: completed
+    priority: medium
+    depends_on:
+      - T27
+    acceptance_criteria:
+      - SQL-executing commands accept repeatable --property KEY=VALUE inputs
+      - malformed/duplicate property arguments are rejected
+      - runtime validates undeclared and reserved property overrides
+      - declared filter properties replace SQL in deterministic declared order
+      - missing required properties and unsupported values fail fast
+      - import reserved tokens only support __SOURCE__/__TARGET__/__TABLE__
+      - required full gates pass
+    files_touched:
+      - src/main/java/org/realityforge/jdbt/cli/CommandRunner.java
+      - src/main/java/org/realityforge/jdbt/cli/DefaultCommandRunner.java
+      - src/main/java/org/realityforge/jdbt/cli/JdbtCommand.java
+      - src/main/java/org/realityforge/jdbt/runtime/RuntimeDatabase.java
+      - src/main/java/org/realityforge/jdbt/runtime/RuntimeDatabaseFactory.java
+      - src/main/java/org/realityforge/jdbt/runtime/RuntimeEngine.java
+      - src/test/java/org/realityforge/jdbt/cli/DefaultCommandRunnerTest.java
+      - src/test/java/org/realityforge/jdbt/cli/JdbtCommandTest.java
+      - src/test/java/org/realityforge/jdbt/runtime/RuntimeDatabaseFactoryTest.java
+      - src/test/java/org/realityforge/jdbt/runtime/RuntimeDatabaseTest.java
+      - src/test/java/org/realityforge/jdbt/runtime/RuntimeEngineTest.java
+      - src/test/java/org/realityforge/jdbt/config/JdbtProjectConfigLoaderTest.java
+      - plans/jdbt/10-implementation-plan.md
+      - plans/jdbt/20-task-board.yaml
+    evidence:
+      - command: ./gradlew clean spotlessCheck check fatJar
+        result: pass
+    commit:
+      hash: pending
+      message: Add strict CLI property plumbing and SQL filter runtime
+
 history:
   - timestamp: 2026-02-12
     task: T01
@@ -893,3 +929,7 @@ history:
     task: T27
     commit: 1488792
     note: Added filterProperties model with strict key/pattern/default/supportedValues validation.
+  - timestamp: 2026-02-13
+    task: T28
+    commit: pending
+    note: Added strict CLI property handling and runtime SQL replacement with import reserved token constraints.

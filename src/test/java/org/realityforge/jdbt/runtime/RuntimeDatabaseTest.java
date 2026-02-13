@@ -25,6 +25,7 @@ final class RuntimeDatabaseTest {
         assertThat(database.tableOrdering("Core")).containsExactly("[C].[tblA]");
         assertThat(database.sequenceOrdering("Core")).containsExactly("[C].[seqA]");
         assertThat(database.orderedElementsForModule("Core")).containsExactly("[C].[tblA]", "[C].[seqA]");
+        assertThat(database.filterProperties()).isEmpty();
     }
 
     @Test

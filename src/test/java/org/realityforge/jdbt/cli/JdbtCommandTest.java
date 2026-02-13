@@ -66,6 +66,37 @@ final class JdbtCommandTest {
         assertThat(runner.lastCall).isEqualTo("create");
         assertThat(runner.targetConnection).isEqualTo(new DatabaseConnection("localhost", 1433, "db", "sa", "secret"));
         assertThat(runner.noCreate).isTrue();
+        assertThat(runner.filterProperties).isEmpty();
+    }
+
+    @Test
+    void createPassesFilterProperties() {
+        final var runner = new RecordingRunner();
+
+        final var exitCode = JdbtCommand.execute(
+                new String[] {
+                    "create",
+                    "--target-host",
+                    "localhost",
+                    "--target-port",
+                    "1433",
+                    "--target-database",
+                    "db",
+                    "--target-username",
+                    "sa",
+                    "--password",
+                    "secret",
+                    "--property",
+                    "region=au",
+                    "--property",
+                    "mode=full"
+                },
+                runner,
+                new PasswordResolver(Map.of(), new ByteArrayInputStream(new byte[0])));
+
+        assertThat(exitCode).isZero();
+        assertThat(runner.lastCall).isEqualTo("create");
+        assertThat(runner.filterProperties).containsExactly(entry("region", "au"), entry("mode", "full"));
     }
 
     @Test
@@ -203,6 +234,7 @@ final class JdbtCommandTest {
         private @Nullable DatabaseConnection sourceConnection;
         private boolean noCreate;
         private @Nullable Path outputFile;
+        private Map<String, String> filterProperties = Map.of();
 
         @Override
         public void status(final @Nullable String databaseKey, final String driver) {
@@ -216,28 +248,40 @@ final class JdbtCommandTest {
                 final @Nullable String databaseKey,
                 final String driver,
                 final DatabaseConnection target,
-                final boolean noCreate) {
+                final boolean noCreate,
+                final Map<String, String> filterProperties) {
             this.lastCall = "create";
             this.databaseKey = databaseKey;
             this.driver = driver;
             this.targetConnection = target;
             this.noCreate = noCreate;
+            this.filterProperties = filterProperties;
         }
 
         @Override
-        public void drop(final @Nullable String databaseKey, final String driver, final DatabaseConnection target) {
+        public void drop(
+                final @Nullable String databaseKey,
+                final String driver,
+                final DatabaseConnection target,
+                final Map<String, String> filterProperties) {
             this.lastCall = "drop";
             this.databaseKey = databaseKey;
             this.driver = driver;
             this.targetConnection = target;
+            this.filterProperties = filterProperties;
         }
 
         @Override
-        public void migrate(final @Nullable String databaseKey, final String driver, final DatabaseConnection target) {
+        public void migrate(
+                final @Nullable String databaseKey,
+                final String driver,
+                final DatabaseConnection target,
+                final Map<String, String> filterProperties) {
             this.lastCall = "migrate";
             this.databaseKey = databaseKey;
             this.driver = driver;
             this.targetConnection = target;
+            this.filterProperties = filterProperties;
         }
 
         @Override
@@ -248,7 +292,8 @@ final class JdbtCommandTest {
                 final @Nullable String moduleGroup,
                 final DatabaseConnection target,
                 final DatabaseConnection source,
-                final @Nullable String resumeAt) {
+                final @Nullable String resumeAt,
+                final Map<String, String> filterProperties) {
             this.lastCall = "import";
             this.databaseKey = databaseKey;
             this.driver = driver;
@@ -257,6 +302,7 @@ final class JdbtCommandTest {
             this.targetConnection = target;
             this.sourceConnection = source;
             this.resumeAt = resumeAt;
+            this.filterProperties = filterProperties;
         }
 
         @Override
@@ -267,7 +313,8 @@ final class JdbtCommandTest {
                 final DatabaseConnection target,
                 final DatabaseConnection source,
                 final @Nullable String resumeAt,
-                final boolean noCreate) {
+                final boolean noCreate,
+                final Map<String, String> filterProperties) {
             this.lastCall = "create-by-import";
             this.databaseKey = databaseKey;
             this.driver = driver;
@@ -276,6 +323,7 @@ final class JdbtCommandTest {
             this.sourceConnection = source;
             this.resumeAt = resumeAt;
             this.noCreate = noCreate;
+            this.filterProperties = filterProperties;
         }
 
         @Override
@@ -283,11 +331,13 @@ final class JdbtCommandTest {
                 final @Nullable String databaseKey,
                 final String driver,
                 final String dataset,
-                final DatabaseConnection target) {
+                final DatabaseConnection target,
+                final Map<String, String> filterProperties) {
             this.lastCall = "load-dataset";
             this.databaseKey = databaseKey;
             this.driver = driver;
             this.targetConnection = target;
+            this.filterProperties = filterProperties;
         }
 
         @Override
@@ -295,12 +345,14 @@ final class JdbtCommandTest {
                 final @Nullable String databaseKey,
                 final String driver,
                 final String moduleGroup,
-                final DatabaseConnection target) {
+                final DatabaseConnection target,
+                final Map<String, String> filterProperties) {
             this.lastCall = "up-module-group";
             this.databaseKey = databaseKey;
             this.driver = driver;
             this.moduleGroup = moduleGroup;
             this.targetConnection = target;
+            this.filterProperties = filterProperties;
         }
 
         @Override
@@ -308,12 +360,14 @@ final class JdbtCommandTest {
                 final @Nullable String databaseKey,
                 final String driver,
                 final String moduleGroup,
-                final DatabaseConnection target) {
+                final DatabaseConnection target,
+                final Map<String, String> filterProperties) {
             this.lastCall = "down-module-group";
             this.databaseKey = databaseKey;
             this.driver = driver;
             this.moduleGroup = moduleGroup;
             this.targetConnection = target;
+            this.filterProperties = filterProperties;
         }
 
         @Override

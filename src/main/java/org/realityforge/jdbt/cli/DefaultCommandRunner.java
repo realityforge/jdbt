@@ -5,6 +5,7 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
+import java.util.Map;
 import org.jspecify.annotations.Nullable;
 import org.realityforge.jdbt.db.DatabaseConnection;
 import org.realityforge.jdbt.db.DbDriverFactory;
@@ -44,21 +45,30 @@ public final class DefaultCommandRunner implements CommandRunner {
             final @Nullable String databaseKey,
             final String driver,
             final DatabaseConnection target,
-            final boolean noCreate) {
+            final boolean noCreate,
+            final Map<String, String> filterProperties) {
         final var runtime = projectRuntimeLoader.load(databaseKey);
-        runtimeEngine(driver).create(runtime.database(), target, noCreate);
+        runtimeEngine(driver).create(runtime.database(), target, noCreate, filterProperties);
     }
 
     @Override
-    public void drop(final @Nullable String databaseKey, final String driver, final DatabaseConnection target) {
+    public void drop(
+            final @Nullable String databaseKey,
+            final String driver,
+            final DatabaseConnection target,
+            final Map<String, String> filterProperties) {
         final var runtime = projectRuntimeLoader.load(databaseKey);
-        runtimeEngine(driver).drop(runtime.database(), target);
+        runtimeEngine(driver).drop(runtime.database(), target, filterProperties);
     }
 
     @Override
-    public void migrate(final @Nullable String databaseKey, final String driver, final DatabaseConnection target) {
+    public void migrate(
+            final @Nullable String databaseKey,
+            final String driver,
+            final DatabaseConnection target,
+            final Map<String, String> filterProperties) {
         final var runtime = projectRuntimeLoader.load(databaseKey);
-        runtimeEngine(driver).migrate(runtime.database(), target);
+        runtimeEngine(driver).migrate(runtime.database(), target, filterProperties);
     }
 
     @Override
@@ -69,10 +79,13 @@ public final class DefaultCommandRunner implements CommandRunner {
             final @Nullable String moduleGroup,
             final DatabaseConnection target,
             final DatabaseConnection source,
-            final @Nullable String resumeAt) {
+            final @Nullable String resumeAt,
+            final Map<String, String> filterProperties) {
         final var runtime = projectRuntimeLoader.load(databaseKey);
         final var resolvedImport = resolveImportKey(runtime, importKey);
-        runtimeEngine(driver).databaseImport(runtime.database(), resolvedImport, moduleGroup, target, source, resumeAt);
+        runtimeEngine(driver)
+                .databaseImport(
+                        runtime.database(), resolvedImport, moduleGroup, target, source, resumeAt, filterProperties);
     }
 
     @Override
@@ -83,10 +96,13 @@ public final class DefaultCommandRunner implements CommandRunner {
             final DatabaseConnection target,
             final DatabaseConnection source,
             final @Nullable String resumeAt,
-            final boolean noCreate) {
+            final boolean noCreate,
+            final Map<String, String> filterProperties) {
         final var runtime = projectRuntimeLoader.load(databaseKey);
         final var resolvedImport = resolveImportKey(runtime, importKey);
-        runtimeEngine(driver).createByImport(runtime.database(), resolvedImport, target, source, resumeAt, noCreate);
+        runtimeEngine(driver)
+                .createByImport(
+                        runtime.database(), resolvedImport, target, source, resumeAt, noCreate, filterProperties);
     }
 
     @Override
@@ -94,9 +110,10 @@ public final class DefaultCommandRunner implements CommandRunner {
             final @Nullable String databaseKey,
             final String driver,
             final String dataset,
-            final DatabaseConnection target) {
+            final DatabaseConnection target,
+            final Map<String, String> filterProperties) {
         final var runtime = projectRuntimeLoader.load(databaseKey);
-        runtimeEngine(driver).loadDataset(runtime.database(), dataset, target);
+        runtimeEngine(driver).loadDataset(runtime.database(), dataset, target, filterProperties);
     }
 
     @Override
@@ -104,9 +121,10 @@ public final class DefaultCommandRunner implements CommandRunner {
             final @Nullable String databaseKey,
             final String driver,
             final String moduleGroup,
-            final DatabaseConnection target) {
+            final DatabaseConnection target,
+            final Map<String, String> filterProperties) {
         final var runtime = projectRuntimeLoader.load(databaseKey);
-        runtimeEngine(driver).upModuleGroup(runtime.database(), moduleGroup, target);
+        runtimeEngine(driver).upModuleGroup(runtime.database(), moduleGroup, target, filterProperties);
     }
 
     @Override
@@ -114,9 +132,10 @@ public final class DefaultCommandRunner implements CommandRunner {
             final @Nullable String databaseKey,
             final String driver,
             final String moduleGroup,
-            final DatabaseConnection target) {
+            final DatabaseConnection target,
+            final Map<String, String> filterProperties) {
         final var runtime = projectRuntimeLoader.load(databaseKey);
-        runtimeEngine(driver).downModuleGroup(runtime.database(), moduleGroup, target);
+        runtimeEngine(driver).downModuleGroup(runtime.database(), moduleGroup, target, filterProperties);
     }
 
     @Override

@@ -8,6 +8,7 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.realityforge.jdbt.config.DatabaseConfig;
 import org.realityforge.jdbt.config.DefaultsConfig;
+import org.realityforge.jdbt.config.FilterPropertyConfig;
 import org.realityforge.jdbt.config.ImportConfig;
 import org.realityforge.jdbt.config.ModuleGroupConfig;
 import org.realityforge.jdbt.repository.RepositoryConfig;
@@ -37,6 +38,7 @@ final class RuntimeDatabaseFactoryTest {
                 null,
                 List.of(),
                 List.of(),
+                Map.of("mode", new FilterPropertyConfig("__MODE__", "bulk", List.of("bulk", "delta"))),
                 Map.of("default", new ImportConfig("default", List.of("Core"), "import", List.of(), List.of())),
                 Map.of("g", new ModuleGroupConfig("g", List.of("Core"), false)));
 
@@ -55,6 +57,7 @@ final class RuntimeDatabaseFactoryTest {
         assertThat(runtimeDatabase.schemaHash()).isEqualTo("hash");
         assertThat(runtimeDatabase.migrationsAppliedAtCreate()).isTrue();
         assertThat(runtimeDatabase.migrationsDirName()).isEqualTo("migrations");
+        assertThat(runtimeDatabase.filterProperties()).containsKey("mode");
         assertThat(runtimeDatabase.imports()).containsKey("default");
         assertThat(runtimeDatabase.moduleGroups()).containsKey("g");
     }

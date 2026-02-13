@@ -142,6 +142,13 @@ public final class JdbtProjectConfigLoader {
             YamlMapSupport.assertKeys(propertyNode, Set.of("pattern", "default", "supportedValues"), propertyPath);
 
             final var pattern = YamlMapSupport.requireString(propertyNode, "pattern", propertyPath);
+            if (pattern.isBlank()) {
+                throw new ConfigException("Filter property '"
+                        + propertyKey
+                        + "' in "
+                        + propertyPath
+                        + " must define a non-empty pattern.");
+            }
             if (RESERVED_FILTER_PATTERNS.contains(pattern)) {
                 throw new ConfigException("Filter property '"
                         + propertyKey

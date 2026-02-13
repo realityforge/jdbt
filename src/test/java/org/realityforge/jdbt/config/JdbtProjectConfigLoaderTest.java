@@ -213,4 +213,15 @@ final class JdbtProjectConfigLoaderTest {
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("Duplicate filter pattern '__MODE__'");
     }
+
+    @Test
+    void loadRejectsBlankFilterPattern() {
+        assertThatThrownBy(() -> loader.load("""
+                    filterProperties:
+                      mode:
+                        pattern: "   "
+                    """, "jdbt.yml", repository))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("must define a non-empty pattern");
+    }
 }

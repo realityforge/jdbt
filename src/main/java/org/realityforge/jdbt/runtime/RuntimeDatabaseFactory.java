@@ -39,6 +39,7 @@ public final class RuntimeDatabaseFactory {
                 database.migrationsDirName(),
                 database.version(),
                 schemaHash,
+                database.filterProperties(),
                 database.imports(),
                 database.moduleGroups());
     }
