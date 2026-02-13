@@ -781,7 +781,7 @@ tasks:
       - command: ./gradlew clean spotlessCheck check fatJar
         result: pass
     commit:
-      hash: pending
+      hash: 1488792
       message: Add filterProperties config model and validation
 
 history:
@@ -891,5 +891,5 @@ history:
     note: Updated foreach and try-with-resources declarations to prefer var.
   - timestamp: 2026-02-13
     task: T27
-    commit: pending
+    commit: 1488792
     note: Added filterProperties model with strict key/pattern/default/supportedValues validation.
