@@ -36,6 +36,7 @@ This matrix tracks parity against Ruby `dbt` implementation and tests.
 | Fixture resolution | `runtime.rb#collect_fixtures_from_dirs` | Fixture loader | done | Strict rejection of unexpected fixture/sql files implemented and exercised in runtime flows. |
 | Import file strictness | `runtime.rb#import` | Import resolver | done | Unknown import files are rejected in runtime resolver. |
 | SQL filter properties | `filter_container.rb`, runtime filter expansion | `filterProperties` + CLI `--property` + runtime replacements | done | Strict declared properties with optional defaults/supported values; deterministic declaration-order replacement. |
+| Import assert macros | `filter_container.rb#import_assert_filters` | SQL Server import SQL macro expansion | done | Supports `ASSERT_ROW_COUNT`, `ASSERT_DATABASE_VERSION`, and `ASSERT_UNCHANGED_ROW_COUNT` in import/create-by-import when driver is SQL Server. |
 | SQL batch splitting | `runtime.rb#run_sql_batch` | SQL executor | done | `GO` separator behavior implemented in runtime SQL batch execution. |
 | Migration release-cut behavior | `runtime.rb#perform_migration` | Migration engine | done | Release-boundary skip/mark behavior implemented in runtime migration flow. |
 

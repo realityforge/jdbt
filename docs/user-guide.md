@@ -264,6 +264,14 @@ Import-only reserved SQL tokens:
 
 These values are tool-provided during import/create-by-import and cannot be supplied via `--property`.
 
+Import-only SQL Server assert macros:
+
+- `ASSERT_ROW_COUNT(<expression>)`
+- `ASSERT_DATABASE_VERSION(<expression>)`
+- `ASSERT_UNCHANGED_ROW_COUNT()`
+
+These macros are expanded only during `import` and `create-by-import` when the active driver is `sqlserver`.
+
 `create-by-import`
 
 ```bash

@@ -874,6 +874,30 @@ tasks:
       hash: 201a50a
       message: Add SQL Server import assert macro expansion
 
+  - id: T31
+    title: Document SQL Server import assert macro behavior
+    status: completed
+    priority: low
+    depends_on:
+      - T30
+    acceptance_criteria:
+      - README documents SQL Server import assert macro support and scope
+      - user guide documents assert macro names and SQL Server/import-only behavior
+      - requirements and compatibility matrix capture assert macro contract
+      - required full gates pass
+    files_touched:
+      - README.md
+      - docs/user-guide.md
+      - plans/jdbt/00-requirements.md
+      - plans/jdbt/20-task-board.yaml
+      - plans/jdbt/30-compatibility-matrix.md
+    evidence:
+      - command: ./gradlew clean spotlessCheck check fatJar
+        result: pass
+    commit:
+      hash: pending
+      message: Document SQL Server import assert macro behavior
+
 history:
   - timestamp: 2026-02-12
     task: T01
@@ -995,3 +1019,7 @@ history:
     task: T30
     commit: 201a50a
     note: Added SQL Server-only import assert macro expansion and runtime gating support.
+  - timestamp: 2026-02-13
+    task: T31
+    commit: pending
+    note: Documented SQL Server import assert macro behavior and compatibility scope.

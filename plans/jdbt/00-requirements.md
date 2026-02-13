@@ -30,6 +30,7 @@ Port Ruby `dbt` in `vendor/dbt` to Java while preserving behavior-critical seman
 - No templating support in config or fixtures; SQL source supports deterministic token replacement via declared `filterProperties`.
 - `filterProperties` keys are strict, declared in `jdbt.yml`, and optionally constrained with `supportedValues`.
 - Reserved import-only SQL tokens are tool-provided and non-overridable: `__SOURCE__`, `__TARGET__`, `__TABLE__`.
+- SQL Server import flows support assert macros in import SQL: `ASSERT_ROW_COUNT(...)`, `ASSERT_DATABASE_VERSION(...)`, and `ASSERT_UNCHANGED_ROW_COUNT()`.
 
 ## CLI Contract
 

@@ -91,4 +91,6 @@ modules:
 - SQL source filtering is driven by declared `filterProperties` and optional `--property key=value` overrides.
 - Filter properties are strict: only declared keys are accepted; missing `default` means the property is required.
 - Import-only reserved tokens are tool-provided and not overridable: `__SOURCE__`, `__TARGET__`, `__TABLE__`.
+- SQL Server import SQL additionally supports assert macros in import files: `ASSERT_ROW_COUNT(...)`, `ASSERT_DATABASE_VERSION(...)`, and `ASSERT_UNCHANGED_ROW_COUNT()`.
+- Import assert macros are expanded only for SQL Server driver import flows (`import` and `create-by-import`).
 - Import resume uses `--resume-at` (not environment variables).
