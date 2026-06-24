@@ -1,6 +1,3 @@
-.gradle/
-build/
-out/
 bazel-*
 
 # Ignore local temp file
