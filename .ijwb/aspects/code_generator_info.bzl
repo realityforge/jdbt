@@ -11,5 +11,7 @@ CODE_GENERATOR_RULE_NAMES = struct(
     ],
     java = [
     ],
+    python = [
+    ],
 # TEMPLATE-INCLUDE-END
 )
