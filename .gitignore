@@ -2,6 +2,9 @@
 build/
 out/
 
+# Ignore local temp file
+tmp/
+
 # IDE
 .idea/
 *.iml
