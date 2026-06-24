@@ -144,7 +144,7 @@ def java_test(name, srcs = [], javacopts = [], deps = [], plugins = [], jvm_flag
         **kwargs
     )
 
-def junit5_test(name, srcs = [], test_class = None, test_package = None, args = [], deps = [], runtime_deps = [], **kwargs):
+def junit5_test(name, srcs = [], test_class = None, test_package = None, args = [], deps = [], runtime_deps = [], size = "small", **kwargs):
     if test_class and test_package:
         fail("Specify only one of test_class or test_package")
     if not test_class and not test_package:
@@ -159,5 +159,6 @@ def junit5_test(name, srcs = [], test_class = None, test_package = None, args = 
         args = selectors + ["--fail-if-no-tests"] + args,
         deps = deps + [_JUNIT_PLATFORM_CONSOLE],
         runtime_deps = runtime_deps,
+        size = size,
         **kwargs
     )
