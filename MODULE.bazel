@@ -6,6 +6,11 @@ bazel_dep(name = "buildifier_prebuilt", version = "8.5.1", dev_dependency = True
 
 bazel_dep(name = "rules_java", version = "9.6.1")
 
+# Expose rules_java's compatibility proxy to the root module for IJWB's bundled
+# IntelliJ aspect, which loads @compatibility_proxy//:proxy.bzl directly.
+_rules_java_compat = use_extension("@rules_java//java:rules_java_deps.bzl", "compatibility_proxy")
+use_repo(_rules_java_compat, "compatibility_proxy")
+
 # --- depgen-generated repository rules start ---
 
 # DO NOT EDIT: Content is auto-generated from //third_party/java:dependencies.yml by https://github.com/realityforge/bazel-depgen version 0.24
