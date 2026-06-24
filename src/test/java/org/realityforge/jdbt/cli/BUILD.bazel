@@ -1,0 +1,24 @@
+load("//third_party/java:rules.bzl", "junit5_test")
+
+package(default_visibility = ["//visibility:public"])
+
+junit5_test(
+    name = "cli_tests",
+    srcs = [
+        "DefaultCommandRunnerTest.java",
+        "JdbtCommandTest.java",
+        "PasswordResolverTest.java",
+        "ProjectRuntimeLoaderTest.java",
+        "package-info.java",
+    ],
+    test_package = "org.realityforge.jdbt.cli",
+    deps = [
+        "//src/main/java/org/realityforge/jdbt/cli",
+        "//src/main/java/org/realityforge/jdbt/config",
+        "//src/main/java/org/realityforge/jdbt/db",
+        "//src/main/java/org/realityforge/jdbt/files",
+        "//src/main/java/org/realityforge/jdbt/repository",
+        "//src/main/java/org/realityforge/jdbt/runtime",
+        "//third_party/java:assertj_core",
+    ],
+)

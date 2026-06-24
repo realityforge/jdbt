@@ -17,7 +17,8 @@
    - realistic directory trees,
    - pre/post artifact overlays,
    - fixture/import directory strictness,
-   - dataset load sequencing.
+   - dataset load sequencing,
+   - failure and `--resume-at` restart behavior transcript checks.
 3. Runtime orchestration tests (driver fakes)
    - command flow ordering,
    - migration bookkeeping,
@@ -25,27 +26,39 @@
 4. Packaging tests
    - deterministic zip ordering,
    - fixed timestamps,
-   - byte-for-byte reproducibility checks.
+   - byte-for-byte reproducibility checks,
+   - packaged artifact round-trip through `postDbArtifacts`,
+   - generated package-data zip executing import hooks and import SQL through runtime artifact loading.
+5. In-memory database integration tests
+   - runtime execution against H2-backed JDBC,
+   - real SQL/fixture insert verification without external services.
+6. Driver parity tests
+   - SQL Server drop/create SQL for backup-history deletion, force-drop, version metadata, and data/log paths,
+   - SQL Server import maintenance toggles for reindex/statistics and shrink behavior,
+   - PostgreSQL driver-specific standard import constraints.
 
 ## Coverage Policy
 
 - Line coverage >= 85%.
 - Branch coverage >= 75%.
-- Coverage gates are enforced in `check`.
+- Coverage gates are enforced by `tools/check.sh` using Bazel LCOV output.
 
 ## Parity Mapping
 
 - Maintain explicit mapping from Ruby tests in `vendor/dbt/test/**` to Java tests.
 - Track parity status in `plans/jdbt/30-compatibility-matrix.md`.
 
-## Non-DB Guarantee
+## External DB Guarantee
 
-- Default test suite must not require network or a live database.
-- Database interactions are validated through fakes and deterministic fixtures.
+- Default test suite must not require network or an external live database.
+- Database interactions are validated through fakes, deterministic fixtures, and an in-memory H2 database.
 
 ## CI Gate Order
 
-1. `spotlessCheck`
-2. compile (`compileJava`, `compileTestJava`) with Error Prone + NullAway
-3. `test`, `jacocoTestReport`, `jacocoTestCoverageVerification`
-4. `fatJar`
+1. `tools/update_java_deps.sh`
+2. `bazel run //:buildifier_check`
+3. `tools/java_format.sh check`
+4. `bazel build //...`
+5. `bazel test //...`
+6. `bazel coverage //src/test/java/org/realityforge/jdbt:all_tests --combined_report=lcov`
+7. `tools/check_coverage.py bazel-out/_coverage/_coverage_report.dat 0.85 0.75`

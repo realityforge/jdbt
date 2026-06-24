@@ -1,0 +1,22 @@
+load("//third_party/java:rules.bzl", "java_library")
+
+package(default_visibility = ["//visibility:public"])
+
+java_library(
+    name = "runtime",
+    srcs = [
+        "RuntimeDatabase.java",
+        "RuntimeDatabaseFactory.java",
+        "RuntimeEngine.java",
+        "RuntimeExecutionException.java",
+        "SqlServerImportAssertExpander.java",
+        "package-info.java",
+    ],
+    deps = [
+        "//src/main/java/org/realityforge/jdbt/config",
+        "//src/main/java/org/realityforge/jdbt/db",
+        "//src/main/java/org/realityforge/jdbt/files",
+        "//src/main/java/org/realityforge/jdbt/repository",
+        "//third_party/java:snakeyaml_engine",
+    ],
+)

@@ -22,6 +22,12 @@ public record DatabaseConfig(
         boolean migrationsAppliedAtCreate,
         String migrationsDirName,
         @Nullable String version,
+        @Nullable String dataPath,
+        @Nullable String logPath,
+        boolean forceDrop,
+        boolean deleteBackupHistory,
+        boolean reindexOnImport,
+        boolean shrinkOnImport,
         List<String> preDbArtifacts,
         List<String> postDbArtifacts,
         Map<String, FilterPropertyConfig> filterProperties,
@@ -40,8 +46,8 @@ public record DatabaseConfig(
         preDbArtifacts = List.copyOf(preDbArtifacts);
         postDbArtifacts = List.copyOf(postDbArtifacts);
         filterProperties = Collections.unmodifiableMap(new LinkedHashMap<>(filterProperties));
-        imports = Map.copyOf(imports);
-        moduleGroups = Map.copyOf(moduleGroups);
+        imports = Collections.unmodifiableMap(new LinkedHashMap<>(imports));
+        moduleGroups = Collections.unmodifiableMap(new LinkedHashMap<>(moduleGroups));
     }
 
     public DatabaseConfig(
@@ -80,9 +86,65 @@ public record DatabaseConfig(
                 migrationsAppliedAtCreate,
                 migrationsDirName,
                 version,
+                null,
+                null,
+                false,
+                true,
+                true,
+                false,
                 preDbArtifacts,
                 postDbArtifacts,
                 Map.of(),
+                imports,
+                moduleGroups);
+    }
+
+    public DatabaseConfig(
+            final String key,
+            final List<String> upDirs,
+            final List<String> downDirs,
+            final List<String> finalizeDirs,
+            final List<String> preCreateDirs,
+            final List<String> postCreateDirs,
+            final List<String> datasets,
+            final String datasetsDirName,
+            final List<String> preDatasetDirs,
+            final List<String> postDatasetDirs,
+            final String fixtureDirName,
+            final boolean migrations,
+            final boolean migrationsAppliedAtCreate,
+            final String migrationsDirName,
+            final @Nullable String version,
+            final List<String> preDbArtifacts,
+            final List<String> postDbArtifacts,
+            final Map<String, FilterPropertyConfig> filterProperties,
+            final Map<String, ImportConfig> imports,
+            final Map<String, ModuleGroupConfig> moduleGroups) {
+        this(
+                key,
+                upDirs,
+                downDirs,
+                finalizeDirs,
+                preCreateDirs,
+                postCreateDirs,
+                datasets,
+                datasetsDirName,
+                preDatasetDirs,
+                postDatasetDirs,
+                fixtureDirName,
+                migrations,
+                migrationsAppliedAtCreate,
+                migrationsDirName,
+                version,
+                null,
+                null,
+                false,
+                true,
+                true,
+                false,
+                preDbArtifacts,
+                postDbArtifacts,
+                filterProperties,
                 imports,
                 moduleGroups);
     }

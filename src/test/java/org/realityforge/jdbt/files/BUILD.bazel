@@ -1,0 +1,17 @@
+load("//third_party/java:rules.bzl", "junit5_test")
+
+package(default_visibility = ["//visibility:public"])
+
+junit5_test(
+    name = "files_tests",
+    srcs = [
+        "FileResolverTest.java",
+        "ZipArtifactContentTest.java",
+        "package-info.java",
+    ],
+    test_package = "org.realityforge.jdbt.files",
+    deps = [
+        "//src/main/java/org/realityforge/jdbt/files",
+        "//third_party/java:assertj_core",
+    ],
+)

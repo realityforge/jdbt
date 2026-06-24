@@ -1,0 +1,16 @@
+load("//third_party/java:rules.bzl", "java_library")
+
+package(default_visibility = ["//visibility:public"])
+
+java_library(
+    name = "packaging",
+    srcs = [
+        "DatabaseDataPackager.java",
+        "DeterministicZipPackager.java",
+        "package-info.java",
+    ],
+    deps = [
+        "//src/main/java/org/realityforge/jdbt/files",
+        "//src/main/java/org/realityforge/jdbt/runtime",
+    ],
+)

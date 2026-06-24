@@ -34,6 +34,12 @@ public record RuntimeDatabase(
         String migrationsDirName,
         @Nullable String version,
         @Nullable String schemaHash,
+        @Nullable String dataPath,
+        @Nullable String logPath,
+        boolean forceDrop,
+        boolean deleteBackupHistory,
+        boolean reindexOnImport,
+        boolean shrinkOnImport,
         Map<String, FilterPropertyConfig> filterProperties,
         Map<String, ImportConfig> imports,
         Map<String, ModuleGroupConfig> moduleGroups) {
@@ -51,8 +57,8 @@ public record RuntimeDatabase(
         postDatasetDirs = List.copyOf(postDatasetDirs);
         datasets = List.copyOf(datasets);
         filterProperties = Collections.unmodifiableMap(new LinkedHashMap<>(filterProperties));
-        imports = Map.copyOf(imports);
-        moduleGroups = Map.copyOf(moduleGroups);
+        imports = Collections.unmodifiableMap(new LinkedHashMap<>(imports));
+        moduleGroups = Collections.unmodifiableMap(new LinkedHashMap<>(moduleGroups));
     }
 
     public RuntimeDatabase(
@@ -101,7 +107,71 @@ public record RuntimeDatabase(
                 migrationsDirName,
                 version,
                 schemaHash,
+                null,
+                null,
+                false,
+                true,
+                true,
+                false,
                 Map.of(),
+                imports,
+                moduleGroups);
+    }
+
+    public RuntimeDatabase(
+            final String key,
+            final RepositoryConfig repository,
+            final List<Path> searchDirs,
+            final List<ArtifactContent> preDbArtifacts,
+            final List<ArtifactContent> postDbArtifacts,
+            final String indexFileName,
+            final List<String> upDirs,
+            final List<String> downDirs,
+            final List<String> finalizeDirs,
+            final List<String> preCreateDirs,
+            final List<String> postCreateDirs,
+            final String fixtureDirName,
+            final String datasetsDirName,
+            final List<String> preDatasetDirs,
+            final List<String> postDatasetDirs,
+            final List<String> datasets,
+            final boolean migrationsEnabled,
+            final boolean migrationsAppliedAtCreate,
+            final String migrationsDirName,
+            final @Nullable String version,
+            final @Nullable String schemaHash,
+            final Map<String, FilterPropertyConfig> filterProperties,
+            final Map<String, ImportConfig> imports,
+            final Map<String, ModuleGroupConfig> moduleGroups) {
+        this(
+                key,
+                repository,
+                searchDirs,
+                preDbArtifacts,
+                postDbArtifacts,
+                indexFileName,
+                upDirs,
+                downDirs,
+                finalizeDirs,
+                preCreateDirs,
+                postCreateDirs,
+                fixtureDirName,
+                datasetsDirName,
+                preDatasetDirs,
+                postDatasetDirs,
+                datasets,
+                migrationsEnabled,
+                migrationsAppliedAtCreate,
+                migrationsDirName,
+                version,
+                schemaHash,
+                null,
+                null,
+                false,
+                true,
+                true,
+                false,
+                filterProperties,
                 imports,
                 moduleGroups);
     }

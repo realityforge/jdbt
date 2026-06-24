@@ -35,6 +35,9 @@
 31. Port SQL Server import assert macro expansion for ASSERT_ROW_COUNT, ASSERT_DATABASE_VERSION, and ASSERT_UNCHANGED_ROW_COUNT.
 32. Document SQL Server-only import assert macros and parity notes.
 33. Remove unsupported `resourcePrefix` config surface and document classpath-loading divergence.
+34. Convert build, CI, and quality gates to Bazel 9.1.1 with explicit package-owned targets.
+35. Close parity review gaps around `!omap`, artifact layout, content schema hash, standalone import order, SQL Server metadata/maintenance, and import failure guidance.
+36. Add filesystem transcript integration tests and H2-backed database integration tests.
 
 ## Delivery Approach
 
@@ -62,4 +65,4 @@
 
 ## Required Full Gates
 
-`./gradlew clean spotlessCheck check fatJar`
+`tools/check.sh`

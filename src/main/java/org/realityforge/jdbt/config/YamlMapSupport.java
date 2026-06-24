@@ -4,19 +4,32 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import org.jspecify.annotations.Nullable;
+import org.snakeyaml.engine.v2.api.ConstructNode;
 import org.snakeyaml.engine.v2.api.Load;
 import org.snakeyaml.engine.v2.api.LoadSettings;
+import org.snakeyaml.engine.v2.constructor.StandardConstructor;
+import org.snakeyaml.engine.v2.nodes.Node;
+import org.snakeyaml.engine.v2.nodes.SequenceNode;
+import org.snakeyaml.engine.v2.nodes.Tag;
 
 public final class YamlMapSupport {
+    private static final Tag LOCAL_OMAP_TAG = new Tag("!omap");
+    private static final Tag YAML_OMAP_TAG = new Tag("tag:yaml.org,2002:omap");
+
     private YamlMapSupport() {}
 
     public static Map<String, Object> parseRoot(final String yaml, final String sourceName) {
+        final var omapConstructor = new OmapConstructNode();
         final var settings = LoadSettings.builder()
                 .setAllowDuplicateKeys(false)
+                .setDefaultMap(LinkedHashMap::new)
+                .setTagConstructors(Map.of(LOCAL_OMAP_TAG, omapConstructor, YAML_OMAP_TAG, omapConstructor))
                 .setLabel(sourceName)
                 .build();
+        omapConstructor.setSettings(settings);
         final var loaded = new Load(settings).loadFromString(yaml);
         if (!(loaded instanceof Map<?, ?> loadedMap)) {
             throw new ConfigException("Expected root YAML object in " + sourceName + " to be a map.");
@@ -128,5 +141,32 @@ public final class YamlMapSupport {
             result.add(text);
         }
         return List.copyOf(result);
+    }
+
+    private static final class OmapConstructNode implements ConstructNode {
+        private @Nullable LoadSettings settings;
+
+        @Override
+        public Object construct(final Node node) {
+            if (!(node instanceof SequenceNode sequenceNode)) {
+                throw new ConfigException("Expected !omap value to be a YAML sequence.");
+            }
+            final var actualSettings = Objects.requireNonNull(settings);
+            return new SequenceConstructor(actualSettings).constructSequenceNode(sequenceNode);
+        }
+
+        private void setSettings(final LoadSettings settings) {
+            this.settings = settings;
+        }
+    }
+
+    private static final class SequenceConstructor extends StandardConstructor {
+        private SequenceConstructor(final LoadSettings settings) {
+            super(settings);
+        }
+
+        private List<Object> constructSequenceNode(final SequenceNode node) {
+            return constructSequence(node);
+        }
     }
 }

@@ -5,14 +5,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.realityforge.jdbt.repository.RepositoryConfig;
 
 public final class JdbtProjectConfigLoader {
     private static final Set<String> RESERVED_FILTER_PROPERTY_KEYS =
             Set.of("sourceDatabase", "targetDatabase", "table");
     private static final Set<String> RESERVED_FILTER_PATTERNS = Set.of("__SOURCE__", "__TARGET__", "__TABLE__");
 
-    public JdbtProjectConfig load(final String yaml, final String sourceName, final RepositoryConfig repository) {
+    public JdbtProjectConfig load(final String yaml, final String sourceName, final List<String> repositoryModules) {
         final var root = YamlMapSupport.parseRoot(yaml, sourceName);
         YamlMapSupport.assertKeys(
                 root,
@@ -31,6 +30,12 @@ public final class JdbtProjectConfigLoader {
                         "migrationsAppliedAtCreate",
                         "migrationsDirName",
                         "version",
+                        "dataPath",
+                        "logPath",
+                        "forceDrop",
+                        "deleteBackupHistory",
+                        "reindexOnImport",
+                        "shrinkOnImport",
                         "preDbArtifacts",
                         "postDbArtifacts",
                         "filterProperties",
@@ -39,7 +44,7 @@ public final class JdbtProjectConfigLoader {
                 sourceName);
 
         final var defaults = DefaultsConfig.rubyCompatibleDefaults();
-        final var database = loadDatabase(defaults.defaultDatabase(), root, defaults, repository, sourceName);
+        final var database = loadDatabase(defaults.defaultDatabase(), root, defaults, repositoryModules, sourceName);
         return new JdbtProjectConfig(defaults, database);
     }
 
@@ -47,7 +52,7 @@ public final class JdbtProjectConfigLoader {
             final String key,
             final Map<String, Object> body,
             final DefaultsConfig defaults,
-            final RepositoryConfig repository,
+            final List<String> repositoryModules,
             final String sourceName) {
         final var path = sourceName;
         YamlMapSupport.assertKeys(
@@ -67,6 +72,12 @@ public final class JdbtProjectConfigLoader {
                         "migrationsAppliedAtCreate",
                         "migrationsDirName",
                         "version",
+                        "dataPath",
+                        "logPath",
+                        "forceDrop",
+                        "deleteBackupHistory",
+                        "reindexOnImport",
+                        "shrinkOnImport",
                         "preDbArtifacts",
                         "postDbArtifacts",
                         "filterProperties",
@@ -79,8 +90,8 @@ public final class JdbtProjectConfigLoader {
         final var migrationsAppliedAtCreate = YamlMapSupport.optionalBoolean(body, "migrationsAppliedAtCreate", path);
 
         final var filterProperties = loadFilterProperties(body, path);
-        final var imports = loadImports(key, body, defaults, repository, path);
-        final var moduleGroups = loadModuleGroups(key, body, repository, path);
+        final var imports = loadImports(key, body, defaults, repositoryModules, path);
+        final var moduleGroups = loadModuleGroups(key, body, repositoryModules, path);
 
         return new DatabaseConfig(
                 key,
@@ -104,11 +115,23 @@ public final class JdbtProjectConfigLoader {
                         ? defaults.migrationsDirName()
                         : YamlMapSupport.requireString(body, "migrationsDirName", path),
                 YamlMapSupport.optionalString(body, "version", path),
+                YamlMapSupport.optionalString(body, "dataPath", path),
+                YamlMapSupport.optionalString(body, "logPath", path),
+                booleanDefault(body, "forceDrop", path, false),
+                booleanDefault(body, "deleteBackupHistory", path, true),
+                booleanDefault(body, "reindexOnImport", path, true),
+                booleanDefault(body, "shrinkOnImport", path, false),
                 YamlMapSupport.optionalStringList(body, "preDbArtifacts", path, List.of()),
                 YamlMapSupport.optionalStringList(body, "postDbArtifacts", path, List.of()),
                 filterProperties,
                 imports,
                 moduleGroups);
+    }
+
+    private static boolean booleanDefault(
+            final Map<String, Object> body, final String key, final String path, final boolean defaultValue) {
+        final var value = YamlMapSupport.optionalBoolean(body, key, path);
+        return null == value ? defaultValue : value;
     }
 
     private static Map<String, FilterPropertyConfig> loadFilterProperties(
@@ -215,7 +238,7 @@ public final class JdbtProjectConfigLoader {
             final String databaseKey,
             final Map<String, Object> body,
             final DefaultsConfig defaults,
-            final RepositoryConfig repository,
+            final List<String> repositoryModules,
             final String databasePath) {
         final var importsNode = YamlMapSupport.optionalMap(body, "imports", databasePath);
         if (importsNode == null) {
@@ -233,8 +256,8 @@ public final class JdbtProjectConfigLoader {
             final var importNode = YamlMapSupport.toStringMap(importBody, path);
             YamlMapSupport.assertKeys(importNode, Set.of("modules", "dir", "preImportDirs", "postImportDirs"), path);
 
-            final var modules = YamlMapSupport.optionalStringList(importNode, "modules", path, repository.modules());
-            validateModulesExist(modules, repository, "import", importKey, databaseKey);
+            final var modules = YamlMapSupport.optionalStringList(importNode, "modules", path, repositoryModules);
+            validateModulesExist(modules, repositoryModules, "import", importKey, databaseKey);
 
             final var dir = YamlMapSupport.optionalString(importNode, "dir", path) == null
                     ? defaults.importDir()
@@ -250,13 +273,13 @@ public final class JdbtProjectConfigLoader {
                             YamlMapSupport.optionalStringList(
                                     importNode, "postImportDirs", path, defaults.postImportDirs())));
         }
-        return Map.copyOf(imports);
+        return Collections.unmodifiableMap(new LinkedHashMap<>(imports));
     }
 
     private static Map<String, ModuleGroupConfig> loadModuleGroups(
             final String databaseKey,
             final Map<String, Object> body,
-            final RepositoryConfig repository,
+            final List<String> repositoryModules,
             final String databasePath) {
         final var groupsNode = YamlMapSupport.optionalMap(body, "moduleGroups", databasePath);
         if (groupsNode == null) {
@@ -274,22 +297,22 @@ public final class JdbtProjectConfigLoader {
             final var groupNode = YamlMapSupport.toStringMap(groupBody, path);
             YamlMapSupport.assertKeys(groupNode, Set.of("modules", "importEnabled"), path);
             final var modules = YamlMapSupport.requireStringList(groupNode, "modules", path);
-            validateModulesExist(modules, repository, "module group", groupKey, databaseKey);
+            validateModulesExist(modules, repositoryModules, "module group", groupKey, databaseKey);
             final var importEnabledValue = YamlMapSupport.optionalBoolean(groupNode, "importEnabled", path);
             final var importEnabled = importEnabledValue != null && importEnabledValue;
             groups.put(groupKey, new ModuleGroupConfig(groupKey, modules, importEnabled));
         }
-        return Map.copyOf(groups);
+        return Collections.unmodifiableMap(new LinkedHashMap<>(groups));
     }
 
     private static void validateModulesExist(
             final List<String> modules,
-            final RepositoryConfig repository,
+            final List<String> repositoryModules,
             final String context,
             final String contextKey,
             final String databaseKey) {
         for (final var module : modules) {
-            if (!repository.modules().contains(module)) {
+            if (!repositoryModules.contains(module)) {
                 throw new ConfigException("Module '"
                         + module
                         + "' in "
@@ -299,7 +322,7 @@ public final class JdbtProjectConfigLoader {
                         + "' for database '"
                         + databaseKey
                         + "' is not present in repository modules "
-                        + repository.modules()
+                        + repositoryModules
                         + '.');
             }
         }

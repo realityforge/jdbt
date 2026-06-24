@@ -1,0 +1,20 @@
+load("//third_party/java:rules.bzl", "junit5_test")
+
+package(default_visibility = ["//visibility:public"])
+
+junit5_test(
+    name = "db_tests",
+    srcs = [
+        "DbDriverFactoryTest.java",
+        "PostgresDbDriverTest.java",
+        "SqlServerDbDriverTest.java",
+        "package-info.java",
+    ],
+    test_package = "org.realityforge.jdbt.db",
+    deps = [
+        "//src/main/java/org/realityforge/jdbt/config",
+        "//src/main/java/org/realityforge/jdbt/db",
+        "//third_party/java:assertj_core",
+        "//third_party/java:mockito_core",
+    ],
+)

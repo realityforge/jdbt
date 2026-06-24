@@ -34,6 +34,31 @@ final class RepositoryConfigLoaderTest {
     }
 
     @Test
+    void loadSupportsTaggedOmapStyleFromRubyDbt() {
+        final var config = loader.load("""
+            ---
+            modules: !omap
+            - CodeMetrics:
+                schema: CodeMetrics
+                tables:
+                - '[CodeMetrics].[tblCollection]'
+                - '[CodeMetrics].[tblMethodMetric]'
+                sequences:
+                - '[CodeMetrics].[tblCollection_IDSeq]'
+            - Geo:
+                schema: Geo
+                tables:
+                - '[Geo].[tblMobilePOI]'
+                sequences: []
+            """, "repository.yml");
+
+        assertThat(config.modules()).containsExactly("CodeMetrics", "Geo");
+        assertThat(config.tableMap().get("CodeMetrics"))
+                .containsExactly("[CodeMetrics].[tblCollection]", "[CodeMetrics].[tblMethodMetric]");
+        assertThat(config.sequenceMap().get("CodeMetrics")).containsExactly("[CodeMetrics].[tblCollection_IDSeq]");
+    }
+
+    @Test
     void loadSupportsMapStyle() {
         final var config = loader.load("""
             modules:
@@ -71,14 +96,14 @@ final class RepositoryConfigLoaderTest {
     @Test
     void loadRejectsDuplicateModules() {
         assertThatThrownBy(() -> loader.load("""
-                    modules:
-                      - Core:
-                          schema: Core
-                          tables: []
-                      - Core:
-                          schema: Core
-                          tables: []
-                    """, "repository.yml"))
+            modules:
+              - Core:
+                  schema: Core
+                  tables: []
+              - Core:
+                  schema: Core
+                  tables: []
+            """, "repository.yml"))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("Duplicate repository module");
     }
@@ -86,11 +111,11 @@ final class RepositoryConfigLoaderTest {
     @Test
     void loadRejectsUnknownModuleKey() {
         assertThatThrownBy(() -> loader.load("""
-                    modules:
-                      - Core:
-                          schema: Core
-                          unknown: true
-                    """, "repository.yml"))
+            modules:
+              - Core:
+                  schema: Core
+                  unknown: true
+            """, "repository.yml"))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("Unknown key 'unknown'");
     }
@@ -105,9 +130,9 @@ final class RepositoryConfigLoaderTest {
     @Test
     void loadRejectsModuleBodyWhenNotMap() {
         assertThatThrownBy(() -> loader.load("""
-                    modules:
-                      - Core: true
-                    """, "repository.yml"))
+            modules:
+              - Core: true
+            """, "repository.yml"))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("Expected map body for module 'Core'");
     }

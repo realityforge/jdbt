@@ -1,0 +1,18 @@
+load("//third_party/java:rules.bzl", "java_binary", "java_library")
+
+package(default_visibility = ["//visibility:public"])
+
+java_library(
+    name = "jdbt",
+    srcs = [
+        "Main.java",
+        "package-info.java",
+    ],
+    deps = ["//src/main/java/org/realityforge/jdbt/cli"],
+)
+
+java_binary(
+    name = "jdbt_bin",
+    main_class = "org.realityforge.jdbt.Main",
+    runtime_deps = [":jdbt"],
+)

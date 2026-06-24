@@ -9,13 +9,13 @@
 Build the runnable jar:
 
 ```bash
-./gradlew clean fatJar
+bazel build //src/main/java/org/realityforge/jdbt:jdbt_bin_deploy.jar
 ```
 
 Run help:
 
 ```bash
-java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar --help
+bazel run //src/main/java/org/realityforge/jdbt:jdbt_bin -- --help
 ```
 
 ## Configuration files
@@ -40,6 +40,12 @@ Top-level keys:
 - `migrationsAppliedAtCreate`
 - `migrationsDirName`
 - `version`
+- `dataPath`
+- `logPath`
+- `forceDrop`
+- `deleteBackupHistory`
+- `reindexOnImport`
+- `shrinkOnImport`
 - `preDbArtifacts`
 - `postDbArtifacts`
 - `filterProperties`
@@ -111,6 +117,17 @@ Rules:
 - reserved keys `sourceDatabase`, `targetDatabase`, and `table` are tool-provided and cannot be declared.
 - reserved patterns `__SOURCE__`, `__TARGET__`, and `__TABLE__` cannot be declared.
 - replacement order is deterministic and follows declaration order in `jdbt.yml`.
+
+#### SQL Server settings
+
+These keys mirror Ruby SQL Server runtime behavior and are ignored by non-SQL Server drivers:
+
+- `dataPath` (optional): base directory for the `.mdf` file in `CREATE DATABASE`.
+- `logPath` (optional): base directory for the `.ldf` file in `CREATE DATABASE`.
+- `forceDrop` (default: `false`): set the database to `SINGLE_USER` with rollback before drop.
+- `deleteBackupHistory` (default: `true`): delete MSDB backup history before drop.
+- `reindexOnImport` (default: `true`): run SQL Server reindex/statistics maintenance after import.
+- `shrinkOnImport` (default: `false`): shrink the database after each imported module, then reindex module tables when `reindexOnImport` is enabled.
 
 ### `repository.yml`
 
@@ -213,13 +230,13 @@ Note: when using PostgreSQL, provide `--target-port 5432` and `--source-port 543
 `status`
 
 ```bash
-java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar status
+bazel run //src/main/java/org/realityforge/jdbt:jdbt_bin -- status
 ```
 
 `create`
 
 ```bash
-java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar create \
+bazel run //src/main/java/org/realityforge/jdbt:jdbt_bin -- create \
   --driver sqlserver \
   --target-host localhost --target-port 1433 \
   --target-database MyDb --target-username sa --password-env DB_PASS
@@ -230,7 +247,7 @@ Optional: `--no-create` (skip drop/create, run create flow against existing data
 `drop`
 
 ```bash
-java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar drop \
+bazel run //src/main/java/org/realityforge/jdbt:jdbt_bin -- drop \
   --target-host localhost --target-port 1433 \
   --target-database MyDb --target-username sa --password-env DB_PASS
 ```
@@ -238,7 +255,7 @@ java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar drop \
 `migrate`
 
 ```bash
-java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar migrate \
+bazel run //src/main/java/org/realityforge/jdbt:jdbt_bin -- migrate \
   --target-host localhost --target-port 1433 \
   --target-database MyDb --target-username sa --password-env DB_PASS
 ```
@@ -246,7 +263,7 @@ java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar migrate \
 `import`
 
 ```bash
-java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar import \
+bazel run //src/main/java/org/realityforge/jdbt:jdbt_bin -- import \
   --import default \
   --resume-at Core.tblA \
   --target-host localhost --target-port 1433 \
@@ -276,7 +293,7 @@ These macros are expanded only during `import` and `create-by-import` when the a
 `create-by-import`
 
 ```bash
-java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar create-by-import \
+bazel run //src/main/java/org/realityforge/jdbt:jdbt_bin -- create-by-import \
   --import default \
   --target-host localhost --target-port 1433 \
   --target-database TargetDb --target-username sa --password-env TARGET_PASS \
@@ -289,7 +306,7 @@ Optional: `--resume-at <tableOrSequence>`, `--no-create`.
 `load-dataset`
 
 ```bash
-java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar load-dataset seed \
+bazel run //src/main/java/org/realityforge/jdbt:jdbt_bin -- load-dataset seed \
   --target-host localhost --target-port 1433 \
   --target-database MyDb --target-username sa --password-env DB_PASS
 ```
@@ -297,13 +314,13 @@ java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar load-dataset seed \
 `up-module-group` / `down-module-group`
 
 ```bash
-java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar up-module-group all \
+bazel run //src/main/java/org/realityforge/jdbt:jdbt_bin -- up-module-group all \
   --target-host localhost --target-port 1433 \
   --target-database MyDb --target-username sa --password-env DB_PASS
 ```
 
 ```bash
-java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar down-module-group all \
+bazel run //src/main/java/org/realityforge/jdbt:jdbt_bin -- down-module-group all \
   --target-host localhost --target-port 1433 \
   --target-database MyDb --target-username sa --password-env DB_PASS
 ```
@@ -311,7 +328,7 @@ java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar down-module-group all \
 `package-data`
 
 ```bash
-java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar package-data \
+bazel run //src/main/java/org/realityforge/jdbt:jdbt_bin -- package-data \
   --output ./build/data.zip
 ```
 
@@ -328,6 +345,8 @@ java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar package-data \
 ## Driver-specific behavior notes
 
 - SQL Server supports generated standard import SQL that references source and target databases.
+- SQL Server drop always sets deadlock priority high and deletes backup history by default; `forceDrop` controls whether it forces `SINGLE_USER`.
+- SQL Server create uses `dataPath`/`logPath` when supplied and writes `DatabaseSchemaVersion` extended metadata when `version` is configured.
 - PostgreSQL standard cross-database import SQL is intentionally not generated; use explicit import SQL files when source and target differ.
 
 ## Troubleshooting
@@ -335,4 +354,4 @@ java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar package-data \
 - `Unable to locate database '<key>' ...`: only `default` is supported as the database key; omit `--database` or pass `--database default`.
 - `Unable to locate import definition by key ...`: pass `--import`, or define an import named `default` in `jdbt.yml`.
 - `Unknown key 'searchDirs'`: remove `searchDirs` from `jdbt.yml`; path resolution is fixed to the `jdbt.yml` directory.
-- Fat jar startup security/signature errors: rebuild with `./gradlew clean fatJar` using current build config.
+- Bazel startup or dependency errors: run `tools/update_java_deps.sh`, then `tools/check.sh`.

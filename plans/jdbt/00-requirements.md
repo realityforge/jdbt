@@ -7,7 +7,7 @@ Port Ruby `dbt` in `vendor/dbt` to Java while preserving behavior-critical seman
 ## Locked Decisions
 
 - Java 17 baseline.
-- Single-module Gradle project.
+- Bazel 9.1.1 build with package-owned `BUILD.bazel` files.
 - Maven coordinates: `org.realityforge:jdbt`.
 - Java package root: `org.realityforge.jdbt`.
 - CLI framework: picocli.
@@ -16,6 +16,8 @@ Port Ruby `dbt` in `vendor/dbt` to Java while preserving behavior-critical seman
 - Static analysis: Error Prone + NullAway.
 - Formatter: palantir-java-format.
 - CI platform: GitHub Actions.
+- Bazel targets list source files explicitly; `glob()` is not allowed.
+- Every Java source directory owns its own `BUILD.bazel`; targets do not list source files from child, sibling, or parent directories.
 
 ## Configuration Model
 
@@ -25,7 +27,9 @@ Port Ruby `dbt` in `vendor/dbt` to Java while preserving behavior-critical seman
 - `resourcePrefix` is not supported in `jdbt.yml` (classpath resource loading is out of scope).
 - The only search directory is the directory containing `jdbt.yml`.
 - `repository.yml` remains first-class and layout-compatible.
-- Runtime instance settings are supplied by CLI args only.
+- Runtime connection settings are supplied by CLI args only.
+- SQL Server database file-placement and maintenance settings are supplied by `jdbt.yml` keys:
+  `dataPath`, `logPath`, `forceDrop`, `deleteBackupHistory`, `reindexOnImport`, and `shrinkOnImport`.
 - No instance settings file in v1.
 - Runtime defaults are hardcoded in code, not declared in `jdbt.yml`.
 - No templating support in config or fixtures; SQL source supports deterministic token replacement via declared `filterProperties`.
@@ -88,7 +92,7 @@ Excluded for initial delivery:
 
 ## Quality Gates
 
-- Required full gate command: `./gradlew clean spotlessCheck check fatJar`.
+- Required full gate command: `tools/check.sh`.
 - Coverage thresholds:
   - line >= 85%
   - branch >= 75%

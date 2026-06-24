@@ -9,10 +9,15 @@ import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.zip.ZipFile;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.realityforge.jdbt.config.ImportConfig;
 import org.realityforge.jdbt.db.DatabaseConnection;
+import org.realityforge.jdbt.db.DatabaseMetadata;
 import org.realityforge.jdbt.db.DbDriver;
 import org.realityforge.jdbt.db.DbDriverFactory;
 import org.realityforge.jdbt.files.FileResolver;
@@ -64,6 +69,54 @@ final class DefaultCommandRunnerTest {
 
         assertThat(output).exists();
         assertThat(Files.size(output)).isGreaterThan(0L);
+        try (var zip = new ZipFile(output.toFile())) {
+            assertThat(zip.getEntry("data/repository.yml")).isNotNull();
+            assertThat(zip.getEntry("data/MyModule/a.sql")).isNotNull();
+            assertThat(zip.getEntry("repository.yml")).isNull();
+        }
+
+        final var consumer = tempDir.resolve("consumer");
+        writeFile(consumer, "jdbt.yml", "postDbArtifacts: ['" + output + "']\n");
+
+        final var runtime = new ProjectRuntimeLoader(consumer).load(null);
+        assertThat(runtime.database().repository().modules()).containsExactly("MyModule");
+        assertThat(runtime.database().postDbArtifacts().get(0).files()).contains("MyModule/a.sql");
+    }
+
+    @Test
+    void packageDataArtifactExecutesThroughRuntime(@TempDir final Path tempDir) throws IOException {
+        writeFile(tempDir, "jdbt.yml", projectConfig(false));
+        writeFile(tempDir, "repository.yml", repositoryConfig());
+        writeFile(tempDir, "import-hooks/pre/001.sql", "artifact pre");
+        writeFile(tempDir, "MyModule/import/MyModule.foo.sql", "artifact import __SOURCE__ __TARGET__ __TABLE__");
+        writeFile(tempDir, "import-hooks/post/002.sql", "artifact post");
+
+        final var output = tempDir.resolve("out.zip");
+        createRunner(tempDir).packageData("default", output);
+
+        final var consumer = tempDir.resolve("consumer");
+        writeFile(
+                consumer,
+                "jdbt.yml",
+                "postDbArtifacts: ['" + output + "']\nimports:\n  default:\n    modules: [MyModule]\n");
+        final var driverFactory = new RecordingDriverFactory();
+        final var runner =
+                new DefaultCommandRunner(new ProjectRuntimeLoader(consumer), driverFactory, new FileResolver());
+
+        runner.databaseImport("default", "recording", "default", null, target, source, null, Map.of());
+
+        assertThat(driverFactory.driver.transcript()).isEqualTo("""
+            open target
+            sql:artifact pre
+            sql:DELETE FROM [MyModule].[foo]
+            pre-table:default:[MyModule].[foo]
+            sql:artifact import SRC DB [MyModule].[foo]
+            post-table:default:[MyModule].[foo]
+            post-module:default:MyModule
+            sql:artifact post
+            post-import:default
+            close
+            """);
     }
 
     @Test
@@ -135,6 +188,119 @@ final class DefaultCommandRunnerTest {
         @Override
         public DbDriver create(final String driver) {
             return super.create("noop");
+        }
+    }
+
+    private static final class RecordingDriverFactory extends DbDriverFactory {
+        private final RecordingDriver driver = new RecordingDriver();
+
+        @Override
+        public DbDriver create(final String driver) {
+            return this.driver;
+        }
+    }
+
+    private static final class RecordingDriver implements DbDriver {
+        private final List<String> events = new ArrayList<>();
+
+        private String transcript() {
+            return String.join("\n", events) + "\n";
+        }
+
+        @Override
+        public void open(final DatabaseConnection connection, final boolean openControlDatabase) {
+            events.add(openControlDatabase ? "open control" : "open target");
+        }
+
+        @Override
+        public void close() {
+            events.add("close");
+        }
+
+        @Override
+        public void drop(final DatabaseMetadata database, final DatabaseConnection connection) {}
+
+        @Override
+        public void createDatabase(final DatabaseMetadata database, final DatabaseConnection connection) {}
+
+        @Override
+        public void createSchema(final String schemaName) {}
+
+        @Override
+        public void dropSchema(final String schemaName, final List<String> tablesInDropOrder) {}
+
+        @Override
+        public void execute(final String sql, final boolean executeInControlDatabase) {
+            events.add("sql:" + sql.trim());
+        }
+
+        @Override
+        public void preFixtureImport(final String tableName) {}
+
+        @Override
+        public void insert(final String tableName, final Map<String, Object> record) {}
+
+        @Override
+        public void postFixtureImport(final String tableName) {}
+
+        @Override
+        public void updateSequence(final String sequenceName, final long value) {}
+
+        @Override
+        public void preTableImport(
+                final DatabaseMetadata database, final ImportConfig importConfig, final String tableName) {
+            events.add("pre-table:" + importConfig.key() + ':' + tableName);
+        }
+
+        @Override
+        public void postTableImport(
+                final DatabaseMetadata database, final ImportConfig importConfig, final String tableName) {
+            events.add("post-table:" + importConfig.key() + ':' + tableName);
+        }
+
+        @Override
+        public void postDataModuleImport(
+                final DatabaseMetadata database,
+                final ImportConfig importConfig,
+                final String moduleName,
+                final List<String> tablesInOrder) {
+            events.add("post-module:" + importConfig.key() + ':' + moduleName);
+        }
+
+        @Override
+        public void postDatabaseImport(final DatabaseMetadata database, final ImportConfig importConfig) {
+            events.add("post-import:" + importConfig.key());
+        }
+
+        @Override
+        public List<String> columnNamesForTable(final String tableName) {
+            return List.of("[ID]");
+        }
+
+        @Override
+        public void setupMigrations() {}
+
+        @Override
+        public boolean shouldMigrate(final String namespace, final String migrationName) {
+            return true;
+        }
+
+        @Override
+        public void markMigrationAsRun(final String namespace, final String migrationName) {}
+
+        @Override
+        public String generateStandardImportSql(
+                final String tableName,
+                final String targetDatabase,
+                final String sourceDatabase,
+                final List<String> columns) {
+            return "";
+        }
+
+        @Override
+        public String generateStandardSequenceImportSql(
+                final String sequenceName, final String targetDatabase, final String sourceDatabase) {
+            return "";
         }
     }
 }

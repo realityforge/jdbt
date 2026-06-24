@@ -17,6 +17,7 @@ import org.realityforge.jdbt.config.FilterPropertyConfig;
 import org.realityforge.jdbt.config.ImportConfig;
 import org.realityforge.jdbt.config.ModuleGroupConfig;
 import org.realityforge.jdbt.db.DatabaseConnection;
+import org.realityforge.jdbt.db.DatabaseMetadata;
 import org.realityforge.jdbt.db.DbDriver;
 import org.realityforge.jdbt.files.ArtifactContent;
 import org.realityforge.jdbt.files.FileResolver;
@@ -200,11 +201,13 @@ final class RuntimeEngineTest {
                         "execute(false):DELETE FROM [MyModule].[foo]",
                         "preTableImport(default,[MyModule].[foo])",
                         "columnNamesForTable([MyModule].[foo])",
-                        "execute(true):INSERT INTO [DBT_TEST].[MyModule].[foo]([ID])\n  SELECT [ID] FROM [IMPORT_DB].[MyModule].[foo]",
+                        "execute(true):INSERT INTO [DBT_TEST].[MyModule].[foo]([ID])\n"
+                                + "  SELECT [ID] FROM [IMPORT_DB].[MyModule].[foo]",
                         "postTableImport(default,[MyModule].[foo])",
                         "preTableImport(default,[MyModule].[bar])",
                         "columnNamesForTable([MyModule].[bar])",
-                        "execute(true):INSERT INTO [DBT_TEST].[MyModule].[bar]([ID])\n  SELECT [ID] FROM [IMPORT_DB].[MyModule].[bar]",
+                        "execute(true):INSERT INTO [DBT_TEST].[MyModule].[bar]([ID])\n"
+                                + "  SELECT [ID] FROM [IMPORT_DB].[MyModule].[bar]",
                         "postTableImport(default,[MyModule].[bar])",
                         "postDataModuleImport(default,MyModule)",
                         "execute(true):POST IMPORT_DB DBT_TEST",
@@ -265,6 +268,36 @@ final class RuntimeEngineTest {
         assertThat(secondDelete).isNotNegative();
         assertThat(thirdDelete).isNotNegative();
         assertThat(firstImport).isGreaterThan(secondDelete).isGreaterThan(thirdDelete);
+    }
+
+    @Test
+    void standaloneImportUsesImportModuleOrderAndDeletesEachModuleBeforeImport(@TempDir final Path tempDir) {
+        final var driver = new RecordingDriver();
+        final var engine = new RuntimeEngine(driver, new FileResolver());
+        final var repository = RepositoryConfigTestData.twoModules();
+        final var importConfig =
+                new ImportConfig("custom", List.of("MyOtherModule", "MyModule"), "import", List.of(), List.of());
+        final var database = runtimeDatabase(
+                "default",
+                repository,
+                List.of(tempDir.resolve("db")),
+                Map.of(),
+                List.of(),
+                Map.of("custom", importConfig));
+
+        engine.databaseImport(database, "custom", null, connection, sourceConnection, null, Map.of());
+
+        final var transcript = String.join("\n", driver.calls);
+        assertThat(transcript)
+                .containsSubsequence(
+                        "execute(false):DELETE FROM [MyOtherModule].[bark]",
+                        "execute(false):DELETE FROM [MyOtherModule].[baz]",
+                        "preTableImport(custom,[MyOtherModule].[baz])",
+                        "preTableImport(custom,[MyOtherModule].[bark])",
+                        "execute(false):DELETE FROM [MyModule].[bar]",
+                        "execute(false):DELETE FROM [MyModule].[foo]",
+                        "preTableImport(custom,[MyModule].[foo])",
+                        "preTableImport(custom,[MyModule].[bar])");
     }
 
     @Test
@@ -746,12 +779,12 @@ final class RuntimeEngineTest {
         }
 
         @Override
-        public void drop(final RuntimeDatabase database, final DatabaseConnection connection) {
+        public void drop(final DatabaseMetadata database, final DatabaseConnection connection) {
             calls.add("drop(" + database.key() + ")");
         }
 
         @Override
-        public void createDatabase(final RuntimeDatabase database, final DatabaseConnection connection) {
+        public void createDatabase(final DatabaseMetadata database, final DatabaseConnection connection) {
             calls.add("createDatabase(" + database.key() + ")");
         }
 
@@ -791,22 +824,28 @@ final class RuntimeEngineTest {
         }
 
         @Override
-        public void preTableImport(final ImportConfig importConfig, final String tableName) {
+        public void preTableImport(
+                final DatabaseMetadata database, final ImportConfig importConfig, final String tableName) {
             calls.add("preTableImport(" + importConfig.key() + ',' + tableName + ")");
         }
 
         @Override
-        public void postTableImport(final ImportConfig importConfig, final String tableName) {
+        public void postTableImport(
+                final DatabaseMetadata database, final ImportConfig importConfig, final String tableName) {
             calls.add("postTableImport(" + importConfig.key() + ',' + tableName + ")");
         }
 
         @Override
-        public void postDataModuleImport(final ImportConfig importConfig, final String moduleName) {
+        public void postDataModuleImport(
+                final DatabaseMetadata database,
+                final ImportConfig importConfig,
+                final String moduleName,
+                final List<String> tablesInOrder) {
             calls.add("postDataModuleImport(" + importConfig.key() + ',' + moduleName + ")");
         }
 
         @Override
-        public void postDatabaseImport(final ImportConfig importConfig) {
+        public void postDatabaseImport(final DatabaseMetadata database, final ImportConfig importConfig) {
             calls.add("postDatabaseImport(" + importConfig.key() + ")");
         }
 

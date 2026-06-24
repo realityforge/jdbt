@@ -4,17 +4,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
-import java.util.Map;
+import java.util.Objects;
 import org.junit.jupiter.api.Test;
-import org.realityforge.jdbt.repository.RepositoryConfig;
 
 final class JdbtProjectConfigLoaderTest {
     private final JdbtProjectConfigLoader loader = new JdbtProjectConfigLoader();
-    private final RepositoryConfig repository = new RepositoryConfig(
-            List.of("Core", "Geo"),
-            Map.of(),
-            Map.of("Core", List.of("[Core].[tblA]"), "Geo", List.of("[Geo].[tblB]")),
-            Map.of("Core", List.of(), "Geo", List.of()));
+    private final List<String> repositoryModules = List.of("Core", "Geo");
 
     @Test
     void loadAppliesHardcodedDefaultsAndBuildsDatabaseConfig() {
@@ -26,14 +21,40 @@ final class JdbtProjectConfigLoaderTest {
               reporting:
                 modules: [Geo]
                 importEnabled: true
-            """, "jdbt.yml", repository);
+            """, "jdbt.yml", repositoryModules);
 
         final var database = config.database();
         assertThat(database.upDirs()).containsExactly(".", "types", "views", "functions", "stored-procedures", "misc");
-        assertThat(database.imports().get("default").modules()).containsExactly("Core");
-        assertThat(database.imports().get("default").dir()).isEqualTo("import");
-        assertThat(database.moduleGroups().get("reporting").modules()).containsExactly("Geo");
-        assertThat(database.moduleGroups().get("reporting").importEnabled()).isTrue();
+        final var importConfig = Objects.requireNonNull(database.imports().get("default"));
+        final var moduleGroup = Objects.requireNonNull(database.moduleGroups().get("reporting"));
+        assertThat(importConfig.modules()).containsExactly("Core");
+        assertThat(importConfig.dir()).isEqualTo("import");
+        assertThat(moduleGroup.modules()).containsExactly("Geo");
+        assertThat(moduleGroup.importEnabled()).isTrue();
+        assertThat(database.forceDrop()).isFalse();
+        assertThat(database.deleteBackupHistory()).isTrue();
+        assertThat(database.reindexOnImport()).isTrue();
+        assertThat(database.shrinkOnImport()).isFalse();
+    }
+
+    @Test
+    void loadParsesSqlServerRuntimeOptions() {
+        final var config = loader.load("""
+            dataPath: C:\\data
+            logPath: C:\\log
+            forceDrop: true
+            deleteBackupHistory: false
+            reindexOnImport: false
+            shrinkOnImport: true
+            """, "jdbt.yml", repositoryModules);
+
+        final var database = config.database();
+        assertThat(database.dataPath()).isEqualTo("C:\\data");
+        assertThat(database.logPath()).isEqualTo("C:\\log");
+        assertThat(database.forceDrop()).isTrue();
+        assertThat(database.deleteBackupHistory()).isFalse();
+        assertThat(database.reindexOnImport()).isFalse();
+        assertThat(database.shrinkOnImport()).isTrue();
     }
 
     @Test
@@ -41,9 +62,10 @@ final class JdbtProjectConfigLoaderTest {
         final var config = loader.load("""
             imports:
               default: {}
-            """, "jdbt.yml", repository);
+            """, "jdbt.yml", repositoryModules);
 
-        final var importConfig = config.database().imports().get("default");
+        final var importConfig =
+                Objects.requireNonNull(config.database().imports().get("default"));
         assertThat(importConfig.modules()).containsExactly("Core", "Geo");
         assertThat(importConfig.dir()).isEqualTo("import");
     }
@@ -52,7 +74,7 @@ final class JdbtProjectConfigLoaderTest {
     void loadDefaultsMigrationsAppliedAtCreateToMigrationsValue() {
         final var config = loader.load("""
             migrations: true
-            """, "jdbt.yml", repository);
+            """, "jdbt.yml", repositoryModules);
 
         assertThat(config.database().migrations()).isTrue();
         assertThat(config.database().migrationsAppliedAtCreate()).isTrue();
@@ -61,8 +83,8 @@ final class JdbtProjectConfigLoaderTest {
     @Test
     void loadRejectsUnknownDatabaseKey() {
         assertThatThrownBy(() -> loader.load("""
-                    unsupported: true
-                    """, "jdbt.yml", repository))
+            unsupported: true
+            """, "jdbt.yml", repositoryModules))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("Unknown key 'unsupported'");
     }
@@ -70,8 +92,8 @@ final class JdbtProjectConfigLoaderTest {
     @Test
     void loadRejectsDefaultsTopLevelKey() {
         assertThatThrownBy(() -> loader.load("""
-                    defaults:
-                    """, "jdbt.yml", repository))
+            defaults:
+            """, "jdbt.yml", repositoryModules))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("Unknown key 'defaults'");
     }
@@ -79,10 +101,10 @@ final class JdbtProjectConfigLoaderTest {
     @Test
     void loadRejectsUnknownImportModule() {
         assertThatThrownBy(() -> loader.load("""
-                    imports:
-                      default:
-                        modules: [Missing]
-                    """, "jdbt.yml", repository))
+            imports:
+              default:
+                modules: [Missing]
+            """, "jdbt.yml", repositoryModules))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("Module 'Missing'")
                 .hasMessageContaining("import 'default'");
@@ -91,9 +113,9 @@ final class JdbtProjectConfigLoaderTest {
     @Test
     void loadRejectsModuleGroupWithoutModules() {
         assertThatThrownBy(() -> loader.load("""
-                    moduleGroups:
-                      reporting: {}
-                    """, "jdbt.yml", repository))
+            moduleGroups:
+              reporting: {}
+            """, "jdbt.yml", repositoryModules))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("Missing required list key 'modules'");
     }
@@ -101,10 +123,10 @@ final class JdbtProjectConfigLoaderTest {
     @Test
     void loadRejectsModuleGroupWithUnknownModule() {
         assertThatThrownBy(() -> loader.load("""
-                    moduleGroups:
-                      reporting:
-                        modules: [Missing]
-                    """, "jdbt.yml", repository))
+            moduleGroups:
+              reporting:
+                modules: [Missing]
+            """, "jdbt.yml", repositoryModules))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("Module 'Missing'")
                 .hasMessageContaining("module group 'reporting'");
@@ -112,16 +134,16 @@ final class JdbtProjectConfigLoaderTest {
 
     @Test
     void loadAllowsEmptyConfigWithHardcodedDefaults() {
-        final var config = loader.load("{}", "jdbt.yml", repository);
+        final var config = loader.load("{}", "jdbt.yml", repositoryModules);
         assertThat(config.database().key()).isEqualTo("default");
     }
 
     @Test
     void loadRejectsLegacyDatabasesKey() {
         assertThatThrownBy(() -> loader.load("""
-                    databases:
-                      default: {}
-                    """, "jdbt.yml", repository))
+            databases:
+              default: {}
+            """, "jdbt.yml", repositoryModules))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("Unknown key 'databases'");
     }
@@ -129,8 +151,8 @@ final class JdbtProjectConfigLoaderTest {
     @Test
     void loadRejectsSearchDirsKey() {
         assertThatThrownBy(() -> loader.load("""
-                    searchDirs: [db]
-                    """, "jdbt.yml", repository))
+            searchDirs: [db]
+            """, "jdbt.yml", repositoryModules))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("Unknown key 'searchDirs'");
     }
@@ -138,8 +160,8 @@ final class JdbtProjectConfigLoaderTest {
     @Test
     void loadRejectsResourcePrefixKey() {
         assertThatThrownBy(() -> loader.load("""
-                    resourcePrefix: data
-                    """, "jdbt.yml", repository))
+            resourcePrefix: data
+            """, "jdbt.yml", repositoryModules))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("Unknown key 'resourcePrefix'");
     }
@@ -154,7 +176,7 @@ final class JdbtProjectConfigLoaderTest {
                 supportedValues: [bulk, delta]
               tenant:
                 pattern: __TENANT__
-            """, "jdbt.yml", repository);
+            """, "jdbt.yml", repositoryModules);
 
         assertThat(config.database().filterProperties().keySet()).containsExactly("mode", "tenant");
         assertThat(config.database().filterProperties().get("mode"))
@@ -166,10 +188,10 @@ final class JdbtProjectConfigLoaderTest {
     @Test
     void loadRejectsReservedFilterPropertyKeys() {
         assertThatThrownBy(() -> loader.load("""
-                    filterProperties:
-                      sourceDatabase:
-                        pattern: __SRC_DB__
-                    """, "jdbt.yml", repository))
+            filterProperties:
+              sourceDatabase:
+                pattern: __SRC_DB__
+            """, "jdbt.yml", repositoryModules))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("reserved and tool-provided");
     }
@@ -177,10 +199,10 @@ final class JdbtProjectConfigLoaderTest {
     @Test
     void loadRejectsReservedFilterPropertyPatterns() {
         assertThatThrownBy(() -> loader.load("""
-                    filterProperties:
-                      mode:
-                        pattern: __SOURCE__
-                    """, "jdbt.yml", repository))
+            filterProperties:
+              mode:
+                pattern: __SOURCE__
+            """, "jdbt.yml", repositoryModules))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("reserved pattern '__SOURCE__'");
     }
@@ -188,11 +210,11 @@ final class JdbtProjectConfigLoaderTest {
     @Test
     void loadRejectsEmptySupportedValuesWhenSpecified() {
         assertThatThrownBy(() -> loader.load("""
-                    filterProperties:
-                      mode:
-                        pattern: __MODE__
-                        supportedValues: []
-                    """, "jdbt.yml", repository))
+            filterProperties:
+              mode:
+                pattern: __MODE__
+                supportedValues: []
+            """, "jdbt.yml", repositoryModules))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("non-empty 'supportedValues'");
     }
@@ -200,12 +222,12 @@ final class JdbtProjectConfigLoaderTest {
     @Test
     void loadRejectsDefaultOutsideSupportedValues() {
         assertThatThrownBy(() -> loader.load("""
-                    filterProperties:
-                      mode:
-                        pattern: __MODE__
-                        default: bulk
-                        supportedValues: [delta]
-                    """, "jdbt.yml", repository))
+            filterProperties:
+              mode:
+                pattern: __MODE__
+                default: bulk
+                supportedValues: [delta]
+            """, "jdbt.yml", repositoryModules))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("declares default 'bulk' not present in supportedValues");
     }
@@ -213,12 +235,12 @@ final class JdbtProjectConfigLoaderTest {
     @Test
     void loadRejectsDuplicateFilterPatterns() {
         assertThatThrownBy(() -> loader.load("""
-                    filterProperties:
-                      first:
-                        pattern: __MODE__
-                      second:
-                        pattern: __MODE__
-                    """, "jdbt.yml", repository))
+            filterProperties:
+              first:
+                pattern: __MODE__
+              second:
+                pattern: __MODE__
+            """, "jdbt.yml", repositoryModules))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("Duplicate filter pattern '__MODE__'");
     }
@@ -226,10 +248,10 @@ final class JdbtProjectConfigLoaderTest {
     @Test
     void loadRejectsBlankFilterPattern() {
         assertThatThrownBy(() -> loader.load("""
-                    filterProperties:
-                      mode:
-                        pattern: "   "
-                    """, "jdbt.yml", repository))
+            filterProperties:
+              mode:
+                pattern: "   "
+            """, "jdbt.yml", repositoryModules))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("must define a non-empty pattern");
     }

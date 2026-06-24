@@ -2,23 +2,21 @@ package org.realityforge.jdbt.db;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.realityforge.jdbt.config.ImportConfig;
-import org.realityforge.jdbt.repository.RepositoryConfig;
-import org.realityforge.jdbt.runtime.RuntimeDatabase;
 
 final class SqlServerDbDriverTest {
     private final DatabaseConnection config = new DatabaseConnection("127.0.0.1", 1433, "DB", "sa", "secret");
@@ -54,29 +52,66 @@ final class SqlServerDbDriverTest {
     }
 
     @Test
-    void createAndDropDatabaseUseControlConnection() throws Exception {
+    void createDatabaseUsesVersionedFilePathsAndVersionMetadata() throws Exception {
         final var control = mock(Connection.class);
-        final var exists = mock(PreparedStatement.class);
-        final var existsResult = mock(ResultSet.class);
-        when(control.prepareStatement("SELECT COUNT(*) FROM sys.databases WHERE name = ?"))
-                .thenReturn(exists);
-        when(exists.executeQuery()).thenReturn(existsResult);
-        when(existsResult.next()).thenReturn(true, true);
-        when(existsResult.getLong(1)).thenReturn(0L, 1L);
-
+        final var target = mock(Connection.class);
         final var statement = mock(Statement.class);
         when(control.createStatement()).thenReturn(statement);
+        final var targetStatement = mock(Statement.class);
+        when(target.createStatement()).thenReturn(targetStatement);
 
+        final var driver = new SqlServerDbDriver((connection, controlDatabase) -> controlDatabase ? control : target);
+        driver.open(config, true);
+        final var metadata =
+                new DatabaseMetadata("default", "Version.1", "hash", "C:\\data", "C:\\log", false, true, true, false);
+
+        driver.createDatabase(metadata, config);
+
+        verify(statement)
+                .execute("CREATE DATABASE [DB] ON PRIMARY (NAME = [DB_Version_1],"
+                        + " FILENAME='C:\\data\\DB_Version_1.mdf') LOG ON (NAME = [DB_Version_1_LOG],"
+                        + " FILENAME='C:\\log\\DB_Version_1.ldf')");
+        verify(targetStatement)
+                .execute("EXEC sys.sp_addextendedproperty @name = N'DatabaseSchemaVersion', @value = N'Version.1'");
+    }
+
+    @Test
+    void dropDatabaseUsesRubyDefaultControlSql() throws Exception {
+        final var control = mock(Connection.class);
+        final var statement = mock(Statement.class);
+        when(control.createStatement()).thenReturn(statement);
         final var driver = new SqlServerDbDriver((connection, controlDatabase) -> control);
         driver.open(config, true);
-        final var database = runtimeDatabase();
 
-        driver.createDatabase(database, config);
-        driver.drop(database, config);
+        driver.drop(new DatabaseMetadata("default", "1", "hash"), config);
 
-        verify(statement).execute("CREATE DATABASE [DB]");
-        verify(statement).execute("ALTER DATABASE [DB] SET SINGLE_USER WITH ROLLBACK IMMEDIATE");
-        verify(statement).execute("DROP DATABASE [DB]");
+        verify(statement).execute("SET DEADLOCK_PRIORITY HIGH");
+        verify(statement).execute("EXEC msdb.dbo.sp_delete_database_backuphistory @database_name = N'DB'");
+        verify(statement)
+                .execute("IF EXISTS (SELECT * FROM sys.master_files WHERE state = 0 AND db_name(database_id) = 'DB')"
+                        + " DROP DATABASE [DB]");
+        verify(statement, never()).execute(contains("SINGLE_USER"));
+    }
+
+    @Test
+    void dropDatabaseHonorsForceDropAndBackupHistoryOptions() throws Exception {
+        final var control = mock(Connection.class);
+        final var statement = mock(Statement.class);
+        when(control.createStatement()).thenReturn(statement);
+        final var driver = new SqlServerDbDriver((connection, controlDatabase) -> control);
+        driver.open(config, true);
+        final var metadata = new DatabaseMetadata("default", "1", "hash", null, null, true, false, true, false);
+
+        driver.drop(metadata, config);
+
+        verify(statement).execute("SET DEADLOCK_PRIORITY HIGH");
+        verify(statement, never()).execute(contains("sp_delete_database_backuphistory"));
+        verify(statement)
+                .execute("IF EXISTS (SELECT * FROM sys.master_files WHERE state = 0 AND db_name(database_id) = 'DB')"
+                        + " ALTER DATABASE [DB] SET SINGLE_USER WITH ROLLBACK IMMEDIATE");
+        verify(statement)
+                .execute("IF EXISTS (SELECT * FROM sys.master_files WHERE state = 0 AND db_name(database_id) = 'DB')"
+                        + " DROP DATABASE [DB]");
     }
 
     @Test
@@ -113,7 +148,8 @@ final class SqlServerDbDriverTest {
         final var identityQuery = mock(PreparedStatement.class);
         final var identityResult = mock(ResultSet.class);
         when(target.prepareStatement(
-                        "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMNPROPERTY(OBJECT_ID(?), COLUMN_NAME, 'IsIdentity') = 1"))
+                        "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMNPROPERTY(OBJECT_ID(?),"
+                                + " COLUMN_NAME, 'IsIdentity') = 1"))
                 .thenReturn(identityQuery);
         when(identityQuery.executeQuery()).thenReturn(identityResult);
         when(identityResult.next()).thenReturn(true, true);
@@ -126,11 +162,50 @@ final class SqlServerDbDriverTest {
         driver.open(config, false);
         driver.preFixtureImport("[dbo].[tbl]");
         driver.postFixtureImport("[dbo].[tbl]");
-        driver.preTableImport(new ImportConfig("default", List.of(), "import", List.of(), List.of()), "[dbo].[tbl]");
-        driver.postTableImport(new ImportConfig("default", List.of(), "import", List.of(), List.of()), "[dbo].[tbl]");
+        final var metadata = new DatabaseMetadata("default", "1", "hash");
+        driver.preTableImport(
+                metadata, new ImportConfig("default", List.of(), "import", List.of(), List.of()), "[dbo].[tbl]");
+        driver.postTableImport(
+                metadata, new ImportConfig("default", List.of(), "import", List.of(), List.of()), "[dbo].[tbl]");
 
         verify(statement, times(2)).execute("SET IDENTITY_INSERT [dbo].[tbl] ON");
         verify(statement, times(2)).execute("SET IDENTITY_INSERT [dbo].[tbl] OFF");
+        verify(statement).execute("DBCC DBREINDEX (N'[dbo].[tbl]', '', 0) WITH NO_INFOMSGS");
+    }
+
+    @Test
+    void postImportMaintenanceHonorsReindexAndShrinkOptions() throws Exception {
+        final var target = mock(Connection.class);
+        final var statement = mock(Statement.class);
+        when(target.createStatement()).thenReturn(statement);
+        final var driver = new SqlServerDbDriver((connection, controlDatabase) -> target);
+        driver.open(config, false);
+        final var importConfig = new ImportConfig("default", List.of("Core"), "import", List.of(), List.of());
+        final var noMaintenance = new DatabaseMetadata("default", "1", "hash", null, null, false, true, false, false);
+
+        driver.postDatabaseImport(noMaintenance, importConfig);
+        driver.postDataModuleImport(noMaintenance, importConfig, "Core", List.of("[Core].[foo]"));
+
+        verify(statement, never()).execute(contains("sp_updatestats"));
+        verify(statement, never()).execute(contains("SHRINKDATABASE"));
+        verify(statement, never()).execute(contains("DBREINDEX"));
+
+        final var shrinkAndReindex = new DatabaseMetadata("default", "1", "hash", null, null, false, true, true, true);
+        driver.postDataModuleImport(shrinkAndReindex, importConfig, "Core", List.of("[Core].[foo]", "[Core].[bar]"));
+        driver.postDatabaseImport(shrinkAndReindex, importConfig);
+
+        verify(statement)
+                .execute("DECLARE @DbName VARCHAR(100); SET @DbName = DB_NAME(); DBCC SHRINKDATABASE(@DbName, 10,"
+                        + " NOTRUNCATE) WITH NO_INFOMSGS");
+        verify(statement)
+                .execute("DECLARE @DbName VARCHAR(100); SET @DbName = DB_NAME(); DBCC SHRINKDATABASE(@DbName, 10,"
+                        + " TRUNCATEONLY) WITH NO_INFOMSGS");
+        verify(statement).execute("DBCC DBREINDEX (N'[Core].[foo]', '', 0) WITH NO_INFOMSGS");
+        verify(statement).execute("DBCC DBREINDEX (N'[Core].[bar]', '', 0) WITH NO_INFOMSGS");
+        verify(statement).execute("EXEC dbo.sp_updatestats");
+        verify(statement)
+                .execute("DECLARE @DbName VARCHAR(100); SET @DbName = DB_NAME(); DBCC UPDATEUSAGE(@DbName) WITH"
+                        + " NO_INFOMSGS, COUNT_ROWS");
     }
 
     @Test
@@ -170,36 +245,5 @@ final class SqlServerDbDriverTest {
         verify(markMigration).setString(1, "default");
         verify(markMigration).setString(2, "001_init");
         verify(markMigration).executeUpdate();
-    }
-
-    private static RuntimeDatabase runtimeDatabase() {
-        return new RuntimeDatabase(
-                "default",
-                new RepositoryConfig(
-                        List.of("MyModule"),
-                        Map.of(),
-                        Map.of("MyModule", List.of("[MyModule].[foo]")),
-                        Map.of("MyModule", List.of())),
-                List.of(Path.of(".")),
-                List.of(),
-                List.of(),
-                "index.txt",
-                List.of("."),
-                List.of("down"),
-                List.of("finalize"),
-                List.of("db-hooks/pre"),
-                List.of("db-hooks/post"),
-                "fixtures",
-                "datasets",
-                List.of("pre"),
-                List.of("post"),
-                List.of("seed"),
-                true,
-                false,
-                "migrations",
-                "1",
-                "hash",
-                Map.of("default", new ImportConfig("default", List.of("MyModule"), "import", List.of(), List.of())),
-                Map.of());
     }
 }

@@ -14,7 +14,6 @@ import java.sql.Statement;
 import java.util.LinkedHashMap;
 import java.util.List;
 import org.junit.jupiter.api.Test;
-import org.realityforge.jdbt.runtime.RuntimeExecutionException;
 
 final class PostgresDbDriverTest {
     private final DatabaseConnection config = new DatabaseConnection("127.0.0.1", 5432, "db", "postgres", "secret");
@@ -27,8 +26,9 @@ final class PostgresDbDriverTest {
 
         final var driver = new PostgresDbDriver((connection, controlDatabase) -> control);
         driver.open(config, true);
-        driver.createDatabase(null, config);
-        driver.drop(null, config);
+        final var metadata = new DatabaseMetadata("default", "1", "hash");
+        driver.createDatabase(metadata, config);
+        driver.drop(metadata, config);
 
         verify(statement).execute("CREATE DATABASE \"db\"");
         verify(statement).execute("DROP DATABASE IF EXISTS \"db\"");
@@ -129,7 +129,7 @@ final class PostgresDbDriverTest {
     void standardImportSqlRequiresSameDatabaseForPostgres() {
         final var driver = new PostgresDbDriver((connection, controlDatabase) -> mock(Connection.class));
         assertThatThrownBy(() -> driver.generateStandardImportSql("public.tbl", "target", "source", List.of("\"id\"")))
-                .isInstanceOf(RuntimeExecutionException.class)
+                .isInstanceOf(DatabaseException.class)
                 .hasMessageContaining("across databases is not supported");
 
         assertThat(driver.generateStandardImportSql("public.tbl", "same", "same", List.of("\"id\"")))

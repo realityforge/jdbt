@@ -1,0 +1,42 @@
+load("@buildifier_prebuilt//:rules.bzl", "buildifier")
+
+package(default_visibility = ["//visibility:public"])
+
+WARNINGS = [
+    "+unsorted-dict-items",
+    "-module-docstring",
+    "-function-docstring",
+]
+
+buildifier(
+    name = "buildifier",
+    exclude_patterns = [
+        "./.git/*",
+        "./bazel-*/*",
+        "./build/*",
+        "./third_party/java/BUILD.bazel",
+        "./vendor/*",
+    ],
+    lint_mode = "fix",
+    lint_warnings = WARNINGS,
+)
+
+buildifier(
+    name = "buildifier_check",
+    diff_command = "diff -u",
+    exclude_patterns = [
+        "./.git/*",
+        "./bazel-*/*",
+        "./build/*",
+        "./third_party/java/BUILD.bazel",
+        "./vendor/*",
+    ],
+    lint_mode = "warn",
+    lint_warnings = WARNINGS,
+    mode = "diff",
+)
+
+test_suite(
+    name = "all_tests",
+    tests = ["//src/test/java/org/realityforge/jdbt:all_tests"],
+)

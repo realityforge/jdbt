@@ -1,0 +1,20 @@
+load("//third_party/java:rules.bzl", "java_library")
+
+package(default_visibility = ["//visibility:public"])
+
+java_library(
+    name = "config",
+    srcs = [
+        "ConfigException.java",
+        "DatabaseConfig.java",
+        "DefaultsConfig.java",
+        "FilterPropertyConfig.java",
+        "ImportConfig.java",
+        "JdbtProjectConfig.java",
+        "JdbtProjectConfigLoader.java",
+        "ModuleGroupConfig.java",
+        "YamlMapSupport.java",
+        "package-info.java",
+    ],
+    deps = ["//third_party/java:snakeyaml_engine"],
+)

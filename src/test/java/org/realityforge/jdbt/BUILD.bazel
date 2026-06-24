@@ -1,0 +1,30 @@
+load("//third_party/java:rules.bzl", "junit5_test")
+
+package(default_visibility = ["//visibility:public"])
+
+junit5_test(
+    name = "jdbt_tests",
+    srcs = [
+        "MainTest.java",
+        "package-info.java",
+    ],
+    test_package = "org.realityforge.jdbt",
+    deps = [
+        "//src/main/java/org/realityforge/jdbt",
+        "//third_party/java:assertj_core",
+    ],
+)
+
+test_suite(
+    name = "all_tests",
+    tests = [
+        ":jdbt_tests",
+        "//src/test/java/org/realityforge/jdbt/cli:cli_tests",
+        "//src/test/java/org/realityforge/jdbt/config:config_tests",
+        "//src/test/java/org/realityforge/jdbt/db:db_tests",
+        "//src/test/java/org/realityforge/jdbt/files:files_tests",
+        "//src/test/java/org/realityforge/jdbt/packaging:packaging_tests",
+        "//src/test/java/org/realityforge/jdbt/repository:repository_tests",
+        "//src/test/java/org/realityforge/jdbt/runtime:runtime_tests",
+    ],
+)

@@ -15,6 +15,7 @@ import org.realityforge.jdbt.config.FilterPropertyConfig;
 import org.realityforge.jdbt.config.ImportConfig;
 import org.realityforge.jdbt.config.ModuleGroupConfig;
 import org.realityforge.jdbt.db.DatabaseConnection;
+import org.realityforge.jdbt.db.DatabaseMetadata;
 import org.realityforge.jdbt.db.DbDriver;
 import org.realityforge.jdbt.files.FileResolver;
 import org.snakeyaml.engine.v2.api.Load;
@@ -94,7 +95,7 @@ public final class RuntimeEngine {
             final DatabaseConnection target,
             final Map<String, String> filterProperties) {
         validateProvidedFilterProperties(database, filterProperties);
-        withDatabaseConnection(target, true, () -> db.drop(database, target));
+        withDatabaseConnection(target, true, () -> db.drop(databaseMetadata(database), target));
     }
 
     public void migrate(
@@ -171,11 +172,20 @@ public final class RuntimeEngine {
         final var declaredFilters = resolveDeclaredFilterValues(database, filterProperties);
         final var importConfig = importByKey(database, importKey);
         final var moduleGroup = null == moduleGroupKey ? null : moduleGroup(database, moduleGroupKey);
+        final var metadata = databaseMetadata(database);
         withDatabaseConnection(
                 target,
                 false,
                 () -> performImportAction(
-                        database, importConfig, target, source, true, moduleGroup, resumeAt, declaredFilters));
+                        database,
+                        metadata,
+                        importConfig,
+                        target,
+                        source,
+                        true,
+                        moduleGroup,
+                        resumeAt,
+                        declaredFilters));
     }
 
     public void createByImport(
@@ -191,6 +201,7 @@ public final class RuntimeEngine {
         if (null == resumeAt) {
             createDatabaseIfRequired(database, target, noCreate);
         }
+        final var metadata = databaseMetadata(database);
         withDatabaseConnection(target, false, () -> {
             if (null == resumeAt) {
                 for (final var dir : database.preCreateDirs()) {
@@ -198,7 +209,8 @@ public final class RuntimeEngine {
                 }
                 performCreateAction(database, ModuleMode.UP, declaredFilters);
             }
-            performImportAction(database, importConfig, target, source, false, null, resumeAt, declaredFilters);
+            performImportAction(
+                    database, metadata, importConfig, target, source, false, null, resumeAt, declaredFilters);
             performCreateAction(database, ModuleMode.FINALIZE, declaredFilters);
             for (final var dir : database.postCreateDirs()) {
                 processDirSet(database, dir, declaredFilters);
@@ -209,6 +221,7 @@ public final class RuntimeEngine {
 
     private void performImportAction(
             final RuntimeDatabase database,
+            final DatabaseMetadata metadata,
             final ImportConfig importConfig,
             final DatabaseConnection target,
             final DatabaseConnection source,
@@ -229,7 +242,7 @@ public final class RuntimeEngine {
             verifyNoUnexpectedImportFiles(database, moduleName, importConfig.dir());
         }
 
-        if (shouldPerformDelete && null == resumeAt.value) {
+        if (shouldPerformDelete && null != moduleGroup && null == resumeAt.value) {
             final var deleteOrder = new ArrayList<String>();
             for (final var moduleName : selectedModules) {
                 final var tables = new ArrayList<>(database.tableOrdering(moduleName));
@@ -241,8 +254,18 @@ public final class RuntimeEngine {
             }
         }
 
+        final var deleteWithinModule = shouldPerformDelete && null == moduleGroup;
         for (final var moduleName : selectedModules) {
-            importModule(database, importConfig, target, source, moduleName, resumeAt, declaredFilters);
+            importModule(
+                    database,
+                    metadata,
+                    importConfig,
+                    target,
+                    source,
+                    moduleName,
+                    deleteWithinModule,
+                    resumeAt,
+                    declaredFilters);
         }
 
         if (null != resumeAt.value) {
@@ -255,7 +278,7 @@ public final class RuntimeEngine {
                 processImportDirSet(database, dir, target, source, declaredFilters);
             }
         }
-        db.postDatabaseImport(importConfig);
+        db.postDatabaseImport(metadata, importConfig);
     }
 
     private static List<String> selectedImportModules(
@@ -263,8 +286,8 @@ public final class RuntimeEngine {
             final ImportConfig importConfig,
             final @Nullable ModuleGroupConfig moduleGroup) {
         final var selectedModules = new ArrayList<String>();
-        for (final var moduleName : database.repository().modules()) {
-            if (!importConfig.modules().contains(moduleName)) {
+        for (final var moduleName : importConfig.modules()) {
+            if (!database.repository().modules().contains(moduleName)) {
                 continue;
             }
             if (null != moduleGroup && !moduleGroup.modules().contains(moduleName)) {
@@ -277,10 +300,12 @@ public final class RuntimeEngine {
 
     private void importModule(
             final RuntimeDatabase database,
+            final DatabaseMetadata metadata,
             final ImportConfig importConfig,
             final DatabaseConnection target,
             final DatabaseConnection source,
             final String moduleName,
+            final boolean shouldPerformDelete,
             final ResumeState resumeAt,
             final Map<String, String> declaredFilters) {
         final var orderedTables = new ArrayList<>(database.tableOrdering(moduleName));
@@ -301,6 +326,14 @@ public final class RuntimeEngine {
             }
         }
 
+        if (shouldPerformDelete && null == resumeAt.value) {
+            final var deleteOrder = new ArrayList<>(tables);
+            Collections.reverse(deleteOrder);
+            for (final var table : deleteOrder) {
+                db.execute("DELETE FROM " + table, false);
+            }
+        }
+
         for (final var table : tables) {
             final var cleanName = cleanObjectName(table);
             if (cleanName.equals(resumeAt.value)) {
@@ -308,9 +341,13 @@ public final class RuntimeEngine {
                 resumeAt.value = null;
             }
             if (null == resumeAt.value) {
-                db.preTableImport(importConfig, table);
-                performImport(database, importConfig, target, source, moduleName, table, declaredFilters);
-                db.postTableImport(importConfig, table);
+                db.preTableImport(metadata, importConfig, table);
+                try {
+                    performImport(database, importConfig, target, source, moduleName, table, declaredFilters);
+                } catch (final RuntimeException e) {
+                    throw importFailure(cleanName, e);
+                }
+                db.postTableImport(metadata, importConfig, table);
             }
         }
 
@@ -319,13 +356,29 @@ public final class RuntimeEngine {
                 resumeAt.value = null;
             }
             if (null == resumeAt.value) {
-                performSequenceImport(database, importConfig, target, source, moduleName, sequence, declaredFilters);
+                final var cleanName = cleanObjectName(sequence);
+                try {
+                    performSequenceImport(
+                            database, importConfig, target, source, moduleName, sequence, declaredFilters);
+                } catch (final RuntimeException e) {
+                    throw importFailure(cleanName, e);
+                }
             }
         }
 
         if (null == resumeAt.value) {
-            db.postDataModuleImport(importConfig, moduleName);
+            db.postDataModuleImport(metadata, importConfig, moduleName, orderedTables);
         }
+    }
+
+    private static RuntimeExecutionException importFailure(final String cleanObjectName, final RuntimeException cause) {
+        return new RuntimeExecutionException(
+                "Problem importing "
+                        + cleanObjectName
+                        + ". Fix the problem and retry import specifying --resume-at="
+                        + cleanObjectName
+                        + " to re-attempt import from current position.",
+                cause);
     }
 
     private void performImport(
@@ -534,9 +587,23 @@ public final class RuntimeEngine {
             return;
         }
         withDatabaseConnection(target, true, () -> {
-            db.drop(database, target);
-            db.createDatabase(database, target);
+            final var metadata = databaseMetadata(database);
+            db.drop(metadata, target);
+            db.createDatabase(metadata, target);
         });
+    }
+
+    private static DatabaseMetadata databaseMetadata(final RuntimeDatabase database) {
+        return new DatabaseMetadata(
+                database.key(),
+                database.version(),
+                database.schemaHash(),
+                database.dataPath(),
+                database.logPath(),
+                database.forceDrop(),
+                database.deleteBackupHistory(),
+                database.reindexOnImport(),
+                database.shrinkOnImport());
     }
 
     private void performPostCreateMigrationsSetup(

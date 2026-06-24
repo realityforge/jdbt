@@ -73,34 +73,34 @@ final class SqlServerImportAssertExpander {
     private static String databaseVersionAssertion(final String expectedVersionExpression) {
         final var escapedVersionForErrorMessage = expectedVersionExpression.replace("'", "''");
         return """
-GO
-BEGIN
-  DECLARE @DbVersion VARCHAR(MAX)
-  SET @DbVersion = ''
-  SELECT @DbVersion = COALESCE(CONVERT(VARCHAR(MAX),value),'')
-    FROM [__SOURCE__].sys.fn_listextendedproperty('DatabaseSchemaVersion', default, default, default, default, default, default)
-  IF (@DbVersion IS NULL OR @DbVersion = %s)
-  BEGIN
-    DECLARE @Message VARCHAR(MAX)
-    SET @Message = CONCAT('Expected DatabaseSchemaVersion in __SOURCE__ database not to be %s. Actual Value: ', @DbVersion)
-    RAISERROR (@Message, 16, 1) WITH SETERROR
-  END
-END
-GO
-BEGIN
-  DECLARE @DbVersion VARCHAR(MAX)
-  SET @DbVersion = ''
-  SELECT @DbVersion = COALESCE(CONVERT(VARCHAR(MAX),value),'')
-    FROM [__TARGET__].sys.fn_listextendedproperty('DatabaseSchemaVersion', default, default, default, default, default, default)
-  IF (@DbVersion IS NULL OR @DbVersion != %s)
-  BEGIN
-    DECLARE @Message VARCHAR(MAX)
-    SET @Message = CONCAT('Expected DatabaseSchemaVersion in __TARGET__ database to be %s. Actual Value: ', @DbVersion)
-    RAISERROR (@Message, 16, 1) WITH SETERROR
-  END
-END
-GO
-""".formatted(
+            GO
+            BEGIN
+              DECLARE @DbVersion VARCHAR(MAX)
+              SET @DbVersion = ''
+              SELECT @DbVersion = COALESCE(CONVERT(VARCHAR(MAX),value),'')
+                FROM [__SOURCE__].sys.fn_listextendedproperty('DatabaseSchemaVersion', default, default, default, default, default, default)
+              IF (@DbVersion IS NULL OR @DbVersion = %s)
+              BEGIN
+                DECLARE @Message VARCHAR(MAX)
+                SET @Message = CONCAT('Expected DatabaseSchemaVersion in __SOURCE__ database not to be %s. Actual Value: ', @DbVersion)
+                RAISERROR (@Message, 16, 1) WITH SETERROR
+              END
+            END
+            GO
+            BEGIN
+              DECLARE @DbVersion VARCHAR(MAX)
+              SET @DbVersion = ''
+              SELECT @DbVersion = COALESCE(CONVERT(VARCHAR(MAX),value),'')
+                FROM [__TARGET__].sys.fn_listextendedproperty('DatabaseSchemaVersion', default, default, default, default, default, default)
+              IF (@DbVersion IS NULL OR @DbVersion != %s)
+              BEGIN
+                DECLARE @Message VARCHAR(MAX)
+                SET @Message = CONCAT('Expected DatabaseSchemaVersion in __TARGET__ database to be %s. Actual Value: ', @DbVersion)
+                RAISERROR (@Message, 16, 1) WITH SETERROR
+              END
+            END
+            GO
+            """.formatted(
                         expectedVersionExpression,
                         escapedVersionForErrorMessage,
                         expectedVersionExpression,
@@ -109,22 +109,22 @@ GO
 
     private static String unchangedRowCountAssertion() {
         return """
-GO
-IF (SELECT COUNT(*) FROM [__TARGET__].__TABLE__) != (SELECT COUNT(*) FROM [__SOURCE__].__TABLE__)
-BEGIN
-  RAISERROR ('Actual row count for __TABLE__ does not match expected rowcount', 16, 1) WITH SETERROR
-END
-""";
+            GO
+            IF (SELECT COUNT(*) FROM [__TARGET__].__TABLE__) != (SELECT COUNT(*) FROM [__SOURCE__].__TABLE__)
+            BEGIN
+              RAISERROR ('Actual row count for __TABLE__ does not match expected rowcount', 16, 1) WITH SETERROR
+            END
+            """;
     }
 
     private static String rowCountAssertion(final String expectedRowCountExpression) {
         return """
-GO
-IF (SELECT COUNT(*) FROM [__TARGET__].__TABLE__) != (%s)
-BEGIN
-  RAISERROR ('Actual row count for __TABLE__ does not match expected rowcount', 16, 1) WITH SETERROR
-END
-""".formatted(expectedRowCountExpression);
+            GO
+            IF (SELECT COUNT(*) FROM [__TARGET__].__TABLE__) != (%s)
+            BEGIN
+              RAISERROR ('Actual row count for __TABLE__ does not match expected rowcount', 16, 1) WITH SETERROR
+            END
+            """.formatted(expectedRowCountExpression);
     }
 
     private interface MacroWithArgumentReplacement {

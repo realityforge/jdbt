@@ -3,7 +3,6 @@ package org.realityforge.jdbt.db;
 import java.util.List;
 import java.util.Map;
 import org.realityforge.jdbt.config.ImportConfig;
-import org.realityforge.jdbt.runtime.RuntimeDatabase;
 
 final class NoOpDbDriver implements DbDriver {
     @Override
@@ -13,10 +12,10 @@ final class NoOpDbDriver implements DbDriver {
     public void close() {}
 
     @Override
-    public void drop(final RuntimeDatabase database, final DatabaseConnection connection) {}
+    public void drop(final DatabaseMetadata database, final DatabaseConnection connection) {}
 
     @Override
-    public void createDatabase(final RuntimeDatabase database, final DatabaseConnection connection) {}
+    public void createDatabase(final DatabaseMetadata database, final DatabaseConnection connection) {}
 
     @Override
     public void createSchema(final String schemaName) {}
@@ -40,16 +39,22 @@ final class NoOpDbDriver implements DbDriver {
     public void updateSequence(final String sequenceName, final long value) {}
 
     @Override
-    public void preTableImport(final ImportConfig importConfig, final String tableName) {}
+    public void preTableImport(
+            final DatabaseMetadata database, final ImportConfig importConfig, final String tableName) {}
 
     @Override
-    public void postTableImport(final ImportConfig importConfig, final String tableName) {}
+    public void postTableImport(
+            final DatabaseMetadata database, final ImportConfig importConfig, final String tableName) {}
 
     @Override
-    public void postDataModuleImport(final ImportConfig importConfig, final String moduleName) {}
+    public void postDataModuleImport(
+            final DatabaseMetadata database,
+            final ImportConfig importConfig,
+            final String moduleName,
+            final List<String> tablesInOrder) {}
 
     @Override
-    public void postDatabaseImport(final ImportConfig importConfig) {}
+    public void postDatabaseImport(final DatabaseMetadata database, final ImportConfig importConfig) {}
 
     @Override
     public List<String> columnNamesForTable(final String tableName) {

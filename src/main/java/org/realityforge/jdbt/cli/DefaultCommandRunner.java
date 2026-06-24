@@ -148,7 +148,8 @@ final class DefaultCommandRunner implements CommandRunner {
             throw new UncheckedIOException("Failed creating package staging directory", ioe);
         }
         try {
-            new DatabaseDataPackager(fileResolver).packageDatabaseData(runtime.database(), stagingDirectory);
+            new DatabaseDataPackager(fileResolver)
+                    .packageDatabaseData(runtime.database(), stagingDirectory.resolve("data"));
             new DeterministicZipPackager().write(stagingDirectory, outputFile);
         } finally {
             deleteRecursively(stagingDirectory);

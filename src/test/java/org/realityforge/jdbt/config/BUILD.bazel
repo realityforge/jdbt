@@ -1,0 +1,18 @@
+load("//third_party/java:rules.bzl", "junit5_test")
+
+package(default_visibility = ["//visibility:public"])
+
+junit5_test(
+    name = "config_tests",
+    srcs = [
+        "DefaultsConfigTest.java",
+        "JdbtProjectConfigLoaderTest.java",
+        "YamlMapSupportTest.java",
+        "package-info.java",
+    ],
+    test_package = "org.realityforge.jdbt.config",
+    deps = [
+        "//src/main/java/org/realityforge/jdbt/config",
+        "//third_party/java:assertj_core",
+    ],
+)

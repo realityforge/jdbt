@@ -1,0 +1,21 @@
+load("//third_party/java:rules.bzl", "junit5_test")
+
+package(default_visibility = ["//visibility:public"])
+
+junit5_test(
+    name = "packaging_tests",
+    srcs = [
+        "DatabaseDataPackagerTest.java",
+        "DeterministicZipPackagerTest.java",
+        "package-info.java",
+    ],
+    test_package = "org.realityforge.jdbt.packaging",
+    deps = [
+        "//src/main/java/org/realityforge/jdbt/config",
+        "//src/main/java/org/realityforge/jdbt/files",
+        "//src/main/java/org/realityforge/jdbt/packaging",
+        "//src/main/java/org/realityforge/jdbt/repository",
+        "//src/main/java/org/realityforge/jdbt/runtime",
+        "//third_party/java:assertj_core",
+    ],
+)

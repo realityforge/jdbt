@@ -2,7 +2,7 @@
 
 `jdbt` is a Java implementation of the Ruby `dbt` workflow for managing database schema and data lifecycle tasks.
 
-This project keeps parity-first behavior with the Ruby reference while using Java-native tooling (Gradle, picocli, JDBC, strict static analysis).
+This project keeps parity-first behavior with the Ruby reference while using Java-native tooling (Bazel, picocli, JDBC, strict static analysis).
 
 ## Current status
 
@@ -23,13 +23,19 @@ This project keeps parity-first behavior with the Ruby reference while using Jav
 ## Build
 
 ```bash
-./gradlew clean fatJar
+tools/check.sh
 ```
 
-Runnable jar:
+Run the CLI through Bazel:
 
 ```bash
-java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar --help
+bazel run //src/main/java/org/realityforge/jdbt:jdbt_bin -- --help
+```
+
+Build a runnable deploy jar:
+
+```bash
+bazel build //src/main/java/org/realityforge/jdbt:jdbt_bin_deploy.jar
 ```
 
 ## Quick start
@@ -40,7 +46,7 @@ java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar --help
 4. Run a command, for example:
 
 ```bash
-java -jar ./build/libs/jdbt-0.1-SNAPSHOT-all.jar status
+bazel run //src/main/java/org/realityforge/jdbt:jdbt_bin -- status
 ```
 
 ## Minimal config example
@@ -62,9 +68,13 @@ filterProperties:
     pattern: __ENVIRONMENT__
     default: dev
     supportedValues: [dev, test, prod]
+forceDrop: false
+deleteBackupHistory: true
+reindexOnImport: true
+shrinkOnImport: false
 ```
 
-`db/repository.yml`
+`repository.yml`
 
 ```yaml
 modules:
@@ -78,7 +88,6 @@ modules:
 ## Documentation
 
 - User guide: `docs/user-guide.md`
-- Skill adoption guide: `skills/ADOPTION.md`
 - Planning and parity tracking: `plans/jdbt/`
 - Agent workflow constraints: `AGENTS.md`
 
@@ -95,3 +104,4 @@ modules:
 - SQL Server import SQL additionally supports assert macros in import files: `ASSERT_ROW_COUNT(...)`, `ASSERT_DATABASE_VERSION(...)`, and `ASSERT_UNCHANGED_ROW_COUNT()`.
 - Import assert macros are expanded only for SQL Server driver import flows (`import` and `create-by-import`).
 - Import resume uses `--resume-at` (not environment variables).
+- SQL Server database file placement and maintenance settings are configured in `jdbt.yml` with `dataPath`, `logPath`, `forceDrop`, `deleteBackupHistory`, `reindexOnImport`, and `shrinkOnImport`.

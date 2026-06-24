@@ -1,0 +1,24 @@
+load("//third_party/java:rules.bzl", "java_library")
+
+package(default_visibility = ["//visibility:public"])
+
+java_library(
+    name = "cli",
+    srcs = [
+        "CommandRunner.java",
+        "DefaultCommandRunner.java",
+        "JdbtCommand.java",
+        "PasswordResolver.java",
+        "ProjectRuntimeLoader.java",
+        "package-info.java",
+    ],
+    deps = [
+        "//src/main/java/org/realityforge/jdbt/config",
+        "//src/main/java/org/realityforge/jdbt/db",
+        "//src/main/java/org/realityforge/jdbt/files",
+        "//src/main/java/org/realityforge/jdbt/packaging",
+        "//src/main/java/org/realityforge/jdbt/repository",
+        "//src/main/java/org/realityforge/jdbt/runtime",
+        "//third_party/java:picocli",
+    ],
+)

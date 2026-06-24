@@ -1,0 +1,14 @@
+load("//third_party/java:rules.bzl", "java_library")
+
+package(default_visibility = ["//visibility:public"])
+
+java_library(
+    name = "files",
+    srcs = [
+        "ArtifactContent.java",
+        "FileCollectionException.java",
+        "FileResolver.java",
+        "ZipArtifactContent.java",
+        "package-info.java",
+    ],
+)

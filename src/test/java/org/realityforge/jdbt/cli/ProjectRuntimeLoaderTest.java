@@ -17,27 +17,27 @@ final class ProjectRuntimeLoaderTest {
     @Test
     void loadMergesRepositoryFromPreLocalAndPostArtifacts(@TempDir final Path tempDir) throws IOException {
         writeFile(tempDir, "jdbt.yml", """
-                preDbArtifacts: [pre.zip]
-                postDbArtifacts: [post.zip]
-                """);
+            preDbArtifacts: [pre.zip]
+            postDbArtifacts: [post.zip]
+            """);
         writeFile(tempDir, "repository.yml", """
-                modules:
-                  Local:
-                    tables: ["[Local].[tbl]"]
-                    sequences: []
-                """);
+            modules:
+              Local:
+                tables: ["[Local].[tbl]"]
+                sequences: []
+            """);
         writeArtifact(tempDir.resolve("pre.zip"), "data/repository.yml", """
-                modules:
-                  Pre:
-                    tables: ["[Pre].[tbl]"]
-                    sequences: []
-                """);
+            modules:
+              Pre:
+                tables: ["[Pre].[tbl]"]
+                sequences: []
+            """);
         writeArtifact(tempDir.resolve("post.zip"), "data/repository.yml", """
-                modules:
-                  Post:
-                    tables: ["[Post].[tbl]"]
-                    sequences: []
-                """);
+            modules:
+              Post:
+                tables: ["[Post].[tbl]"]
+                sequences: []
+            """);
 
         final var runtime = new ProjectRuntimeLoader(tempDir).load(null);
 
@@ -50,14 +50,14 @@ final class ProjectRuntimeLoaderTest {
     @Test
     void loadRejectsSearchDirsSetting(@TempDir final Path tempDir) throws IOException {
         writeFile(tempDir, "jdbt.yml", """
-                searchDirs: [db]
-                """);
+            searchDirs: [db]
+            """);
         writeFile(tempDir, "repository.yml", """
-                modules:
-                  A:
-                    tables: []
-                    sequences: []
-                """);
+            modules:
+              A:
+                tables: []
+                sequences: []
+            """);
 
         assertThatThrownBy(() -> new ProjectRuntimeLoader(tempDir).load(null))
                 .isInstanceOf(ConfigException.class)
@@ -67,14 +67,14 @@ final class ProjectRuntimeLoaderTest {
     @Test
     void loadRejectsResourcePrefixSetting(@TempDir final Path tempDir) throws IOException {
         writeFile(tempDir, "jdbt.yml", """
-                resourcePrefix: data
-                """);
+            resourcePrefix: data
+            """);
         writeFile(tempDir, "repository.yml", """
-                modules:
-                  A:
-                    tables: []
-                    sequences: []
-                """);
+            modules:
+              A:
+                tables: []
+                sequences: []
+            """);
 
         assertThatThrownBy(() -> new ProjectRuntimeLoader(tempDir).load(null))
                 .isInstanceOf(ConfigException.class)
@@ -85,11 +85,11 @@ final class ProjectRuntimeLoaderTest {
     void loadUsesHardcodedDefaultDatabaseKey(@TempDir final Path tempDir) throws IOException {
         writeFile(tempDir, "jdbt.yml", "{}\n");
         writeFile(tempDir, "repository.yml", """
-                modules:
-                  A:
-                    tables: []
-                    sequences: []
-                """);
+            modules:
+              A:
+                tables: []
+                sequences: []
+            """);
 
         final var runtime = new ProjectRuntimeLoader(tempDir).load(null);
         assertThat(runtime.database().key()).isEqualTo("default");
@@ -97,14 +97,36 @@ final class ProjectRuntimeLoaderTest {
     }
 
     @Test
+    void schemaHashChangesWhenSqlContentChanges(@TempDir final Path tempDir) throws IOException {
+        writeFile(tempDir, "jdbt.yml", "{}\n");
+        writeFile(tempDir, "repository.yml", """
+            modules:
+              MyModule:
+                tables: ["[MyModule].[foo]"]
+                sequences: []
+            """);
+        writeFile(tempDir, "MyModule/a.sql", "SELECT 1");
+
+        final var firstHash =
+                new ProjectRuntimeLoader(tempDir).load(null).database().schemaHash();
+
+        writeFile(tempDir, "MyModule/a.sql", "SELECT 2");
+
+        final var secondHash =
+                new ProjectRuntimeLoader(tempDir).load(null).database().schemaHash();
+        assertThat(firstHash).hasSize(32);
+        assertThat(secondHash).hasSize(32).isNotEqualTo(firstHash);
+    }
+
+    @Test
     void loadRejectsSelectedDatabaseWhenNotHardcodedDefault(@TempDir final Path tempDir) throws IOException {
         writeFile(tempDir, "jdbt.yml", "{}\n");
         writeFile(tempDir, "repository.yml", """
-                modules:
-                  A:
-                    tables: []
-                    sequences: []
-                """);
+            modules:
+              A:
+                tables: []
+                sequences: []
+            """);
 
         assertThatThrownBy(() -> new ProjectRuntimeLoader(tempDir).load("custom"))
                 .isInstanceOf(ConfigException.class)
@@ -114,14 +136,14 @@ final class ProjectRuntimeLoaderTest {
     @Test
     void loadRejectsArtifactMissingRepositoryYml(@TempDir final Path tempDir) throws IOException {
         writeFile(tempDir, "jdbt.yml", """
-                preDbArtifacts: [pre.zip]
-                """);
+            preDbArtifacts: [pre.zip]
+            """);
         writeFile(tempDir, "repository.yml", """
-                modules:
-                  A:
-                    tables: []
-                    sequences: []
-                """);
+            modules:
+              A:
+                tables: []
+                sequences: []
+            """);
         writeArtifact(tempDir.resolve("pre.zip"), "data/not-repository.yml", "x");
 
         assertThatThrownBy(() -> new ProjectRuntimeLoader(tempDir).load("default"))

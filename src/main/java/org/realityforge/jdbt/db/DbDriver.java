@@ -3,16 +3,15 @@ package org.realityforge.jdbt.db;
 import java.util.List;
 import java.util.Map;
 import org.realityforge.jdbt.config.ImportConfig;
-import org.realityforge.jdbt.runtime.RuntimeDatabase;
 
 public interface DbDriver {
     void open(DatabaseConnection connection, boolean openControlDatabase);
 
     void close();
 
-    void drop(RuntimeDatabase database, DatabaseConnection connection);
+    void drop(DatabaseMetadata database, DatabaseConnection connection);
 
-    void createDatabase(RuntimeDatabase database, DatabaseConnection connection);
+    void createDatabase(DatabaseMetadata database, DatabaseConnection connection);
 
     void createSchema(String schemaName);
 
@@ -28,13 +27,14 @@ public interface DbDriver {
 
     void updateSequence(String sequenceName, long value);
 
-    void preTableImport(ImportConfig importConfig, String tableName);
+    void preTableImport(DatabaseMetadata database, ImportConfig importConfig, String tableName);
 
-    void postTableImport(ImportConfig importConfig, String tableName);
+    void postTableImport(DatabaseMetadata database, ImportConfig importConfig, String tableName);
 
-    void postDataModuleImport(ImportConfig importConfig, String moduleName);
+    void postDataModuleImport(
+            DatabaseMetadata database, ImportConfig importConfig, String moduleName, List<String> tablesInOrder);
 
-    void postDatabaseImport(ImportConfig importConfig);
+    void postDatabaseImport(DatabaseMetadata database, ImportConfig importConfig);
 
     default boolean supportsImportAssertFilters() {
         return false;

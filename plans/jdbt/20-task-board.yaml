@@ -1,15 +1,15 @@
 meta:
   project: jdbt
-  last_updated: 2026-02-12
+  last_updated: 2026-06-25
   required_full_gates:
-    - ./gradlew clean spotlessCheck check fatJar
+    - tools/check.sh
   statuses:
     - pending
     - in_progress
     - completed
     - cancelled
 
-current_focus: complete
+current_focus: T33
 
 tasks:
   - id: T01
@@ -927,6 +927,55 @@ tasks:
     commit:
       hash: af94370
       message: Remove unsupported resourcePrefix config surface
+
+  - id: T33
+    title: Convert to Bazel and close parity review gaps
+    status: completed
+    priority: high
+    depends_on:
+      - T32
+    acceptance_criteria:
+      - Bazel 9.1.1 is pinned and used by local and CI gates
+      - Bazel targets use explicit source lists and package-owned BUILD files
+      - palantir-java-format, Error Prone, NullAway, tests, and coverage thresholds run from tools/check.sh
+      - Round 1 parity mistakes are fixed or documented with evidence
+      - Filesystem transcript integration tests cover ordering, custom dirs, failures, and resume behavior
+      - H2-backed integration test verifies runtime execution against an actual in-memory database
+      - required full gate passes
+    files_touched:
+      - .bazelrc
+      - .bazelversion
+      - MODULE.bazel
+      - BUILD.bazel
+      - third_party/java/*
+      - tools/*
+      - src/main/java/org/realityforge/jdbt/**/BUILD.bazel
+      - src/test/java/org/realityforge/jdbt/**/BUILD.bazel
+      - src/main/java/org/realityforge/jdbt/**
+      - src/test/java/org/realityforge/jdbt/**
+      - .github/workflows/ci.yml
+      - docs/user-guide.md
+      - README.md
+      - AGENTS.md
+      - plans/jdbt/*
+    evidence:
+      - command: ./gradlew clean spotlessCheck check fatJar
+        result: pass before build conversion baseline
+      - command: bazel build //src/main/java/org/realityforge/jdbt:jdbt
+        result: pass
+      - command: bazel test //src/test/java/org/realityforge/jdbt:all_tests
+        result: pass
+      - command: bazel coverage //src/test/java/org/realityforge/jdbt:all_tests --combined_report=lcov
+        result: pass; line 88.38%, branch 81.70%
+      - command: "python3 structural BUILD.bazel check"
+        result: "pass; no glob() usage and Java source entries are same-directory filenames"
+      - command: "Round 3 parity review subagent"
+        result: "pass; no major Java parity or Bazel-rule blockers found"
+      - command: tools/check.sh
+        result: "pass; bazel build //..., bazel test //..., coverage line 88.78%, branch 81.61%"
+    commit:
+      hash: pending
+      message: Convert jdbt build to Bazel and close parity gaps
 
 history:
   - timestamp: 2026-02-12

@@ -39,6 +39,12 @@ public final class RuntimeDatabaseFactory {
                 database.migrationsDirName(),
                 database.version(),
                 schemaHash,
+                database.dataPath(),
+                database.logPath(),
+                database.forceDrop(),
+                database.deleteBackupHistory(),
+                database.reindexOnImport(),
+                database.shrinkOnImport(),
                 database.filterProperties(),
                 database.imports(),
                 database.moduleGroups());

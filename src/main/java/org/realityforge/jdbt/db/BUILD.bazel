@@ -1,0 +1,23 @@
+load("//third_party/java:rules.bzl", "java_library")
+
+package(default_visibility = ["//visibility:public"])
+
+java_library(
+    name = "db",
+    srcs = [
+        "DatabaseConnection.java",
+        "DatabaseException.java",
+        "DatabaseMetadata.java",
+        "DbDriver.java",
+        "DbDriverFactory.java",
+        "NoOpDbDriver.java",
+        "PostgresDbDriver.java",
+        "SqlServerDbDriver.java",
+        "package-info.java",
+    ],
+    deps = [
+        "//src/main/java/org/realityforge/jdbt/config",
+        "//third_party/java:mssql_jdbc",
+        "//third_party/java:postgresql",
+    ],
+)

@@ -19,6 +19,7 @@ import org.realityforge.jdbt.config.JdbtProjectConfigLoader;
 import org.realityforge.jdbt.config.YamlMapSupport;
 import org.realityforge.jdbt.files.ArtifactContent;
 import org.realityforge.jdbt.files.FileCollectionException;
+import org.realityforge.jdbt.files.FileResolver;
 import org.realityforge.jdbt.files.ZipArtifactContent;
 import org.realityforge.jdbt.repository.RepositoryConfig;
 import org.realityforge.jdbt.repository.RepositoryConfigLoader;
@@ -35,6 +36,7 @@ final class ProjectRuntimeLoader {
     private final JdbtProjectConfigLoader projectConfigLoader = new JdbtProjectConfigLoader();
     private final RuntimeDatabaseFactory runtimeDatabaseFactory = new RuntimeDatabaseFactory();
     private final RepositoryConfigMerger repositoryConfigMerger = new RepositoryConfigMerger();
+    private final FileResolver fileResolver = new FileResolver();
 
     ProjectRuntimeLoader(final Path baseDirectory) {
         this.baseDirectory = baseDirectory;
@@ -53,18 +55,26 @@ final class ProjectRuntimeLoader {
         final var preDbArtifacts = loadArtifacts(bootstrapDatabase.preDbArtifacts());
         final var postDbArtifacts = loadArtifacts(bootstrapDatabase.postDbArtifacts());
         final var repository = loadRepository(preDbArtifacts, postDbArtifacts);
-        final var projectConfig = projectConfigLoader.load(projectYaml, PROJECT_CONFIG_FILE, repository);
+        final var projectConfig = projectConfigLoader.load(projectYaml, PROJECT_CONFIG_FILE, repository.modules());
         final var database = projectConfig.database();
 
         final var resolvedPreDbArtifacts = loadArtifacts(database.preDbArtifacts());
         final var resolvedPostDbArtifacts = loadArtifacts(database.postDbArtifacts());
+        final var runtimeDatabaseWithoutHash = runtimeDatabaseFactory.from(
+                database,
+                projectConfig.defaults(),
+                repository,
+                resolvedPreDbArtifacts,
+                resolvedPostDbArtifacts,
+                null,
+                baseDirectory);
         final var runtimeDatabase = runtimeDatabaseFactory.from(
                 database,
                 projectConfig.defaults(),
                 repository,
                 resolvedPreDbArtifacts,
                 resolvedPostDbArtifacts,
-                schemaHash(repository),
+                schemaHash(runtimeDatabaseWithoutHash),
                 baseDirectory);
         return new LoadedRuntime(runtimeDatabase, projectConfig.defaults());
     }
@@ -88,6 +98,12 @@ final class ProjectRuntimeLoader {
                         "migrationsAppliedAtCreate",
                         "migrationsDirName",
                         "version",
+                        "dataPath",
+                        "logPath",
+                        "forceDrop",
+                        "deleteBackupHistory",
+                        "reindexOnImport",
+                        "shrinkOnImport",
                         "preDbArtifacts",
                         "postDbArtifacts",
                         "filterProperties",
@@ -175,20 +191,129 @@ final class ProjectRuntimeLoader {
         return value.isAbsolute() ? value : baseDirectory.resolve(value);
     }
 
-    private static String schemaHash(final RepositoryConfig repository) {
+    private String schemaHash(final RuntimeDatabase database) {
         final var buffer = new StringBuilder();
-        for (final var module : repository.modules()) {
-            buffer.append(module).append('|');
-            buffer.append(repository.schemaNameForModule(module)).append('|');
-            buffer.append(String.join(",", repository.tableOrdering(module))).append('|');
-            buffer.append(String.join(",", repository.sequenceOrdering(module))).append('\n');
+        for (final var path : collectFilesetForHash(database)) {
+            buffer.append(path)
+                    .append(" : ")
+                    .append(md5(loadData(database, path)))
+                    .append('\n');
         }
+        return md5(buffer.toString());
+    }
+
+    private List<String> collectFilesetForHash(final RuntimeDatabase database) {
+        final var files = new ArrayList<String>();
+        for (final var dir : database.preCreateDirs()) {
+            files.addAll(collectDirSet(database, dir));
+        }
+
+        for (final var moduleName : database.repository().modules()) {
+            for (final var dirs : List.of(database.upDirs(), database.downDirs(), database.finalizeDirs())) {
+                for (final var dir : dirs) {
+                    files.addAll(collectDirSet(database, moduleName + '/' + dir));
+                }
+            }
+
+            final var fixtures = fileResolver.collectFixtures(
+                    database.searchDirs(),
+                    moduleName,
+                    database.fixtureDirName(),
+                    database.orderedElementsForModule(moduleName),
+                    database.postDbArtifacts(),
+                    database.preDbArtifacts());
+            for (final var tableName : database.orderedElementsForModule(moduleName)) {
+                final var fixture = fixtures.get(tableName);
+                if (null != fixture) {
+                    files.add(fixture);
+                }
+            }
+        }
+
+        for (final var importConfig : database.imports().values()) {
+            for (final var dir : importConfig.preImportDirs()) {
+                files.addAll(collectDirSet(database, dir));
+            }
+            for (final var moduleName : importConfig.modules()) {
+                for (final var element : database.orderedElementsForModule(moduleName)) {
+                    addIfPresent(
+                            files,
+                            fileResolver.findFileInModule(
+                                    database.searchDirs(),
+                                    moduleName,
+                                    importConfig.dir(),
+                                    element,
+                                    "yml",
+                                    database.postDbArtifacts(),
+                                    database.preDbArtifacts()));
+                    addIfPresent(
+                            files,
+                            fileResolver.findFileInModule(
+                                    database.searchDirs(),
+                                    moduleName,
+                                    importConfig.dir(),
+                                    element,
+                                    "sql",
+                                    database.postDbArtifacts(),
+                                    database.preDbArtifacts()));
+                }
+            }
+            for (final var dir : importConfig.postImportDirs()) {
+                files.addAll(collectDirSet(database, dir));
+            }
+        }
+
+        for (final var dir : database.postCreateDirs()) {
+            files.addAll(collectDirSet(database, dir));
+        }
+
+        if (database.migrationsEnabled()) {
+            files.addAll(collectDirSet(database, database.migrationsDirName()));
+        }
+
+        return List.copyOf(files);
+    }
+
+    private List<String> collectDirSet(final RuntimeDatabase database, final String dir) {
+        return fileResolver.collectFiles(
+                database.searchDirs(),
+                dir,
+                "sql",
+                database.indexFileName(),
+                database.postDbArtifacts(),
+                database.preDbArtifacts());
+    }
+
+    private static void addIfPresent(final List<String> files, final @Nullable String path) {
+        if (null != path) {
+            files.add(path);
+        }
+    }
+
+    private static String loadData(final RuntimeDatabase database, final String location) {
+        if (location.startsWith("zip:")) {
+            final var separator = location.indexOf(':', 4);
+            if (-1 == separator) {
+                throw new ConfigException("Invalid artifact location " + location);
+            }
+            final var artifactId = location.substring(4, separator);
+            final var path = location.substring(separator + 1);
+            final var artifact = database.artifactById(artifactId);
+            if (null == artifact) {
+                throw new ConfigException("Unable to locate artifact with id '" + artifactId + "'.");
+            }
+            return artifact.readText(path);
+        }
+        return readFile(Path.of(location));
+    }
+
+    private static String md5(final String content) {
         try {
-            final var digest = MessageDigest.getInstance("SHA-1");
-            final var hash = digest.digest(buffer.toString().getBytes(StandardCharsets.UTF_8));
+            final var digest = MessageDigest.getInstance("MD5");
+            final var hash = digest.digest(content.getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(hash);
         } catch (final NoSuchAlgorithmException nsae) {
-            throw new IllegalStateException("Unable to create schema hash", nsae);
+            throw new IllegalStateException("Unable to create MD5 digest", nsae);
         }
     }
 

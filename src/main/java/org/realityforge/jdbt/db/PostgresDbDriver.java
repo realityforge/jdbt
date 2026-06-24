@@ -10,8 +10,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.jspecify.annotations.Nullable;
 import org.realityforge.jdbt.config.ImportConfig;
-import org.realityforge.jdbt.runtime.RuntimeDatabase;
-import org.realityforge.jdbt.runtime.RuntimeExecutionException;
 
 final class PostgresDbDriver implements DbDriver {
     private static final Logger LOGGER = Logger.getLogger(PostgresDbDriver.class.getName());
@@ -54,12 +52,12 @@ final class PostgresDbDriver implements DbDriver {
     }
 
     @Override
-    public void drop(final RuntimeDatabase database, final DatabaseConnection connection) {
+    public void drop(final DatabaseMetadata database, final DatabaseConnection connection) {
         executeSql(controlConnection(), "DROP DATABASE IF EXISTS " + quoteIdentifier(connection.database()));
     }
 
     @Override
-    public void createDatabase(final RuntimeDatabase database, final DatabaseConnection connection) {
+    public void createDatabase(final DatabaseMetadata database, final DatabaseConnection connection) {
         executeSql(controlConnection(), "CREATE DATABASE " + quoteIdentifier(connection.database()));
     }
 
@@ -98,7 +96,7 @@ final class PostgresDbDriver implements DbDriver {
             }
             statement.executeUpdate();
         } catch (final SQLException sqle) {
-            throw new RuntimeExecutionException("Failed to insert record into " + tableName, sqle);
+            throw new DatabaseException("Failed to insert record into " + tableName, sqle);
         }
     }
 
@@ -111,22 +109,29 @@ final class PostgresDbDriver implements DbDriver {
     }
 
     @Override
-    public void preTableImport(final ImportConfig importConfig, final String tableName) {}
+    public void preTableImport(
+            final DatabaseMetadata database, final ImportConfig importConfig, final String tableName) {}
 
     @Override
-    public void postTableImport(final ImportConfig importConfig, final String tableName) {}
+    public void postTableImport(
+            final DatabaseMetadata database, final ImportConfig importConfig, final String tableName) {}
 
     @Override
-    public void postDataModuleImport(final ImportConfig importConfig, final String moduleName) {}
+    public void postDataModuleImport(
+            final DatabaseMetadata database,
+            final ImportConfig importConfig,
+            final String moduleName,
+            final List<String> tablesInOrder) {}
 
     @Override
-    public void postDatabaseImport(final ImportConfig importConfig) {}
+    public void postDatabaseImport(final DatabaseMetadata database, final ImportConfig importConfig) {}
 
     @Override
     public List<String> columnNamesForTable(final String tableName) {
         final var resolved = parseTableName(tableName);
         final var sql =
-                "SELECT column_name FROM information_schema.columns WHERE table_schema = ? AND table_name = ? ORDER BY ordinal_position";
+                "SELECT column_name FROM information_schema.columns WHERE table_schema = ? AND table_name = ? ORDER BY"
+                        + " ordinal_position";
         final var columns = new ArrayList<String>();
         try (var statement = targetConnection().prepareStatement(sql)) {
             statement.setString(1, resolved.schema());
@@ -137,7 +142,7 @@ final class PostgresDbDriver implements DbDriver {
                 }
             }
         } catch (final SQLException sqle) {
-            throw new RuntimeExecutionException("Failed to query column metadata for " + tableName, sqle);
+            throw new DatabaseException("Failed to query column metadata for " + tableName, sqle);
         }
         return List.copyOf(columns);
     }
@@ -146,7 +151,8 @@ final class PostgresDbDriver implements DbDriver {
     public void setupMigrations() {
         if (!tableExists("public", "tblMigration")) {
             execute(
-                    "CREATE TABLE \"tblMigration\"(\"Namespace\" varchar(50),\"Migration\" varchar(255),\"AppliedAt\" timestamp)",
+                    "CREATE TABLE \"tblMigration\"(\"Namespace\" varchar(50),\"Migration\" varchar(255),\"AppliedAt\""
+                            + " timestamp)",
                     false);
         }
     }
@@ -165,20 +171,20 @@ final class PostgresDbDriver implements DbDriver {
                 return 0 == resultSet.getLong(1);
             }
         } catch (final SQLException sqle) {
-            throw new RuntimeExecutionException("Failed to query migration state", sqle);
+            throw new DatabaseException("Failed to query migration state", sqle);
         }
     }
 
     @Override
     public void markMigrationAsRun(final String namespace, final String migrationName) {
-        final var sql =
-                "INSERT INTO \"tblMigration\"(\"Namespace\",\"Migration\",\"AppliedAt\") VALUES (?, ?, current_timestamp)";
+        final var sql = "INSERT INTO \"tblMigration\"(\"Namespace\",\"Migration\",\"AppliedAt\") VALUES (?, ?,"
+                + " current_timestamp)";
         try (var statement = targetConnection().prepareStatement(sql)) {
             statement.setString(1, namespace);
             statement.setString(2, migrationName);
             statement.executeUpdate();
         } catch (final SQLException sqle) {
-            throw new RuntimeExecutionException("Failed to record migration", sqle);
+            throw new DatabaseException("Failed to record migration", sqle);
         }
     }
 
@@ -189,7 +195,7 @@ final class PostgresDbDriver implements DbDriver {
             final String sourceDatabase,
             final List<String> columns) {
         if (!targetDatabase.equals(sourceDatabase)) {
-            throw new RuntimeExecutionException(
+            throw new DatabaseException(
                     "PostgreSQL standard import across databases is not supported. Provide explicit import SQL files.");
         }
         return "INSERT INTO "
@@ -206,8 +212,9 @@ final class PostgresDbDriver implements DbDriver {
     public String generateStandardSequenceImportSql(
             final String sequenceName, final String targetDatabase, final String sourceDatabase) {
         if (!targetDatabase.equals(sourceDatabase)) {
-            throw new RuntimeExecutionException(
-                    "PostgreSQL standard sequence import across databases is not supported. Provide explicit import SQL files.");
+            throw new DatabaseException(
+                    "PostgreSQL standard sequence import across databases is not supported. Provide explicit import"
+                            + " SQL files.");
         }
         return "SELECT setval('" + sequenceName + "', COALESCE((SELECT last_value FROM " + sequenceName
                 + "), 1), true);";
@@ -221,7 +228,7 @@ final class PostgresDbDriver implements DbDriver {
                 return resultSet.next() && resultSet.getLong(1) > 0;
             }
         } catch (final SQLException sqle) {
-            throw new RuntimeExecutionException("Failed to query schema metadata", sqle);
+            throw new DatabaseException("Failed to query schema metadata", sqle);
         }
     }
 
@@ -234,7 +241,7 @@ final class PostgresDbDriver implements DbDriver {
                 return resultSet.next() && resultSet.getLong(1) > 0;
             }
         } catch (final SQLException sqle) {
-            throw new RuntimeExecutionException("Failed to query table metadata", sqle);
+            throw new DatabaseException("Failed to query table metadata", sqle);
         }
     }
 
@@ -269,7 +276,7 @@ final class PostgresDbDriver implements DbDriver {
         try {
             return connectionFactory.connect(connectionConfig, controlDatabase);
         } catch (final SQLException sqle) {
-            throw new RuntimeExecutionException("Failed to connect to PostgreSQL", sqle);
+            throw new DatabaseException("Failed to connect to PostgreSQL", sqle);
         }
     }
 
@@ -277,7 +284,7 @@ final class PostgresDbDriver implements DbDriver {
         try (var statement = connection.createStatement()) {
             statement.execute(sql);
         } catch (final SQLException sqle) {
-            throw new RuntimeExecutionException("Failed to execute SQL", sqle);
+            throw new DatabaseException("Failed to execute SQL", sqle);
         }
     }
 
