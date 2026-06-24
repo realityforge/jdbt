@@ -12,6 +12,7 @@ buildifier(
     name = "buildifier",
     exclude_patterns = [
         "./.git/*",
+        "./.ijwb/*",
         "./bazel-*/*",
         "./build/*",
         "./third_party/java/BUILD.bazel",
@@ -26,6 +27,7 @@ buildifier(
     diff_command = "diff -u",
     exclude_patterns = [
         "./.git/*",
+        "./.ijwb/*",
         "./bazel-*/*",
         "./build/*",
         "./third_party/java/BUILD.bazel",
