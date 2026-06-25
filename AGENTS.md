@@ -1,5 +1,3 @@
-# AGENTS
-
 ## Purpose
 
 This repository hosts the Java port of Ruby `dbt` with parity-first behavior and Java-native conventions.
@@ -16,21 +14,6 @@ The system is implemented as a Bazel Java project with package-owned `BUILD.baze
 - `org.realityforge.jdbt.db`: SQL driver abstraction and engine implementations.
 - `org.realityforge.jdbt.packaging`: deterministic ZIP packaging and artifact loading.
 
-## Source of Truth
-
-- Ruby implementation: `vendor/dbt/lib/**`.
-- Ruby behavior baseline: `vendor/dbt/test/**`.
-- Project requirements and execution state: `plans/jdbt/**`.
-
-## Non-Negotiable Workflow
-
-1. Keep `plans/jdbt/**` and this file aligned with code changes.
-2. Use minimal diffs that preserve parity unless a deliberate divergence is documented.
-3. Run targeted checks while iterating.
-4. Run full required gates before returning control to the user.
-5. Update task status and evidence in `plans/jdbt/20-task-board.yaml`.
-6. Commit each completed step only after full gates pass.
-
 ## Required Full Gates
 
 Run this command before handoff and before step-completion commits:
@@ -39,24 +22,17 @@ Run this command before handoff and before step-completion commits:
 
 ## Commit Rules
 
-- One commit per completed step.
-- Commit message explains behavior or process impact.
+- Use $commit skill for commits.
 - Do not batch unrelated steps into one commit.
-- Do not skip required gates.
+- Do not skip required gates prio.
 
 ## Coding Standards
 
 - Java 17 baseline.
-- Nullability is strict from day one with JSpecify and NullAway.
+- Nullability is strict with JSpecify and NullAway.
 - Error Prone diagnostics are build-blocking.
 - Formatting is enforced via palantir-java-format.
 - Bazel targets must list source files explicitly; do not use `glob()`.
 - Each source directory owns its own `BUILD.bazel`; targets must not list source files from child, sibling, or parent directories.
 - Prefer deterministic behavior (ordering, timestamps, output stability).
-
-## Testing Standards
-
-- Ruby tests define minimum parity behavior.
-- Add Java tests beyond parity for failure paths and diagnostics.
-- Coverage gates are mandatory (line >= 85%, branch >= 75%).
-- Default test runs must not require a live database.
+- Default test runs must not require an external database, an in-memory database is ok.
