@@ -52,6 +52,18 @@ final class DefaultCommandRunner implements CommandRunner {
     }
 
     @Override
+    public void createWithDataset(
+            final @Nullable String databaseKey,
+            final String driver,
+            final DatabaseConnection target,
+            final boolean noCreate,
+            final String dataset,
+            final Map<String, String> filterProperties) {
+        final var runtime = projectRuntimeLoader.load(databaseKey);
+        runtimeEngine(driver).createWithDataset(runtime.database(), target, noCreate, dataset, filterProperties);
+    }
+
+    @Override
     public void drop(
             final @Nullable String databaseKey,
             final String driver,

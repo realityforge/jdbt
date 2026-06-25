@@ -244,6 +244,17 @@ bazel run //src/main/java/org/realityforge/jdbt:jdbt_bin -- create \
 
 Optional: `--no-create` (skip drop/create, run create flow against existing database).
 
+`create-with-dataset`
+
+```bash
+bazel run //src/main/java/org/realityforge/jdbt:jdbt_bin -- create-with-dataset seed \
+  --driver sqlserver \
+  --target-host localhost --target-port 1433 \
+  --target-database MyDb --target-username sa --password-env DB_PASS
+```
+
+Optional: `--no-create` (skip drop/create, run create-with-dataset flow against existing database).
+
 `drop`
 
 ```bash

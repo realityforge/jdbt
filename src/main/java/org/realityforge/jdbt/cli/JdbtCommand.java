@@ -19,6 +19,7 @@ import picocli.CommandLine;
         subcommands = {
             JdbtCommand.StatusCommand.class,
             JdbtCommand.CreateCommand.class,
+            JdbtCommand.CreateWithDatasetCommand.class,
             JdbtCommand.DropCommand.class,
             JdbtCommand.MigrateCommand.class,
             JdbtCommand.ImportCommand.class,
@@ -243,6 +244,31 @@ public final class JdbtCommand implements Callable<Integer> {
                             driver(),
                             target.toConnection(passwordResolver()),
                             noCreate,
+                            filterProperties());
+            return 0;
+        }
+    }
+
+    @CommandLine.Command(name = "create-with-dataset", description = "Create database structures and load a dataset")
+    @SuppressWarnings("FieldCanBeFinal")
+    static final class CreateWithDatasetCommand extends BaseSqlCommand {
+        @CommandLine.Parameters(index = "0", paramLabel = "DATASET", description = "Dataset key")
+        private String dataset = "";
+
+        @CommandLine.Mixin
+        private TargetConnectionOptions target = new TargetConnectionOptions();
+
+        @CommandLine.Option(names = "--no-create", description = "Skip dropping and creating the target database")
+        private boolean noCreate;
+
+        @Override
+        public Integer call() {
+            runner().createWithDataset(
+                            databaseKey(),
+                            driver(),
+                            target.toConnection(passwordResolver()),
+                            noCreate,
+                            dataset,
                             filterProperties());
             return 0;
         }

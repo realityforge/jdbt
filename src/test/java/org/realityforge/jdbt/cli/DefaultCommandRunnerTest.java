@@ -45,6 +45,7 @@ final class DefaultCommandRunnerTest {
         }
 
         runner.create("default", "noop", target, true, Map.of());
+        runner.createWithDataset("default", "noop", target, true, "seed", Map.of());
         runner.drop("default", "noop", target, Map.of());
         runner.migrate("default", "noop", target, Map.of());
         runner.databaseImport("default", "noop", null, null, target, source, null, Map.of());

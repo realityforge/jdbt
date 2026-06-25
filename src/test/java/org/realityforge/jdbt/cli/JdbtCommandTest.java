@@ -100,6 +100,36 @@ final class JdbtCommandTest {
     }
 
     @Test
+    void createWithDatasetDispatchesDatasetAndNoCreateFlag() {
+        final var runner = new RecordingRunner();
+
+        final var exitCode = JdbtCommand.execute(
+                new String[] {
+                    "create-with-dataset",
+                    "--target-host",
+                    "localhost",
+                    "--target-port",
+                    "1433",
+                    "--target-database",
+                    "db",
+                    "--target-username",
+                    "sa",
+                    "--password",
+                    "secret",
+                    "--no-create",
+                    "sample"
+                },
+                runner,
+                new PasswordResolver(Map.of(), new ByteArrayInputStream(new byte[0])));
+
+        assertThat(exitCode).isZero();
+        assertThat(runner.lastCall).isEqualTo("create-with-dataset");
+        assertThat(runner.targetConnection).isEqualTo(new DatabaseConnection("localhost", 1433, "db", "sa", "secret"));
+        assertThat(runner.noCreate).isTrue();
+        assertThat(runner.dataset).isEqualTo("sample");
+    }
+
+    @Test
     void importDispatchesWithTargetAndSourceConnectionsAndResumeAt() {
         final var runner = new RecordingRunner();
         final var exitCode = JdbtCommand.execute(
@@ -284,6 +314,7 @@ final class JdbtCommandTest {
         private @Nullable String importKey;
         private @Nullable String moduleGroup;
         private @Nullable String resumeAt;
+        private @Nullable String dataset;
         private @Nullable DatabaseConnection targetConnection;
         private @Nullable DatabaseConnection sourceConnection;
         private boolean noCreate;
@@ -311,6 +342,23 @@ final class JdbtCommandTest {
             this.driver = driver;
             this.targetConnection = target;
             this.noCreate = noCreate;
+            this.filterProperties = filterProperties;
+        }
+
+        @Override
+        public void createWithDataset(
+                final @Nullable String databaseKey,
+                final String driver,
+                final DatabaseConnection target,
+                final boolean noCreate,
+                final String dataset,
+                final Map<String, String> filterProperties) {
+            this.lastCall = "create-with-dataset";
+            this.databaseKey = databaseKey;
+            this.driver = driver;
+            this.targetConnection = target;
+            this.noCreate = noCreate;
+            this.dataset = dataset;
             this.filterProperties = filterProperties;
         }
 

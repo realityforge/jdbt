@@ -15,6 +15,14 @@ interface CommandRunner {
             boolean noCreate,
             Map<String, String> filterProperties);
 
+    void createWithDataset(
+            @Nullable String databaseKey,
+            String driver,
+            DatabaseConnection target,
+            boolean noCreate,
+            String dataset,
+            Map<String, String> filterProperties);
+
     void drop(
             @Nullable String databaseKey,
             String driver,
