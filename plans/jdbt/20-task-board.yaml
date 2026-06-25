@@ -1015,7 +1015,7 @@ tasks:
       - command: iterative-plan-review
         result: "complete after 3 rounds; subagent closed; all accepted findings incorporated"
     commit:
-      hash: pending
+      hash: b703561
       message: Plan export-fixtures fixture export behavior
 
   - id: T35
@@ -1063,10 +1063,18 @@ tasks:
       - command: tools/check.sh
         result: "pass; bazel build //..., bazel test //..., coverage line 88.76%, branch 81.86%"
     commit:
-      hash: pending
+      hash: b703561
       message: Implement export-fixtures object export
 
 history:
+  - timestamp: 2026-06-25
+    task: T34
+    commit: b703561
+    note: Export-fixtures plan accepted after three plan-review rounds.
+  - timestamp: 2026-06-25
+    task: T35
+    commit: b703561
+    note: Export-fixtures CLI, runtime, driver support, docs, and tests implemented.
   - timestamp: 2026-02-12
     task: T01
     commit: d6a9846
