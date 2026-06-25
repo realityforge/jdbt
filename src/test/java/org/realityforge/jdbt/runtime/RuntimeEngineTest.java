@@ -82,7 +82,8 @@ final class RuntimeEngineTest {
         createFile(tempDir, "db/MyModule/fixtures/MyModule.foo.yml", "1:\n  ID: 1\n");
 
         final var driver = new RecordingDriver();
-        final var engine = new RuntimeEngine(driver, new FileResolver());
+        final var output = new ArrayList<String>();
+        final var engine = new RuntimeEngine(driver, new FileResolver(), output::add);
         final var database =
                 runtimeDatabase("default", RepositoryConfigTestData.singleModule(), List.of(tempDir.resolve("db")));
 
@@ -106,6 +107,13 @@ final class RuntimeEngineTest {
                         "execute(false):POST",
                         "setupMigrations",
                         "close");
+        assertThat(output)
+                .containsExactly(
+                        "               : db-hooks/pre/pre.sql",
+                        "MyModule       : up.sql",
+                        "Fixture        : MyModule.foo",
+                        "MyModule       : finalize/final.sql",
+                        "               : db-hooks/post/post.sql");
     }
 
     @Test
@@ -182,7 +190,8 @@ final class RuntimeEngineTest {
         createFile(tempDir, "db/import-hooks/post/post.sql", "POST __SOURCE__ __TARGET__");
 
         final var driver = new RecordingDriver();
-        final var engine = new RuntimeEngine(driver, new FileResolver());
+        final var output = new ArrayList<String>();
+        final var engine = new RuntimeEngine(driver, new FileResolver(), output::add);
         final var repository = new RepositoryConfig(
                 List.of("MyModule"),
                 Map.of(),
@@ -220,6 +229,12 @@ final class RuntimeEngineTest {
                         "execute(true):POST IMPORT_DB DBT_TEST",
                         "postDatabaseImport(default)",
                         "close");
+        assertThat(output)
+                .containsExactly(
+                        "               : import-hooks/pre/pre.sql",
+                        "MyModule       : Importing MyModule.foo (By D)",
+                        "MyModule       : Importing MyModule.bar (By D)",
+                        "               : import-hooks/post/post.sql");
     }
 
     @Test
@@ -835,7 +850,8 @@ final class RuntimeEngineTest {
         final var driver = new RecordingDriver();
         driver.migrateDecision.put("001_a", false);
         driver.migrateDecision.put("002_b", true);
-        final var engine = new RuntimeEngine(driver, new FileResolver());
+        final var output = new ArrayList<String>();
+        final var engine = new RuntimeEngine(driver, new FileResolver(), output::add);
         final var database =
                 runtimeDatabase("default", RepositoryConfigTestData.singleModule(), List.of(tempDir.resolve("db")));
 
@@ -850,6 +866,7 @@ final class RuntimeEngineTest {
                         "markMigrationAsRun(default,002_b)",
                         "close");
         assertThat(driver.calls).doesNotContain("markMigrationAsRun(default,001_a)");
+        assertThat(output).containsExactly("Migration: 002_b.sql");
     }
 
     @Test
