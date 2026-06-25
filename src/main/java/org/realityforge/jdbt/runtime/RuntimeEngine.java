@@ -1,14 +1,29 @@
 package org.realityforge.jdbt.runtime;
 
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.sql.Time;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Properties;
 import java.util.regex.Pattern;
 import org.jspecify.annotations.Nullable;
 import org.realityforge.jdbt.config.FilterPropertyConfig;
@@ -17,6 +32,7 @@ import org.realityforge.jdbt.config.ModuleGroupConfig;
 import org.realityforge.jdbt.db.DatabaseConnection;
 import org.realityforge.jdbt.db.DatabaseMetadata;
 import org.realityforge.jdbt.db.DbDriver;
+import org.realityforge.jdbt.db.QueryResult;
 import org.realityforge.jdbt.files.FileResolver;
 import org.snakeyaml.engine.v2.api.Load;
 import org.snakeyaml.engine.v2.api.LoadSettings;
@@ -24,6 +40,10 @@ import org.snakeyaml.engine.v2.api.LoadSettings;
 public final class RuntimeEngine {
     private static final Pattern ARTIFACT_FILE_PATTERN = Pattern.compile("^zip:([^:]+):(.+)$");
     private static final Pattern GO_SPLIT_PATTERN = Pattern.compile("(?im)(?:^|\\s)GO(?:\\s|$)");
+    private static final DateTimeFormatter FIXTURE_DATE_TIME_FORMAT =
+            DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm:ss", Locale.ENGLISH);
+    private static final DateTimeFormatter FIXTURE_DATE_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE;
+    private static final DateTimeFormatter FIXTURE_TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss", Locale.ROOT);
 
     private final DbDriver db;
     private final FileResolver fileResolver;
@@ -158,6 +178,35 @@ public final class RuntimeEngine {
             performPreDatasetHooks(database, datasetName, declaredFilters);
             performLoadDataset(database, datasetName);
             performPostDatasetHooks(database, datasetName, declaredFilters);
+        });
+    }
+
+    public void exportFixtures(
+            final RuntimeDatabase database,
+            final DatabaseConnection target,
+            final Path propertiesFile,
+            final Path outputDirectory,
+            final Map<String, String> filterProperties) {
+        final var declaredFilters = resolveDeclaredFilterValues(database, filterProperties);
+        final var exportSqlByCleanName = loadExportProperties(propertiesFile);
+        final var exportObjects = exportObjects(database);
+        validateExportKeys(exportSqlByCleanName, exportObjects);
+        withDatabaseConnection(target, false, () -> {
+            for (final var exportObject : exportObjects.values()) {
+                final var configuredSql = exportSqlByCleanName.get(exportObject.cleanName());
+                if (null == configuredSql) {
+                    continue;
+                }
+                final var outputFile = outputDirectory
+                        .resolve(exportObject.moduleName())
+                        .resolve(database.fixtureDirName())
+                        .resolve(exportObject.cleanName() + ".yml");
+                if (exportObject.sequence()) {
+                    exportSequence(exportObject.objectName(), configuredSql, outputFile, declaredFilters);
+                } else {
+                    exportTable(exportObject.objectName(), configuredSql, outputFile, declaredFilters);
+                }
+            }
         });
     }
 
@@ -755,6 +804,218 @@ public final class RuntimeEngine {
         }
     }
 
+    private static Map<String, String> loadExportProperties(final Path propertiesFile) {
+        final var properties = new DuplicateDetectingProperties(propertiesFile);
+        try (var reader = new InputStreamReader(Files.newInputStream(propertiesFile), StandardCharsets.UTF_8)) {
+            properties.load(reader);
+        } catch (final IOException ioe) {
+            throw new UncheckedIOException("Failed to read export properties " + propertiesFile, ioe);
+        }
+        return properties.entries();
+    }
+
+    private static Map<String, ExportObject> exportObjects(final RuntimeDatabase database) {
+        final var objects = new LinkedHashMap<String, ExportObject>();
+        for (final var moduleName : database.repository().modules()) {
+            for (final var tableName : database.tableOrdering(moduleName)) {
+                addExportObject(objects, new ExportObject(moduleName, tableName, false, cleanObjectName(tableName)));
+            }
+            for (final var sequenceName : database.sequenceOrdering(moduleName)) {
+                addExportObject(
+                        objects, new ExportObject(moduleName, sequenceName, true, cleanObjectName(sequenceName)));
+            }
+        }
+        return Collections.unmodifiableMap(objects);
+    }
+
+    private static void addExportObject(final Map<String, ExportObject> objects, final ExportObject object) {
+        final var previous = objects.putIfAbsent(object.cleanName(), object);
+        if (null != previous) {
+            throw new RuntimeExecutionException("Duplicate clean fixture export key '"
+                    + object.cleanName()
+                    + "' for "
+                    + previous.objectName()
+                    + " and "
+                    + object.objectName());
+        }
+    }
+
+    private static void validateExportKeys(
+            final Map<String, String> exportSqlByCleanName, final Map<String, ExportObject> exportObjects) {
+        for (final var cleanName : exportSqlByCleanName.keySet()) {
+            if (!exportObjects.containsKey(cleanName)) {
+                throw new RuntimeExecutionException(
+                        "Export properties contain unknown table or sequence key '" + cleanName + "'");
+            }
+        }
+    }
+
+    private void exportTable(
+            final String tableName,
+            final String configuredSql,
+            final Path outputFile,
+            final Map<String, String> declaredFilters) {
+        final var sql = configuredSql.trim().isEmpty()
+                ? defaultTableExportSql(tableName)
+                : applyDeclaredFilterProperties(configuredSql, declaredFilters);
+        final var result = db.query(sql);
+        validateTableQueryResult(tableName, result.columnLabels());
+        writeText(outputFile, tableYaml(result));
+    }
+
+    private void exportSequence(
+            final String sequenceName,
+            final String configuredSql,
+            final Path outputFile,
+            final Map<String, String> declaredFilters) {
+        final var sql = configuredSql.trim().isEmpty()
+                ? db.generateDefaultSequenceExportSql(sequenceName)
+                : applyDeclaredFilterProperties(configuredSql, declaredFilters);
+        final var result = db.query(sql);
+        if (1 != result.columnLabels().size() || 1 != result.rows().size()) {
+            throw new RuntimeExecutionException("Sequence export SQL for "
+                    + sequenceName
+                    + " must return exactly one row with exactly one column.");
+        }
+        final var value = result.rows().get(0).get(0);
+        if (null == value) {
+            throw new RuntimeExecutionException("Sequence export SQL for " + sequenceName + " returned null.");
+        }
+        final var normalizedValue = normalizeFixtureValue(value);
+        if (null == normalizedValue) {
+            throw new RuntimeExecutionException("Sequence export SQL for " + sequenceName + " returned null.");
+        }
+        writeText(outputFile, yamlScalar(normalizedValue) + '\n');
+    }
+
+    private String defaultTableExportSql(final String tableName) {
+        final var primaryKeys = db.primaryKeyColumnNamesForTable(tableName);
+        if (primaryKeys.isEmpty()) {
+            throw new RuntimeExecutionException("Unable to generate default fixture export SQL for " + tableName
+                    + " because it has no primary key.");
+        }
+        return "SELECT * FROM "
+                + tableName
+                + " ORDER BY "
+                + String.join(
+                        ", ",
+                        primaryKeys.stream().map(column -> column + " ASC").toList());
+    }
+
+    private static void validateTableQueryResult(final String tableName, final List<String> columnLabels) {
+        final var seen = new HashSet<String>();
+        for (final var columnLabel : columnLabels) {
+            if (columnLabel.trim().isEmpty()) {
+                throw new RuntimeExecutionException(
+                        "Fixture export SQL for " + tableName + " returned blank column label.");
+            }
+            if (!seen.add(columnLabel)) {
+                throw new RuntimeExecutionException("Fixture export SQL for " + tableName
+                        + " returned duplicate column label '" + columnLabel + "'.");
+            }
+        }
+    }
+
+    private static String tableYaml(final QueryResult result) {
+        if (result.rows().isEmpty()) {
+            return "{}\n";
+        }
+        final var output = new StringBuilder();
+        for (int rowIndex = 0; rowIndex < result.rows().size(); rowIndex++) {
+            final var row = result.rows().get(rowIndex);
+            final var rowOutput = new StringBuilder();
+            for (int columnIndex = 0; columnIndex < result.columnLabels().size(); columnIndex++) {
+                final var value = normalizeFixtureValue(row.get(columnIndex));
+                if (null != value) {
+                    rowOutput
+                            .append("  ")
+                            .append(result.columnLabels().get(columnIndex))
+                            .append(": ")
+                            .append(yamlScalar(value))
+                            .append('\n');
+                }
+            }
+            if (rowOutput.isEmpty()) {
+                output.append('r').append(rowIndex + 1).append(": {}\n");
+            } else {
+                output.append('r').append(rowIndex + 1).append(":\n").append(rowOutput);
+            }
+        }
+        return output.toString();
+    }
+
+    private static @Nullable Object normalizeFixtureValue(final @Nullable Object value) {
+        if (null == value) {
+            return null;
+        }
+        if (value instanceof Timestamp timestamp) {
+            return FIXTURE_DATE_TIME_FORMAT.format(timestamp.toLocalDateTime());
+        }
+        if (value instanceof java.sql.Date date) {
+            return FIXTURE_DATE_FORMAT.format(date.toLocalDate());
+        }
+        if (value instanceof Time time) {
+            return FIXTURE_TIME_FORMAT.format(time.toLocalTime());
+        }
+        if (value instanceof LocalDateTime localDateTime) {
+            return FIXTURE_DATE_TIME_FORMAT.format(localDateTime);
+        }
+        if (value instanceof LocalDate localDate) {
+            return FIXTURE_DATE_FORMAT.format(localDate);
+        }
+        if (value instanceof LocalTime localTime) {
+            return FIXTURE_TIME_FORMAT.format(localTime);
+        }
+        if (value instanceof OffsetDateTime offsetDateTime) {
+            return FIXTURE_DATE_TIME_FORMAT.format(offsetDateTime.toLocalDateTime());
+        }
+        if (value instanceof ZonedDateTime zonedDateTime) {
+            return FIXTURE_DATE_TIME_FORMAT.format(zonedDateTime.toLocalDateTime());
+        }
+        if (value instanceof Instant instant) {
+            return FIXTURE_DATE_TIME_FORMAT.format(LocalDateTime.ofInstant(instant, ZoneOffset.UTC));
+        }
+        if (value instanceof java.util.Date date) {
+            return FIXTURE_DATE_TIME_FORMAT.format(LocalDateTime.ofInstant(date.toInstant(), ZoneOffset.UTC));
+        }
+        return value;
+    }
+
+    private static String yamlScalar(final Object value) {
+        if (value instanceof Number || value instanceof Boolean) {
+            return String.valueOf(value);
+        }
+        return '"' + escapeYamlString(String.valueOf(value)) + '"';
+    }
+
+    private static String escapeYamlString(final String value) {
+        final var output = new StringBuilder();
+        for (int i = 0; i < value.length(); i++) {
+            final var c = value.charAt(i);
+            switch (c) {
+                case '\\' -> output.append("\\\\");
+                case '"' -> output.append("\\\"");
+                case '\n' -> output.append("\\n");
+                case '\r' -> output.append("\\r");
+                case '\t' -> output.append("\\t");
+                default -> output.append(c);
+            }
+        }
+        return output.toString();
+    }
+
+    private static void writeText(final Path outputFile, final String content) {
+        try {
+            final var parent = outputFile.getParent();
+            if (null != parent) {
+                Files.createDirectories(parent);
+            }
+            Files.writeString(outputFile, content, StandardCharsets.UTF_8);
+        } catch (final IOException ioe) {
+            throw new UncheckedIOException("Failed to write fixture export " + outputFile, ioe);
+        }
+    }
+
     private void loadFixturesFromDir(final RuntimeDatabase database, final String moduleName, final String subdir) {
         final var fixtures = collectFixtures(database, moduleName, subdir);
         downFixtures(database, moduleName, fixtures);
@@ -993,6 +1254,32 @@ public final class RuntimeEngine {
         PERFORM,
         RECORD,
         FORCE
+    }
+
+    private record ExportObject(String moduleName, String objectName, boolean sequence, String cleanName) {}
+
+    private static final class DuplicateDetectingProperties extends Properties {
+        private final Path propertiesFile;
+        private final LinkedHashMap<String, String> entries = new LinkedHashMap<>();
+
+        private DuplicateDetectingProperties(final Path propertiesFile) {
+            this.propertiesFile = propertiesFile;
+        }
+
+        @Override
+        public synchronized Object put(final Object key, final Object value) {
+            final var keyText = String.valueOf(key);
+            if (entries.containsKey(keyText)) {
+                throw new RuntimeExecutionException(
+                        "Duplicate export properties key '" + keyText + "' in " + propertiesFile);
+            }
+            entries.put(keyText, String.valueOf(value));
+            return super.put(key, value);
+        }
+
+        private Map<String, String> entries() {
+            return Collections.unmodifiableMap(new LinkedHashMap<>(entries));
+        }
     }
 
     private static final class ResumeState {

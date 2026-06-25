@@ -7,7 +7,13 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.sql.Date;
+import java.sql.Time;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,6 +25,7 @@ import org.realityforge.jdbt.config.ModuleGroupConfig;
 import org.realityforge.jdbt.db.DatabaseConnection;
 import org.realityforge.jdbt.db.DatabaseMetadata;
 import org.realityforge.jdbt.db.DbDriver;
+import org.realityforge.jdbt.db.QueryResult;
 import org.realityforge.jdbt.files.ArtifactContent;
 import org.realityforge.jdbt.files.FileResolver;
 import org.realityforge.jdbt.repository.RepositoryConfig;
@@ -347,6 +354,174 @@ final class RuntimeEngineTest {
                         "insert([MyModule].[foo],{ID=2})",
                         "execute(false):DSPOST",
                         "execute(false):FINAL");
+    }
+
+    @Test
+    void exportFixturesUsesRepositoryOrderAndWritesTableAndSequenceYaml(@TempDir final Path tempDir)
+            throws IOException {
+        createFile(tempDir, "exports.properties", """
+            MyOtherModule.baz=SELECT '__TENANT__' AS NAME
+            MyModule.foo=
+            MyModule.fooSeq=
+            """);
+        final var driver = new RecordingDriver();
+        driver.queryResults.put(
+                "SELECT * FROM [MyModule].[foo] ORDER BY [ID] ASC",
+                new QueryResult(
+                        List.of("ID", "NAME", "DELETED", "CREATED", "DAY", "TIME", "INSTANT", "OFFSET"),
+                        List.of(Arrays.asList(
+                                1,
+                                "A",
+                                null,
+                                Timestamp.valueOf("2026-06-25 08:09:10"),
+                                Date.valueOf("2026-06-25"),
+                                Time.valueOf("08:09:10"),
+                                Instant.parse("2026-06-25T08:09:10Z"),
+                                OffsetDateTime.parse("2026-06-25T18:09:10+10:00")))));
+        driver.queryResults.put(
+                "SELECT current_value FROM [MyModule].[fooSeq]",
+                new QueryResult(List.of("current_value"), List.of(List.of(42L))));
+        driver.queryResults.put("SELECT 'tenant-7' AS NAME", new QueryResult(List.of("NAME"), List.of(List.of("B"))));
+        final var engine = new RuntimeEngine(driver, new FileResolver());
+        final var repository = new RepositoryConfig(
+                List.of("MyModule", "MyOtherModule"),
+                Map.of(),
+                Map.of(
+                        "MyModule", List.of("[MyModule].[foo]"),
+                        "MyOtherModule", List.of("[MyOtherModule].[baz]")),
+                Map.of("MyModule", List.of("[MyModule].[fooSeq]"), "MyOtherModule", List.of()));
+        final var database = runtimeDatabase(
+                "default",
+                repository,
+                List.of(tempDir.resolve("db")),
+                Map.of(),
+                List.of("defaultDataset"),
+                Map.of("default", new ImportConfig("default", repository.modules(), "import", List.of(), List.of())),
+                Map.of("tenant", new FilterPropertyConfig("__TENANT__", "tenant-0", List.of("tenant-7"))));
+
+        engine.exportFixtures(
+                database,
+                connection,
+                tempDir.resolve("exports.properties"),
+                tempDir.resolve("out"),
+                Map.of("tenant", "tenant-7"));
+
+        assertThat(driver.calls)
+                .containsSubsequence(
+                        "open(false)",
+                        "primaryKeyColumnNamesForTable([MyModule].[foo])",
+                        "query:SELECT * FROM [MyModule].[foo] ORDER BY [ID] ASC",
+                        "generateDefaultSequenceExportSql([MyModule].[fooSeq])",
+                        "query:SELECT current_value FROM [MyModule].[fooSeq]",
+                        "query:SELECT 'tenant-7' AS NAME",
+                        "close");
+        assertThat(Files.readString(tempDir.resolve("out/MyModule/fixtures/MyModule.foo.yml"), StandardCharsets.UTF_8))
+                .isEqualTo("""
+                    r1:
+                      ID: 1
+                      NAME: "A"
+                      CREATED: "25 Jun 2026 08:09:10"
+                      DAY: "2026-06-25"
+                      TIME: "08:09:10"
+                      INSTANT: "25 Jun 2026 08:09:10"
+                      OFFSET: "25 Jun 2026 18:09:10"
+                    """);
+        assertThat(Files.readString(
+                        tempDir.resolve("out/MyModule/fixtures/MyModule.fooSeq.yml"), StandardCharsets.UTF_8))
+                .isEqualTo("42\n");
+        assertThat(Files.readString(
+                        tempDir.resolve("out/MyOtherModule/fixtures/MyOtherModule.baz.yml"), StandardCharsets.UTF_8))
+                .isEqualTo("""
+                    r1:
+                      NAME: "B"
+                    """);
+    }
+
+    @Test
+    void exportFixturesWritesEmptyMapForEmptyTableResult(@TempDir final Path tempDir) throws IOException {
+        createFile(tempDir, "exports.properties", "MyModule.foo=SELECT ID FROM [MyModule].[foo] WHERE 1 = 0\n");
+        final var driver = new RecordingDriver();
+        driver.queryResults.put(
+                "SELECT ID FROM [MyModule].[foo] WHERE 1 = 0", new QueryResult(List.of("ID"), List.of()));
+        final var engine = new RuntimeEngine(driver, new FileResolver());
+        final var database =
+                runtimeDatabase("default", RepositoryConfigTestData.singleModule(), List.of(tempDir.resolve("db")));
+
+        engine.exportFixtures(
+                database, connection, tempDir.resolve("exports.properties"), tempDir.resolve("out"), Map.of());
+
+        assertThat(Files.readString(tempDir.resolve("out/MyModule/fixtures/MyModule.foo.yml"), StandardCharsets.UTF_8))
+                .isEqualTo("{}\n");
+    }
+
+    @Test
+    void exportFixturesRejectsInvalidInputsBeforePartialOutput(@TempDir final Path tempDir) throws IOException {
+        final var driver = new RecordingDriver();
+        final var engine = new RuntimeEngine(driver, new FileResolver());
+        final var database =
+                runtimeDatabase("default", RepositoryConfigTestData.singleModule(), List.of(tempDir.resolve("db")));
+
+        createFile(tempDir, "unknown.properties", "MyModule.missing=\n");
+        assertThatThrownBy(() -> engine.exportFixtures(
+                        database, connection, tempDir.resolve("unknown.properties"), tempDir, Map.of()))
+                .isInstanceOf(RuntimeExecutionException.class)
+                .hasMessageContaining("unknown table or sequence key");
+
+        createFile(tempDir, "duplicate.properties", "MyModule.foo=SELECT 1\nMyModule.foo=SELECT 2\n");
+        assertThatThrownBy(() -> engine.exportFixtures(
+                        database, connection, tempDir.resolve("duplicate.properties"), tempDir, Map.of()))
+                .isInstanceOf(RuntimeExecutionException.class)
+                .hasMessageContaining("Duplicate export properties key");
+
+        createFile(tempDir, "nopk.properties", "MyModule.foo=\n");
+        driver.primaryKeyColumnNames = List.of();
+        assertThatThrownBy(() -> engine.exportFixtures(
+                        database, connection, tempDir.resolve("nopk.properties"), tempDir, Map.of()))
+                .isInstanceOf(RuntimeExecutionException.class)
+                .hasMessageContaining("no primary key");
+
+        final var duplicateCleanRepository = new RepositoryConfig(
+                List.of("MyModule"),
+                Map.of(),
+                Map.of("MyModule", List.of("[MyModule].[foo]")),
+                Map.of("MyModule", List.of("\"MyModule\".\"foo\"")));
+        final var duplicateCleanDatabase =
+                runtimeDatabase("default", duplicateCleanRepository, List.of(tempDir.resolve("db")));
+        assertThatThrownBy(() -> engine.exportFixtures(
+                        duplicateCleanDatabase, connection, tempDir.resolve("nopk.properties"), tempDir, Map.of()))
+                .isInstanceOf(RuntimeExecutionException.class)
+                .hasMessageContaining("Duplicate clean fixture export key");
+    }
+
+    @Test
+    void exportFixturesRejectsInvalidQueryShapes(@TempDir final Path tempDir) throws IOException {
+        createFile(tempDir, "exports.properties", "MyModule.foo=SELECT 1 AS ID, 2 AS ID\n");
+        final var driver = new RecordingDriver();
+        driver.queryResults.put(
+                "SELECT 1 AS ID, 2 AS ID", new QueryResult(List.of("ID", "ID"), List.of(List.of(1, 2))));
+        final var engine = new RuntimeEngine(driver, new FileResolver());
+        final var database =
+                runtimeDatabase("default", RepositoryConfigTestData.singleModule(), List.of(tempDir.resolve("db")));
+
+        assertThatThrownBy(() -> engine.exportFixtures(
+                        database, connection, tempDir.resolve("exports.properties"), tempDir, Map.of()))
+                .isInstanceOf(RuntimeExecutionException.class)
+                .hasMessageContaining("duplicate column label");
+
+        final var repository = new RepositoryConfig(
+                List.of("MyModule"),
+                Map.of(),
+                Map.of("MyModule", List.of()),
+                Map.of("MyModule", List.of("[MyModule].[fooSeq]")));
+        final var sequenceDatabase = runtimeDatabase("default", repository, List.of(tempDir.resolve("db")));
+        createFile(tempDir, "sequence.properties", "MyModule.fooSeq=SELECT value FROM seq\n");
+        driver.queryResults.put(
+                "SELECT value FROM seq", new QueryResult(List.of("value"), List.of(List.of(1), List.of(2))));
+
+        assertThatThrownBy(() -> engine.exportFixtures(
+                        sequenceDatabase, connection, tempDir.resolve("sequence.properties"), tempDir, Map.of()))
+                .isInstanceOf(RuntimeExecutionException.class)
+                .hasMessageContaining("exactly one row with exactly one column");
     }
 
     @Test
@@ -758,7 +933,9 @@ final class RuntimeEngineTest {
     private static final class RecordingDriver implements DbDriver {
         private final List<String> calls = new ArrayList<>();
         private final Map<String, Boolean> migrateDecision = new LinkedHashMap<>();
+        private final Map<String, QueryResult> queryResults = new LinkedHashMap<>();
         private final boolean supportsImportAssertFilters;
+        private List<String> primaryKeyColumnNames = List.of("[ID]");
 
         private RecordingDriver() {
             this(false);
@@ -861,6 +1038,18 @@ final class RuntimeEngineTest {
         }
 
         @Override
+        public List<String> primaryKeyColumnNamesForTable(final String tableName) {
+            calls.add("primaryKeyColumnNamesForTable(" + tableName + ")");
+            return primaryKeyColumnNames;
+        }
+
+        @Override
+        public QueryResult query(final String sql) {
+            calls.add("query:" + sql.trim());
+            return queryResults.getOrDefault(sql.trim(), new QueryResult(List.of("ID"), List.of(List.of(1))));
+        }
+
+        @Override
         public void setupMigrations() {
             calls.add("setupMigrations");
         }
@@ -913,6 +1102,12 @@ final class RuntimeEngineTest {
                     + "]; ALTER SEQUENCE "
                     + sequenceName
                     + " RESTART WITH ' + @Next );";
+        }
+
+        @Override
+        public String generateDefaultSequenceExportSql(final String sequenceName) {
+            calls.add("generateDefaultSequenceExportSql(" + sequenceName + ")");
+            return "SELECT current_value FROM " + sequenceName;
         }
     }
 

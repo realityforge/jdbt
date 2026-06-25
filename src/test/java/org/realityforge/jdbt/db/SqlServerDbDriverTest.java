@@ -12,6 +12,7 @@ import static org.mockito.Mockito.when;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.Statement;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -140,6 +141,41 @@ final class SqlServerDbDriverTest {
         verify(insert).setObject(2, "A");
         verify(insert).executeUpdate();
         assertThat(columnNames).containsExactly("[ID]", "[NAME]");
+    }
+
+    @Test
+    void primaryKeysAndQueryUseJdbcMetadata() throws Exception {
+        final var target = mock(Connection.class);
+        final var primaryKeys = mock(PreparedStatement.class);
+        final var primaryKeyResult = mock(ResultSet.class);
+        when(target.prepareStatement(contains("INFORMATION_SCHEMA.TABLE_CONSTRAINTS")))
+                .thenReturn(primaryKeys);
+        when(primaryKeys.executeQuery()).thenReturn(primaryKeyResult);
+        when(primaryKeyResult.next()).thenReturn(true, true, false);
+        when(primaryKeyResult.getString(1)).thenReturn("A", "B");
+
+        final var statement = mock(Statement.class);
+        final var queryResult = mock(ResultSet.class);
+        final var metadata = mock(ResultSetMetaData.class);
+        when(target.createStatement()).thenReturn(statement);
+        when(statement.executeQuery("SELECT A, B FROM [Core].[tbl]")).thenReturn(queryResult);
+        when(queryResult.getMetaData()).thenReturn(metadata);
+        when(metadata.getColumnCount()).thenReturn(2);
+        when(metadata.getColumnLabel(1)).thenReturn("A");
+        when(metadata.getColumnLabel(2)).thenReturn("B");
+        when(queryResult.next()).thenReturn(true, false);
+        when(queryResult.getObject(1)).thenReturn(1);
+        when(queryResult.getObject(2)).thenReturn("two");
+
+        final var driver = new SqlServerDbDriver((connection, controlDatabase) -> target);
+        driver.open(config, false);
+
+        assertThat(driver.primaryKeyColumnNamesForTable("[Core].[tbl]")).containsExactly("[A]", "[B]");
+        assertThat(driver.query("SELECT A, B FROM [Core].[tbl]"))
+                .isEqualTo(new QueryResult(List.of("A", "B"), List.of(List.of(1, "two"))));
+        assertThat(driver.generateDefaultSequenceExportSql("[Core].[seq]"))
+                .isEqualTo("SELECT CAST(current_value AS BIGINT) FROM sys.sequences WHERE object_id ="
+                        + " OBJECT_ID('[Core].[seq]')");
     }
 
     @Test

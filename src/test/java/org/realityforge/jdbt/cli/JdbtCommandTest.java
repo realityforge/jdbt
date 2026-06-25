@@ -203,6 +203,60 @@ final class JdbtCommandTest {
     }
 
     @Test
+    void exportFixturesDispatchesPropertiesOutputAndFilters() {
+        final var runner = new RecordingRunner();
+
+        final var exitCode = JdbtCommand.execute(
+                new String[] {
+                    "export-fixtures",
+                    "--database",
+                    "default",
+                    "--driver",
+                    "postgres",
+                    "--target-host",
+                    "localhost",
+                    "--target-port",
+                    "5432",
+                    "--target-database",
+                    "db",
+                    "--target-username",
+                    "postgres",
+                    "--password",
+                    "secret",
+                    "--output-dir",
+                    "tmp/fixtures",
+                    "--property",
+                    "tenant=42",
+                    "fixtures.properties"
+                },
+                runner,
+                new PasswordResolver(Map.of(), new ByteArrayInputStream(new byte[0])));
+
+        assertThat(exitCode).isZero();
+        assertThat(runner.lastCall).isEqualTo("export-fixtures");
+        assertThat(runner.databaseKey).isEqualTo("default");
+        assertThat(runner.driver).isEqualTo("postgres");
+        assertThat(runner.targetConnection)
+                .isEqualTo(new DatabaseConnection("localhost", 5432, "db", "postgres", "secret"));
+        assertThat(runner.propertiesFile).isEqualTo(Path.of("fixtures.properties"));
+        assertThat(runner.outputDirectory).isEqualTo(Path.of("tmp/fixtures"));
+        assertThat(runner.filterProperties).containsExactly(entry("tenant", "42"));
+    }
+
+    @Test
+    void dumpFixturesCommandIsNotExposed() {
+        final var runner = new RecordingRunner();
+
+        final var exitCode = JdbtCommand.execute(
+                new String[] {"dump-fixtures"},
+                runner,
+                new PasswordResolver(Map.of(), new ByteArrayInputStream(new byte[0])));
+
+        assertThat(exitCode).isEqualTo(JdbtCommand.USAGE_EXIT_CODE);
+        assertThat(runner.lastCall).isEmpty();
+    }
+
+    @Test
     void createRequiresPasswordOption() {
         final var runner = new RecordingRunner();
         final var exitCode = JdbtCommand.execute(
@@ -234,6 +288,8 @@ final class JdbtCommandTest {
         private @Nullable DatabaseConnection sourceConnection;
         private boolean noCreate;
         private @Nullable Path outputFile;
+        private @Nullable Path propertiesFile;
+        private @Nullable Path outputDirectory;
         private Map<String, String> filterProperties = Map.of();
 
         @Override
@@ -378,12 +434,20 @@ final class JdbtCommandTest {
         }
 
         @Override
-        public void dumpFixtures(
-                final @Nullable String databaseKey, final String driver, final DatabaseConnection target) {
-            this.lastCall = "dump-fixtures";
+        public void exportFixtures(
+                final @Nullable String databaseKey,
+                final String driver,
+                final DatabaseConnection target,
+                final Path propertiesFile,
+                final @Nullable Path outputDirectory,
+                final Map<String, String> filterProperties) {
+            this.lastCall = "export-fixtures";
             this.databaseKey = databaseKey;
             this.driver = driver;
             this.targetConnection = target;
+            this.propertiesFile = propertiesFile;
+            this.outputDirectory = outputDirectory;
+            this.filterProperties = filterProperties;
         }
     }
 }

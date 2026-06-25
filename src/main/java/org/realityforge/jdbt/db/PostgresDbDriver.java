@@ -148,6 +148,54 @@ final class PostgresDbDriver implements DbDriver {
     }
 
     @Override
+    public List<String> primaryKeyColumnNamesForTable(final String tableName) {
+        final var resolved = parseTableName(tableName);
+        final var sql = "SELECT kcu.column_name FROM information_schema.table_constraints tc "
+                + "JOIN information_schema.key_column_usage kcu ON kcu.constraint_catalog = tc.constraint_catalog "
+                + "AND kcu.constraint_schema = tc.constraint_schema AND kcu.constraint_name = tc.constraint_name "
+                + "WHERE tc.constraint_type = 'PRIMARY KEY' AND tc.table_schema = ? AND tc.table_name = ? "
+                + "ORDER BY kcu.column_name";
+        final var columns = new ArrayList<String>();
+        try (var statement = targetConnection().prepareStatement(sql)) {
+            statement.setString(1, resolved.schema());
+            statement.setString(2, resolved.table());
+            try (var resultSet = statement.executeQuery()) {
+                while (resultSet.next()) {
+                    columns.add(quoteIdentifier(resultSet.getString(1)));
+                }
+            }
+        } catch (final SQLException sqle) {
+            throw new DatabaseException("Failed to query primary key metadata for " + tableName, sqle);
+        }
+        return List.copyOf(columns);
+    }
+
+    @Override
+    public QueryResult query(final String sql) {
+        try (var statement = targetConnection().createStatement()) {
+            try (var resultSet = statement.executeQuery(sql)) {
+                final var metadata = resultSet.getMetaData();
+                final var columnCount = metadata.getColumnCount();
+                final var columnLabels = new ArrayList<String>(columnCount);
+                for (int i = 1; i <= columnCount; i++) {
+                    columnLabels.add(metadata.getColumnLabel(i));
+                }
+                final var rows = new ArrayList<List<Object>>();
+                while (resultSet.next()) {
+                    final var row = new ArrayList<Object>(columnCount);
+                    for (int i = 1; i <= columnCount; i++) {
+                        row.add(resultSet.getObject(i));
+                    }
+                    rows.add(row);
+                }
+                return new QueryResult(columnLabels, rows);
+            }
+        } catch (final SQLException sqle) {
+            throw new DatabaseException("Failed to query PostgreSQL", sqle);
+        }
+    }
+
+    @Override
     public void setupMigrations() {
         if (!tableExists("public", "tblMigration")) {
             execute(
@@ -218,6 +266,11 @@ final class PostgresDbDriver implements DbDriver {
         }
         return "SELECT setval('" + sequenceName + "', COALESCE((SELECT last_value FROM " + sequenceName
                 + "), 1), true);";
+    }
+
+    @Override
+    public String generateDefaultSequenceExportSql(final String sequenceName) {
+        return "SELECT last_value FROM " + sequenceName;
     }
 
     private boolean schemaExists(final String schemaName) {

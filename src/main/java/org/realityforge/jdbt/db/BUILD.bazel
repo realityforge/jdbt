@@ -12,6 +12,7 @@ java_library(
         "DbDriverFactory.java",
         "NoOpDbDriver.java",
         "PostgresDbDriver.java",
+        "QueryResult.java",
         "SqlServerDbDriver.java",
         "package-info.java",
     ],

@@ -332,9 +332,33 @@ bazel run //src/main/java/org/realityforge/jdbt:jdbt_bin -- package-data \
   --output ./build/data.zip
 ```
 
-`dump-fixtures`
+`export-fixtures`
 
-- Currently declared but not implemented; invoking it throws an explicit runtime error.
+```bash
+bazel run //src/main/java/org/realityforge/jdbt:jdbt_bin -- export-fixtures ./fixtures.properties \
+  --target-host localhost --target-port 1433 \
+  --target-database MyDb --target-username sa --password-env DB_PASS \
+  --output-dir ./exported-fixtures
+```
+
+The properties file selects repository tables and sequences by clean/unquoted object name:
+
+```properties
+Rose.tblOrgUnit=SELECT * FROM Rose.tblOrgUnit WHERE DeletedAt IS NULL ORDER BY Id ASC
+Rose.tblResource=
+Rose.tblAttribute=
+Rose.tblResourceSeq=
+```
+
+Non-empty values are used as custom export SQL. Empty table values use generated SQL ordered by primary-key columns. Empty sequence values use driver-generated SQL for the current sequence value.
+
+If `--output-dir` is omitted, files are written under the directory containing `jdbt.yml`. Output uses the normal fixture layout:
+
+```text
+<output-dir>/<module>/<fixtureDirName>/<clean-object-name>.yml
+```
+
+`export-fixtures` accepts repeatable `--property key=value` and applies declared `filterProperties` to custom export SQL.
 
 ## Artifacts and packaging
 

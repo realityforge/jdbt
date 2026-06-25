@@ -18,6 +18,7 @@ import org.realityforge.jdbt.config.ModuleGroupConfig;
 import org.realityforge.jdbt.db.DatabaseConnection;
 import org.realityforge.jdbt.db.DatabaseMetadata;
 import org.realityforge.jdbt.db.DbDriver;
+import org.realityforge.jdbt.db.QueryResult;
 import org.realityforge.jdbt.files.FileResolver;
 import org.realityforge.jdbt.repository.RepositoryConfig;
 
@@ -257,6 +258,18 @@ final class RuntimeFilesystemIntegrationTest {
         }
 
         @Override
+        public List<String> primaryKeyColumnNamesForTable(final String tableName) {
+            events.add("primary-keys:" + tableName);
+            return List.of("ID");
+        }
+
+        @Override
+        public QueryResult query(final String sql) {
+            events.add("query:" + sql.trim());
+            return new QueryResult(List.of("ID"), List.of(List.of(1)));
+        }
+
+        @Override
         public void setupMigrations() {
             events.add("setup-migrations");
         }
@@ -285,6 +298,11 @@ final class RuntimeFilesystemIntegrationTest {
         public String generateStandardSequenceImportSql(
                 final String sequenceName, final String targetDatabase, final String sourceDatabase) {
             return "standard sequence " + sequenceName;
+        }
+
+        @Override
+        public String generateDefaultSequenceExportSql(final String sequenceName) {
+            return "standard export sequence " + sequenceName;
         }
     }
 }

@@ -9,7 +9,7 @@ meta:
     - completed
     - cancelled
 
-current_focus: T33
+current_focus: complete
 
 tasks:
   - id: T01
@@ -974,8 +974,97 @@ tasks:
       - command: tools/check.sh
         result: "pass; bazel build //..., bazel test //..., coverage line 88.78%, branch 81.61%"
     commit:
+      hash: 521b2e6
+      message: "feat(build): convert jdbt to Bazel"
+
+  - id: T34
+    title: Plan export-fixtures properties-file export behavior
+    status: completed
+    priority: high
+    depends_on:
+      - T33
+    acceptance_criteria:
+      - Export-fixtures requirements include command surface, behavior expectations, and quality gates
+      - Open questions Q-01 through Q-05 are resolved with recorded user decisions
+      - Implementation plan records decision outcomes and concrete phases
+      - User review of the latest plan is requested before implementation
+    files_touched:
+      - plans/jdbt/00-requirements.md
+      - plans/jdbt/10-implementation-plan.md
+      - plans/jdbt/20-task-board.yaml
+      - plans/jdbt/30-compatibility-matrix.md
+    evidence:
+      - command: source inspection of Java CLI/runtime/db and Ruby dump parity code
+        result: "complete; output destination, sequence scope, and unknown-key handling require user decisions"
+      - command: user decision Q-01
+        result: "accepted optional --output-dir defaulting to the jdbt.yml directory"
+      - command: user decision Q-02
+        result: "support both table and sequence fixture export through properties-file keys"
+      - command: user decision Q-04
+        result: "rename command/action to export-fixtures"
+      - command: user decision Q-03
+        result: "fail fast on unknown table or sequence keys"
+      - command: iterative plan review round 1
+        result: "valid findings fixed: query/result contracts, PK order/no-PK handling, clean-key uniqueness, CLI criteria, properties parsing, YAML validation, BUILD tracking, and task-board file tracking"
+      - command: iterative plan review round 2
+        result: "valid findings fixed: --property/filter replacement contract, row field order, and precise temporal fixture formats"
+      - command: iterative plan review round 3
+        result: "valid finding fixed: deterministic timezone policy for zone-bearing temporal values"
+      - command: user plan approval
+        result: "approved via implement request after final plan-review finding"
+      - command: iterative-plan-review
+        result: "complete after 3 rounds; subagent closed; all accepted findings incorporated"
+    commit:
       hash: pending
-      message: Convert jdbt build to Bazel and close parity gaps
+      message: Plan export-fixtures fixture export behavior
+
+  - id: T35
+    title: Implement export-fixtures object export
+    status: completed
+    priority: high
+    depends_on:
+      - T34
+    acceptance_criteria:
+      - CLI exposes `export-fixtures` with a properties filename parameter, target connection options, and optional `--output-dir`
+      - CLI accepts repeatable `--property` with existing declared filter validation
+      - CLI defaults `--output-dir` to the directory containing `jdbt.yml`
+      - CLI no longer exposes or dispatches the old `dump-fixtures` placeholder
+      - Duplicate properties keys, unknown properties keys, and duplicate clean repository object names fail fast
+      - Empty table property values use generated default SQL ordered by primary key columns ascending
+      - Empty sequence property values use generated default sequence value SQL
+      - Non-empty property values are used as explicit export SQL
+      - Declared filter replacements apply to custom export SQL
+      - Custom table SQL requires unique nonblank result column labels
+      - Custom sequence SQL requires exactly one row and one column
+      - Table and sequence fixtures are both supported
+      - Empty table exports emit an empty YAML mapping
+      - Exported YAML fixtures are deterministic, byte-stable, preserve result column order, normalize temporal values in documented formats, omit null fields, avoid `!omap`, and are compatible with existing fixture loading
+      - README and user guide document implemented behavior
+      - Required full gate passes
+    files_touched:
+      - src/main/java/org/realityforge/jdbt/cli/*
+      - src/main/java/org/realityforge/jdbt/cli/BUILD.bazel
+      - src/main/java/org/realityforge/jdbt/runtime/*
+      - src/main/java/org/realityforge/jdbt/runtime/BUILD.bazel
+      - src/main/java/org/realityforge/jdbt/db/*
+      - src/main/java/org/realityforge/jdbt/db/BUILD.bazel
+      - src/test/java/org/realityforge/jdbt/cli/*
+      - src/test/java/org/realityforge/jdbt/cli/BUILD.bazel
+      - src/test/java/org/realityforge/jdbt/runtime/*
+      - src/test/java/org/realityforge/jdbt/runtime/BUILD.bazel
+      - src/test/java/org/realityforge/jdbt/db/*
+      - src/test/java/org/realityforge/jdbt/db/BUILD.bazel
+      - README.md
+      - docs/user-guide.md
+      - plans/jdbt/*
+    evidence:
+      - command: bazel test //src/test/java/org/realityforge/jdbt/cli:cli_tests //src/test/java/org/realityforge/jdbt/runtime:runtime_tests //src/test/java/org/realityforge/jdbt/db:db_tests
+        result: "pass; focused CLI/runtime/db tests"
+      - command: tools/check.sh
+        result: "pass; bazel build //..., bazel test //..., coverage line 88.76%, branch 81.86%"
+    commit:
+      hash: pending
+      message: Implement export-fixtures object export
 
 history:
   - timestamp: 2026-02-12

@@ -62,6 +62,16 @@ final class NoOpDbDriver implements DbDriver {
     }
 
     @Override
+    public List<String> primaryKeyColumnNamesForTable(final String tableName) {
+        return List.of();
+    }
+
+    @Override
+    public QueryResult query(final String sql) {
+        return new QueryResult(List.of(), List.of());
+    }
+
+    @Override
     public void setupMigrations() {}
 
     @Override
@@ -110,5 +120,10 @@ final class NoOpDbDriver implements DbDriver {
                 + "]; ALTER SEQUENCE "
                 + sequenceName
                 + " RESTART WITH ' + @Next );";
+    }
+
+    @Override
+    public String generateDefaultSequenceExportSql(final String sequenceName) {
+        return "SELECT 1";
     }
 }

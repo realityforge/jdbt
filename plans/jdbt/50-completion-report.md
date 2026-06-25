@@ -99,7 +99,6 @@ Round 3 found no major Java parity or Bazel-rule blocker. The review specificall
 
 ## Remaining Known Gaps
 
-- `dump-fixtures` is still declared but intentionally not implemented; invoking it fails with an explicit runtime error.
 - No default test uses a live external SQL Server or PostgreSQL instance. Driver SQL is validated with focused unit tests, fake drivers, and H2 integration.
 - SQL Server backup/restore command surfaces remain out of scope.
 

@@ -222,6 +222,55 @@ final class SqlServerDbDriver implements DbDriver {
     }
 
     @Override
+    public List<String> primaryKeyColumnNamesForTable(final String tableName) {
+        final var resolved = parseTableName(tableName);
+        final var sql = "SELECT U.COLUMN_NAME "
+                + "FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS C "
+                + "JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE U ON U.CONSTRAINT_CATALOG = C.CONSTRAINT_CATALOG "
+                + "AND U.CONSTRAINT_SCHEMA = C.CONSTRAINT_SCHEMA AND U.CONSTRAINT_NAME = C.CONSTRAINT_NAME "
+                + "WHERE C.CONSTRAINT_TYPE = 'PRIMARY KEY' AND C.TABLE_SCHEMA = ? AND C.TABLE_NAME = ? "
+                + "ORDER BY U.COLUMN_NAME";
+        final var columns = new ArrayList<String>();
+        try (var statement = targetConnection().prepareStatement(sql)) {
+            statement.setString(1, resolved.schema());
+            statement.setString(2, resolved.table());
+            try (var resultSet = statement.executeQuery()) {
+                while (resultSet.next()) {
+                    columns.add(quote(resultSet.getString(1)));
+                }
+            }
+        } catch (final SQLException sqle) {
+            throw new DatabaseException("Failed to query primary key metadata for " + tableName, sqle);
+        }
+        return List.copyOf(columns);
+    }
+
+    @Override
+    public QueryResult query(final String sql) {
+        try (var statement = targetConnection().createStatement()) {
+            try (var resultSet = statement.executeQuery(sql)) {
+                final var metadata = resultSet.getMetaData();
+                final var columnCount = metadata.getColumnCount();
+                final var columnLabels = new ArrayList<String>(columnCount);
+                for (int i = 1; i <= columnCount; i++) {
+                    columnLabels.add(metadata.getColumnLabel(i));
+                }
+                final var rows = new ArrayList<List<Object>>();
+                while (resultSet.next()) {
+                    final var row = new ArrayList<Object>(columnCount);
+                    for (int i = 1; i <= columnCount; i++) {
+                        row.add(resultSet.getObject(i));
+                    }
+                    rows.add(row);
+                }
+                return new QueryResult(columnLabels, rows);
+            }
+        } catch (final SQLException sqle) {
+            throw new DatabaseException("Failed to query SQL Server", sqle);
+        }
+    }
+
+    @Override
     public void setupMigrations() {
         if (!tableExists("[dbo].[tblMigration]")) {
             execute(
@@ -302,6 +351,13 @@ final class SqlServerDbDriver implements DbDriver {
                 + " RESTART WITH ' + @Next );";
     }
 
+    @Override
+    public String generateDefaultSequenceExportSql(final String sequenceName) {
+        return "SELECT CAST(current_value AS BIGINT) FROM sys.sequences WHERE object_id = OBJECT_ID('"
+                + sqlString(sequenceName)
+                + "')";
+    }
+
     private static boolean databaseExists(final Connection connection, final String databaseName) {
         final var sql = "SELECT COUNT(*) FROM sys.databases WHERE name = ?";
         try (var statement = connection.prepareStatement(sql)) {
@@ -368,6 +424,15 @@ final class SqlServerDbDriver implements DbDriver {
         } catch (final SQLException sqle) {
             throw new DatabaseException("Failed to query schema objects for " + schemaName, sqle);
         }
+    }
+
+    private static SchemaAndTable parseTableName(final String tableName) {
+        String value = tableName.trim().replace("[", "").replace("]", "").replace("\"", "");
+        final var separator = value.lastIndexOf('.');
+        if (-1 == separator) {
+            return new SchemaAndTable("dbo", value);
+        }
+        return new SchemaAndTable(value.substring(0, separator), value.substring(separator + 1));
     }
 
     private Connection targetConnection() {
@@ -472,4 +537,6 @@ final class SqlServerDbDriver implements DbDriver {
             LOGGER.log(Level.FINEST, "Ignoring close failure", sqle);
         }
     }
+
+    private record SchemaAndTable(String schema, String table) {}
 }

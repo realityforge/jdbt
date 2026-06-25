@@ -20,6 +20,7 @@ import org.realityforge.jdbt.db.DatabaseConnection;
 import org.realityforge.jdbt.db.DatabaseMetadata;
 import org.realityforge.jdbt.db.DbDriver;
 import org.realityforge.jdbt.db.DbDriverFactory;
+import org.realityforge.jdbt.db.QueryResult;
 import org.realityforge.jdbt.files.FileResolver;
 import org.realityforge.jdbt.runtime.RuntimeExecutionException;
 
@@ -120,14 +121,29 @@ final class DefaultCommandRunnerTest {
     }
 
     @Test
-    void dumpFixturesIsNotYetImplemented(@TempDir final Path tempDir) throws IOException {
+    void exportFixturesExecutesThroughRuntimeWithDefaultOutputDirectory(@TempDir final Path tempDir)
+            throws IOException {
         writeFile(tempDir, "jdbt.yml", projectConfig(false));
         writeFile(tempDir, "repository.yml", repositoryConfig());
-        final var runner = createRunner(tempDir);
+        writeFile(tempDir, "fixtures.properties", "MyModule.foo=SELECT __TENANT__ AS ID, 'A' AS NAME\n");
+        final var driverFactory = new RecordingDriverFactory();
+        final var runner =
+                new DefaultCommandRunner(new ProjectRuntimeLoader(tempDir), driverFactory, new FileResolver());
 
-        assertThatThrownBy(() -> runner.dumpFixtures("default", "sqlserver", target))
-                .isInstanceOf(RuntimeExecutionException.class)
-                .hasMessageContaining("not yet implemented");
+        runner.exportFixtures(
+                "default", "recording", target, tempDir.resolve("fixtures.properties"), null, Map.of("tenant", "7"));
+
+        assertThat(driverFactory.driver.transcript()).isEqualTo("""
+            open target
+            query:SELECT 7 AS ID, 'A' AS NAME
+            close
+            """);
+        assertThat(Files.readString(tempDir.resolve("MyModule/fixtures/MyModule.foo.yml"), StandardCharsets.UTF_8))
+                .isEqualTo("""
+                    r1:
+                      ID: 7
+                      NAME: "A"
+                    """);
     }
 
     @Test
@@ -152,6 +168,10 @@ final class DefaultCommandRunnerTest {
             moduleGroups:
               all:
                 modules: [MyModule]
+            filterProperties:
+              tenant:
+                pattern: __TENANT__
+                default: "0"
             """.formatted(withMigrations);
     }
 
@@ -278,6 +298,17 @@ final class DefaultCommandRunnerTest {
         }
 
         @Override
+        public List<String> primaryKeyColumnNamesForTable(final String tableName) {
+            return List.of("[ID]");
+        }
+
+        @Override
+        public QueryResult query(final String sql) {
+            events.add("query:" + sql.trim());
+            return new QueryResult(List.of("ID", "NAME"), List.of(List.of(7, "A")));
+        }
+
+        @Override
         public void setupMigrations() {}
 
         @Override
@@ -301,6 +332,11 @@ final class DefaultCommandRunnerTest {
         public String generateStandardSequenceImportSql(
                 final String sequenceName, final String targetDatabase, final String sourceDatabase) {
             return "";
+        }
+
+        @Override
+        public String generateDefaultSequenceExportSql(final String sequenceName) {
+            return "SELECT 1";
         }
     }
 }

@@ -21,7 +21,7 @@ This matrix tracks parity against Ruby `dbt` implementation and tests.
 | Create by import | `runtime.rb#create_by_import` | `create-by-import` | done | Runtime flow and CLI wiring implemented with resume-aware create-skip semantics. |
 | Load dataset | `runtime.rb#load_dataset` | `load-dataset` | done | Runtime flow and CLI wiring implemented. |
 | Module group up/down | `runtime.rb#up_module_group`, `#down_module_group` | `up-module-group`, `down-module-group` | done | Runtime flow and CLI wiring implemented with reverse-down semantics. |
-| Dump fixtures | `runtime.rb#dump_database_to_fixtures` | `dump-fixtures` | pending | No live DB required in default tests. |
+| Export fixtures | `runtime.rb#dump_database_to_fixtures` | `export-fixtures` | in_progress | Planning properties-file table/sequence selection with custom SQL, default primary-key table SQL, default sequence value SQL, deterministic fixture YAML output, and no-live-DB default tests. |
 | Package data | `runtime.rb#package_database_data` | `package-data` | done | Deterministic ZIP writer, `data/`-root package-data assembly, CLI wiring, and artifact load round-trip implemented. |
 
 ## Data and File Semantics

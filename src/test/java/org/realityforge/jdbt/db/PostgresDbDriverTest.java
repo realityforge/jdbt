@@ -3,6 +3,7 @@ package org.realityforge.jdbt.db;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -10,6 +11,7 @@ import static org.mockito.Mockito.when;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.Statement;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -84,6 +86,40 @@ final class PostgresDbDriverTest {
         verify(insert).setObject(2, "A");
         verify(insert).executeUpdate();
         assertThat(columnsResult).containsExactly("\"id\"", "\"name\"");
+    }
+
+    @Test
+    void primaryKeysAndQueryUseJdbcMetadata() throws Exception {
+        final var target = mock(Connection.class);
+        final var primaryKeys = mock(PreparedStatement.class);
+        final var primaryKeyResult = mock(ResultSet.class);
+        when(target.prepareStatement(contains("information_schema.table_constraints")))
+                .thenReturn(primaryKeys);
+        when(primaryKeys.executeQuery()).thenReturn(primaryKeyResult);
+        when(primaryKeyResult.next()).thenReturn(true, true, false);
+        when(primaryKeyResult.getString(1)).thenReturn("a", "b");
+
+        final var statement = mock(Statement.class);
+        final var queryResult = mock(ResultSet.class);
+        final var metadata = mock(ResultSetMetaData.class);
+        when(target.createStatement()).thenReturn(statement);
+        when(statement.executeQuery("SELECT a, b FROM public.tbl")).thenReturn(queryResult);
+        when(queryResult.getMetaData()).thenReturn(metadata);
+        when(metadata.getColumnCount()).thenReturn(2);
+        when(metadata.getColumnLabel(1)).thenReturn("a");
+        when(metadata.getColumnLabel(2)).thenReturn("b");
+        when(queryResult.next()).thenReturn(true, false);
+        when(queryResult.getObject(1)).thenReturn(1);
+        when(queryResult.getObject(2)).thenReturn("two");
+
+        final var driver = new PostgresDbDriver((connection, controlDatabase) -> target);
+        driver.open(config, false);
+
+        assertThat(driver.primaryKeyColumnNamesForTable("public.tbl")).containsExactly("\"a\"", "\"b\"");
+        assertThat(driver.query("SELECT a, b FROM public.tbl"))
+                .isEqualTo(new QueryResult(List.of("a", "b"), List.of(List.of(1, "two"))));
+        assertThat(driver.generateDefaultSequenceExportSql("public.seq"))
+                .isEqualTo("SELECT last_value FROM public.seq");
     }
 
     @Test

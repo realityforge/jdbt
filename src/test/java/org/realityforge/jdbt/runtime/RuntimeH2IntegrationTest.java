@@ -22,6 +22,7 @@ import org.realityforge.jdbt.db.DatabaseConnection;
 import org.realityforge.jdbt.db.DatabaseException;
 import org.realityforge.jdbt.db.DatabaseMetadata;
 import org.realityforge.jdbt.db.DbDriver;
+import org.realityforge.jdbt.db.QueryResult;
 import org.realityforge.jdbt.files.FileResolver;
 import org.realityforge.jdbt.repository.RepositoryConfig;
 
@@ -180,6 +181,35 @@ final class RuntimeH2IntegrationTest {
         }
 
         @Override
+        public List<String> primaryKeyColumnNamesForTable(final String tableName) {
+            return List.of("ID");
+        }
+
+        @Override
+        public QueryResult query(final String sql) {
+            try (var statement = connection().createStatement()) {
+                try (var resultSet = statement.executeQuery(sql)) {
+                    final var metadata = resultSet.getMetaData();
+                    final var columnLabels = new ArrayList<String>();
+                    for (int i = 1; i <= metadata.getColumnCount(); i++) {
+                        columnLabels.add(metadata.getColumnLabel(i));
+                    }
+                    final var rows = new ArrayList<List<Object>>();
+                    while (resultSet.next()) {
+                        final var row = new ArrayList<Object>();
+                        for (int i = 1; i <= metadata.getColumnCount(); i++) {
+                            row.add(resultSet.getObject(i));
+                        }
+                        rows.add(row);
+                    }
+                    return new QueryResult(columnLabels, rows);
+                }
+            } catch (final SQLException sqle) {
+                throw new DatabaseException("Failed to query H2 database", sqle);
+            }
+        }
+
+        @Override
         public void setupMigrations() {}
 
         @Override
@@ -204,6 +234,11 @@ final class RuntimeH2IntegrationTest {
         public String generateStandardSequenceImportSql(
                 final String sequenceName, final String targetDatabase, final String sourceDatabase) {
             return "";
+        }
+
+        @Override
+        public String generateDefaultSequenceExportSql(final String sequenceName) {
+            return "SELECT 1";
         }
 
         private Connection connection() {

@@ -27,7 +27,7 @@ import picocli.CommandLine;
             JdbtCommand.UpModuleGroupCommand.class,
             JdbtCommand.DownModuleGroupCommand.class,
             JdbtCommand.PackageDataCommand.class,
-            JdbtCommand.DumpFixturesCommand.class
+            JdbtCommand.ExportFixturesCommand.class
         })
 public final class JdbtCommand implements Callable<Integer> {
     static final int USAGE_EXIT_CODE = 2;
@@ -415,15 +415,29 @@ public final class JdbtCommand implements Callable<Integer> {
         }
     }
 
-    @CommandLine.Command(name = "dump-fixtures", description = "Dump fixtures from live database")
+    @CommandLine.Command(name = "export-fixtures", description = "Export fixtures from live database")
     @SuppressWarnings("FieldCanBeFinal")
-    static final class DumpFixturesCommand extends BaseCommand {
+    static final class ExportFixturesCommand extends BaseSqlCommand {
+        @CommandLine.Parameters(index = "0", paramLabel = "PROPERTIES", description = "Export properties file")
+        private Path propertiesFile = Path.of("fixtures.properties");
+
+        @CommandLine.Option(
+                names = "--output-dir",
+                description = "Output base directory (defaults to jdbt.yml directory)")
+        private @Nullable Path outputDirectory;
+
         @CommandLine.Mixin
         private TargetConnectionOptions target = new TargetConnectionOptions();
 
         @Override
         public Integer call() {
-            runner().dumpFixtures(databaseKey(), driver(), target.toConnection(passwordResolver()));
+            runner().exportFixtures(
+                            databaseKey(),
+                            driver(),
+                            target.toConnection(passwordResolver()),
+                            propertiesFile,
+                            outputDirectory,
+                            filterProperties());
             return 0;
         }
     }

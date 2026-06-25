@@ -70,5 +70,11 @@ interface CommandRunner {
 
     void packageData(@Nullable String databaseKey, Path outputFile);
 
-    void dumpFixtures(@Nullable String databaseKey, String driver, DatabaseConnection target);
+    void exportFixtures(
+            @Nullable String databaseKey,
+            String driver,
+            DatabaseConnection target,
+            Path propertiesFile,
+            @Nullable Path outputDirectory,
+            Map<String, String> filterProperties);
 }

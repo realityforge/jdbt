@@ -42,6 +42,10 @@ public interface DbDriver {
 
     List<String> columnNamesForTable(String tableName);
 
+    List<String> primaryKeyColumnNamesForTable(String tableName);
+
+    QueryResult query(String sql);
+
     void setupMigrations();
 
     boolean shouldMigrate(String namespace, String migrationName);
@@ -52,4 +56,6 @@ public interface DbDriver {
             String tableName, String targetDatabase, String sourceDatabase, List<String> columns);
 
     String generateStandardSequenceImportSql(String sequenceName, String targetDatabase, String sourceDatabase);
+
+    String generateDefaultSequenceExportSql(String sequenceName);
 }

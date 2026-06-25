@@ -18,7 +18,7 @@ This project keeps parity-first behavior with the Ruby reference while using Jav
   - `up-module-group`
   - `down-module-group`
   - `package-data`
-  - `dump-fixtures` (declared, not implemented yet)
+  - `export-fixtures`
 
 ## Build
 
@@ -101,6 +101,7 @@ modules:
 - SQL source filtering is driven by declared `filterProperties` and optional `--property key=value` overrides.
 - Filter properties are strict: only declared keys are accepted; missing `default` means the property is required.
 - Import-only reserved tokens are tool-provided and not overridable: `__SOURCE__`, `__TARGET__`, `__TABLE__`.
+- Fixture export is driven by a Java properties file keyed by clean table/sequence names; empty values use generated default SQL.
 - SQL Server import SQL additionally supports assert macros in import files: `ASSERT_ROW_COUNT(...)`, `ASSERT_DATABASE_VERSION(...)`, and `ASSERT_UNCHANGED_ROW_COUNT()`.
 - Import assert macros are expanded only for SQL Server driver import flows (`import` and `create-by-import`).
 - Import resume uses `--resume-at` (not environment variables).

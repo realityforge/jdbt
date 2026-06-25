@@ -157,8 +157,18 @@ final class DefaultCommandRunner implements CommandRunner {
     }
 
     @Override
-    public void dumpFixtures(final @Nullable String databaseKey, final String driver, final DatabaseConnection target) {
-        throw new RuntimeExecutionException("dump-fixtures command is not yet implemented.");
+    public void exportFixtures(
+            final @Nullable String databaseKey,
+            final String driver,
+            final DatabaseConnection target,
+            final Path propertiesFile,
+            final @Nullable Path outputDirectory,
+            final Map<String, String> filterProperties) {
+        final var runtime = projectRuntimeLoader.load(databaseKey);
+        final var resolvedOutputDirectory =
+                null == outputDirectory ? runtime.database().searchDirs().get(0) : outputDirectory;
+        runtimeEngine(driver)
+                .exportFixtures(runtime.database(), target, propertiesFile, resolvedOutputDirectory, filterProperties);
     }
 
     private static String resolveImportKey(
