@@ -29,17 +29,16 @@ import org.jspecify.annotations.Nullable;
 import org.realityforge.jdbt.config.FilterPropertyConfig;
 import org.realityforge.jdbt.config.ImportConfig;
 import org.realityforge.jdbt.config.ModuleGroupConfig;
+import org.realityforge.jdbt.config.YamlMapSupport;
 import org.realityforge.jdbt.db.DatabaseConnection;
 import org.realityforge.jdbt.db.DatabaseMetadata;
 import org.realityforge.jdbt.db.DbDriver;
 import org.realityforge.jdbt.db.QueryResult;
 import org.realityforge.jdbt.files.FileResolver;
-import org.snakeyaml.engine.v2.api.Load;
-import org.snakeyaml.engine.v2.api.LoadSettings;
 
 public final class RuntimeEngine {
     private static final Pattern ARTIFACT_FILE_PATTERN = Pattern.compile("^zip:([^:]+):(.+)$");
-    private static final Pattern GO_SPLIT_PATTERN = Pattern.compile("(?im)(?:^|\\s)GO(?:\\s|$)");
+    private static final Pattern GO_SPLIT_PATTERN = Pattern.compile("(?im)^\\s*GO\\s*$");
     private static final DateTimeFormatter FIXTURE_DATE_TIME_FORMAT =
             DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm:ss", Locale.ENGLISH);
     private static final DateTimeFormatter FIXTURE_DATE_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE;
@@ -498,7 +497,7 @@ public final class RuntimeEngine {
         }
 
         if (null != fixtureFile) {
-            loadFixture(tableName, loadData(database, fixtureFile));
+            loadFixture(tableName, fixtureFile, loadData(database, fixtureFile));
         } else if (null != sqlFile) {
             runImportSql(tableName, loadData(database, sqlFile), target.database(), source.database(), declaredFilters);
         } else {
@@ -542,7 +541,7 @@ public final class RuntimeEngine {
         }
 
         if (null != fixtureFile) {
-            loadSequenceFixture(sequenceName, loadData(database, fixtureFile));
+            loadSequenceFixture(sequenceName, fixtureFile, loadData(database, fixtureFile));
         } else if (null != sqlFile) {
             runImportSql(
                     sequenceName, loadData(database, sqlFile), target.database(), source.database(), declaredFilters);
@@ -722,7 +721,10 @@ public final class RuntimeEngine {
             if (!shouldCheck || db.shouldMigrate(database.key(), migrationName)) {
                 final var shouldRun = action != MigrationAction.RECORD && (null == versionIndex || versionIndex < i);
                 if (shouldRun) {
-                    runSqlBatch(applyDeclaredFilterProperties(loadData(database, filename), declaredFilters), false);
+                    runSqlBatch(
+                            applyDeclaredFilterProperties(loadData(database, filename), declaredFilters),
+                            false,
+                            filename);
                 }
                 db.markMigrationAsRun(database.key(), migrationName);
             }
@@ -805,7 +807,7 @@ public final class RuntimeEngine {
                 database.preDbArtifacts());
         for (final var file : files) {
             final var sql = loadData(database, file);
-            runSqlBatch(applyDeclaredFilterProperties(sql, declaredFilters), false);
+            runSqlBatch(applyDeclaredFilterProperties(sql, declaredFilters), false, file);
         }
     }
 
@@ -1113,20 +1115,20 @@ public final class RuntimeEngine {
         for (final var tableName : database.tableOrdering(moduleName)) {
             final var fixture = fixtures.get(tableName);
             if (null != fixture) {
-                loadFixture(tableName, loadData(database, fixture));
+                loadFixture(tableName, fixture, loadData(database, fixture));
             }
         }
 
         for (final var sequenceName : database.sequenceOrdering(moduleName)) {
             final var fixture = fixtures.get(sequenceName);
             if (null != fixture) {
-                loadSequenceFixture(sequenceName, loadData(database, fixture));
+                loadSequenceFixture(sequenceName, fixture, loadData(database, fixture));
             }
         }
     }
 
-    private void loadFixture(final String tableName, final String content) {
-        final var parsed = parseYaml(content);
+    private void loadFixture(final String tableName, final String sourceName, final String content) {
+        final var parsed = parseYaml(content, sourceName);
         if (null == parsed) {
             return;
         }
@@ -1145,8 +1147,8 @@ public final class RuntimeEngine {
         }
     }
 
-    private void loadSequenceFixture(final String sequenceName, final String content) {
-        final var parsed = parseYaml(content);
+    private void loadSequenceFixture(final String sequenceName, final String sourceName, final String content) {
+        final var parsed = parseYaml(content, sourceName);
         if (null == parsed) {
             return;
         }
@@ -1184,12 +1186,11 @@ public final class RuntimeEngine {
         for (final var entry : data.entrySet()) {
             values.put(String.valueOf(entry.getKey()), entry.getValue());
         }
-        return Map.copyOf(values);
+        return Collections.unmodifiableMap(values);
     }
 
-    private static @Nullable Object parseYaml(final String content) {
-        final var settings = LoadSettings.builder().setAllowDuplicateKeys(false).build();
-        return new Load(settings).loadFromString(content);
+    private static @Nullable Object parseYaml(final String content, final String sourceName) {
+        return YamlMapSupport.parseDocument(content, sourceName);
     }
 
     private static String loadData(final RuntimeDatabase database, final String location) {
@@ -1211,10 +1212,18 @@ public final class RuntimeEngine {
     }
 
     private void runSqlBatch(final String sql, final boolean executeInControlDatabase) {
+        runSqlBatch(sql, executeInControlDatabase, "inline SQL");
+    }
+
+    private void runSqlBatch(final String sql, final boolean executeInControlDatabase, final String sourceName) {
         final var normalizedSql = sql.replace("\r", "");
         for (final var batch : GO_SPLIT_PATTERN.splitAsStream(normalizedSql).toList()) {
             if (!batch.trim().isEmpty()) {
-                db.execute(batch, executeInControlDatabase);
+                try {
+                    db.execute(batch, executeInControlDatabase);
+                } catch (final RuntimeException e) {
+                    throw new RuntimeExecutionException("Failed to execute SQL batch from " + sourceName, e);
+                }
             }
         }
     }

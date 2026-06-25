@@ -325,9 +325,15 @@ final class RuntimeEngineTest {
     void createWithDatasetRunsDatasetHooksAndFixtureLoad(@TempDir final Path tempDir) throws IOException {
         createFile(tempDir, "db/MyModule/./up.sql", "UP");
         createFile(tempDir, "db/MyModule/finalize/final.sql", "FINAL");
-        createFile(tempDir, "db/datasets/myset/pre/pre.sql", "DSPRE");
+        createFile(tempDir, "db/datasets/myset/pre/pre.sql", "SELECT 'go up' AS Direction\nGO\nDSPRE");
         createFile(tempDir, "db/datasets/myset/post/post.sql", "DSPOST");
-        createFile(tempDir, "db/MyModule/datasets/myset/MyModule.foo.yml", "1:\n  ID: 2\n");
+        createFile(tempDir, "db/MyModule/datasets/myset/MyModule.foo.yml", """
+            --- !!omap
+            - r1:
+                ID: 2
+            - r2:
+                ID: 3
+            """);
 
         final var driver = new RecordingDriver();
         final var engine = new RuntimeEngine(driver, new FileResolver());
@@ -348,12 +354,22 @@ final class RuntimeEngineTest {
                         "open(false)",
                         "createSchema(MyModule)",
                         "execute(false):UP",
+                        "execute(false):SELECT 'go up' AS Direction",
                         "execute(false):DSPRE",
                         "execute(false):DELETE FROM [MyModule].[foo]",
                         "preFixtureImport([MyModule].[foo])",
                         "insert([MyModule].[foo],{ID=2})",
+                        "insert([MyModule].[foo],{ID=3})",
+                        "postFixtureImport([MyModule].[foo])",
                         "execute(false):DSPOST",
                         "execute(false):FINAL");
+        assertThat(driver.calls)
+                .filteredOn(call -> call.contains("FixtureImport") || call.startsWith("insert([MyModule].[foo]"))
+                .containsExactly(
+                        "preFixtureImport([MyModule].[foo])",
+                        "insert([MyModule].[foo],{ID=2})",
+                        "insert([MyModule].[foo],{ID=3})",
+                        "postFixtureImport([MyModule].[foo])");
     }
 
     @Test

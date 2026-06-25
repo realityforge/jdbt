@@ -11,7 +11,9 @@ import org.snakeyaml.engine.v2.api.ConstructNode;
 import org.snakeyaml.engine.v2.api.Load;
 import org.snakeyaml.engine.v2.api.LoadSettings;
 import org.snakeyaml.engine.v2.constructor.StandardConstructor;
+import org.snakeyaml.engine.v2.nodes.MappingNode;
 import org.snakeyaml.engine.v2.nodes.Node;
+import org.snakeyaml.engine.v2.nodes.ScalarNode;
 import org.snakeyaml.engine.v2.nodes.SequenceNode;
 import org.snakeyaml.engine.v2.nodes.Tag;
 
@@ -22,6 +24,14 @@ public final class YamlMapSupport {
     private YamlMapSupport() {}
 
     public static Map<String, Object> parseRoot(final String yaml, final String sourceName) {
+        final var loaded = parseDocument(yaml, sourceName);
+        if (!(loaded instanceof Map<?, ?> loadedMap)) {
+            throw new ConfigException("Expected root YAML object in " + sourceName + " to be a map.");
+        }
+        return toStringMap(loadedMap, sourceName);
+    }
+
+    public static @Nullable Object parseDocument(final String yaml, final String sourceName) {
         final var omapConstructor = new OmapConstructNode();
         final var settings = LoadSettings.builder()
                 .setAllowDuplicateKeys(false)
@@ -30,11 +40,7 @@ public final class YamlMapSupport {
                 .setLabel(sourceName)
                 .build();
         omapConstructor.setSettings(settings);
-        final var loaded = new Load(settings).loadFromString(yaml);
-        if (!(loaded instanceof Map<?, ?> loadedMap)) {
-            throw new ConfigException("Expected root YAML object in " + sourceName + " to be a map.");
-        }
-        return toStringMap(loadedMap, sourceName);
+        return new Load(settings).loadFromString(yaml);
     }
 
     public static void assertKeys(final Map<String, Object> map, final Set<String> allowedKeys, final String path) {
@@ -148,11 +154,21 @@ public final class YamlMapSupport {
 
         @Override
         public Object construct(final Node node) {
-            if (!(node instanceof SequenceNode sequenceNode)) {
-                throw new ConfigException("Expected !omap value to be a YAML sequence.");
+            if (node instanceof SequenceNode sequenceNode) {
+                final var actualSettings = Objects.requireNonNull(settings);
+                return new SequenceConstructor(actualSettings).constructSequenceNode(sequenceNode);
             }
-            final var actualSettings = Objects.requireNonNull(settings);
-            return new SequenceConstructor(actualSettings).constructSequenceNode(sequenceNode);
+            if (node instanceof MappingNode mappingNode
+                    && mappingNode.getValue().isEmpty()) {
+                return new LinkedHashMap<>();
+            }
+            if (node instanceof ScalarNode scalarNode
+                    && ("[]".equals(scalarNode.getValue())
+                            || scalarNode.getValue().isBlank())) {
+                return new LinkedHashMap<>();
+            }
+            throw new ConfigException("Expected !omap value to be a YAML sequence but got "
+                    + node.getClass().getSimpleName() + '.');
         }
 
         private void setSettings(final LoadSettings settings) {
@@ -165,8 +181,23 @@ public final class YamlMapSupport {
             super(settings);
         }
 
-        private List<Object> constructSequenceNode(final SequenceNode node) {
-            return constructSequence(node);
+        private Map<Object, Object> constructSequenceNode(final SequenceNode node) {
+            final var entries = constructSequence(node);
+            final var result = new LinkedHashMap<Object, Object>();
+            for (final var entry : entries) {
+                if (!(entry instanceof Map<?, ?> map)) {
+                    throw new ConfigException("Expected !omap entry to be a map.");
+                }
+                if (map.size() != 1) {
+                    throw new ConfigException("Expected !omap entry to contain exactly one key.");
+                }
+                final var mapEntry = map.entrySet().iterator().next();
+                if (result.containsKey(mapEntry.getKey())) {
+                    throw new ConfigException("Duplicate !omap key '" + mapEntry.getKey() + "'.");
+                }
+                result.put(mapEntry.getKey(), mapEntry.getValue());
+            }
+            return result;
         }
     }
 }

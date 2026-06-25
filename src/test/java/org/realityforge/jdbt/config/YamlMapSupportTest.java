@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
@@ -14,6 +15,29 @@ final class YamlMapSupportTest {
         assertThatThrownBy(() -> YamlMapSupport.parseRoot("- a", "x.yml"))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("root YAML object");
+    }
+
+    @Test
+    void parseDocumentConvertsYamlOmapToMap() {
+        final var parsed = YamlMapSupport.parseDocument("--- !!omap\n- first: 1\n- second: 2\n", "x.yml");
+
+        assertThat(parsed).isInstanceOf(Map.class);
+        final var actual = (Map<?, ?>) Objects.requireNonNull(parsed);
+        assertThat(actual.keySet().stream().map(Object::toString).toList()).containsExactly("first", "second");
+    }
+
+    @Test
+    void parseDocumentConvertsEmptyYamlOmapToMap() {
+        final var parsed = YamlMapSupport.parseDocument("--- !!omap []\n", "x.yml");
+
+        assertThat(parsed).isEqualTo(Map.of());
+    }
+
+    @Test
+    void parseDocumentConvertsBlankYamlOmapToMap() {
+        final var parsed = YamlMapSupport.parseDocument("--- !!omap\n", "x.yml");
+
+        assertThat(parsed).isEqualTo(Map.of());
     }
 
     @Test
