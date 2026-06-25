@@ -23,7 +23,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
+import java.util.function.Consumer;
 import java.util.regex.Pattern;
 import org.jspecify.annotations.Nullable;
 import org.realityforge.jdbt.config.FilterPropertyConfig;
@@ -46,10 +48,16 @@ public final class RuntimeEngine {
 
     private final DbDriver db;
     private final FileResolver fileResolver;
+    private final Consumer<String> output;
 
     public RuntimeEngine(final DbDriver db, final FileResolver fileResolver) {
+        this(db, fileResolver, System.out::println);
+    }
+
+    public RuntimeEngine(final DbDriver db, final FileResolver fileResolver, final Consumer<String> output) {
         this.db = db;
         this.fileResolver = fileResolver;
+        this.output = Objects.requireNonNull(output);
     }
 
     public String status(final RuntimeDatabase database) {
@@ -496,6 +504,7 @@ public final class RuntimeEngine {
                     + ") and import sql (" + sqlFile + ") files.");
         }
 
+        logImport(moduleName, tableName, fixtureFile, sqlFile);
         if (null != fixtureFile) {
             loadFixture(tableName, fixtureFile, loadData(database, fixtureFile));
         } else if (null != sqlFile) {
@@ -540,6 +549,7 @@ public final class RuntimeEngine {
                     + '.');
         }
 
+        logImport(moduleName, sequenceName, fixtureFile, sqlFile);
         if (null != fixtureFile) {
             loadSequenceFixture(sequenceName, fixtureFile, loadData(database, fixtureFile));
         } else if (null != sqlFile) {
@@ -585,6 +595,17 @@ public final class RuntimeEngine {
         runSqlBatch(effectiveSql, true);
     }
 
+    private void runSqlFile(
+            final RuntimeDatabase database,
+            final String label,
+            final String file,
+            final boolean executeInControlDatabase,
+            final Map<String, String> declaredFilters) {
+        logSqlFile(label, file);
+        final var sql = loadData(database, file);
+        runSqlBatch(applyDeclaredFilterProperties(sql, declaredFilters), executeInControlDatabase, file);
+    }
+
     private void processImportDirSet(
             final RuntimeDatabase database,
             final String dir,
@@ -599,8 +620,40 @@ public final class RuntimeEngine {
                 database.postDbArtifacts(),
                 database.preDbArtifacts());
         for (final var file : files) {
+            logSqlFile(fileLabel("", dir), file);
             runImportSql(null, loadData(database, file), target.database(), source.database(), declaredFilters);
         }
+    }
+
+    private void logSqlFile(final String label, final String file) {
+        output.accept(label + basename(file));
+    }
+
+    private void logImport(
+            final String moduleName,
+            final String objectName,
+            final @Nullable String fixtureFile,
+            final @Nullable String sqlFile) {
+        final var importType = null != fixtureFile ? "F" : null != sqlFile ? "S" : "D";
+        output.accept(
+                paddedLabel(moduleName) + "Importing " + cleanObjectName(objectName) + " (By " + importType + ")");
+    }
+
+    private static String fileLabel(final String moduleName, final String dir) {
+        return paddedLabel(moduleName) + dirDisplayName(dir);
+    }
+
+    private static String paddedLabel(final String label) {
+        return String.format(Locale.ROOT, "%-15s: ", label);
+    }
+
+    private static String dirDisplayName(final String dir) {
+        return ".".equals(dir) ? "" : dir + '/';
+    }
+
+    private static String basename(final String value) {
+        final var slash = Math.max(value.lastIndexOf('/'), value.lastIndexOf('\\'));
+        return -1 == slash ? value : value.substring(slash + 1);
     }
 
     private static void verifyNoUnexpectedImportFiles(
@@ -721,10 +774,7 @@ public final class RuntimeEngine {
             if (!shouldCheck || db.shouldMigrate(database.key(), migrationName)) {
                 final var shouldRun = action != MigrationAction.RECORD && (null == versionIndex || versionIndex < i);
                 if (shouldRun) {
-                    runSqlBatch(
-                            applyDeclaredFilterProperties(loadData(database, filename), declaredFilters),
-                            false,
-                            filename);
+                    runSqlFile(database, "Migration: ", filename, false, declaredFilters);
                 }
                 db.markMigrationAsRun(database.key(), migrationName);
             }
@@ -789,7 +839,7 @@ public final class RuntimeEngine {
                     case FINALIZE -> database.finalizeDirs();
                 };
         for (final var dir : dirs) {
-            processDirSet(database, moduleName + '/' + dir, declaredFilters);
+            processDirSet(database, moduleName + '/' + dir, fileLabel(moduleName, dir), declaredFilters);
         }
         if (ModuleMode.UP == mode) {
             loadFixturesFromDir(database, moduleName, database.fixtureDirName());
@@ -798,6 +848,14 @@ public final class RuntimeEngine {
 
     private void processDirSet(
             final RuntimeDatabase database, final String dir, final Map<String, String> declaredFilters) {
+        processDirSet(database, dir, fileLabel("", dir), declaredFilters);
+    }
+
+    private void processDirSet(
+            final RuntimeDatabase database,
+            final String dir,
+            final String label,
+            final Map<String, String> declaredFilters) {
         final var files = fileResolver.collectFiles(
                 database.searchDirs(),
                 dir,
@@ -806,8 +864,7 @@ public final class RuntimeEngine {
                 database.postDbArtifacts(),
                 database.preDbArtifacts());
         for (final var file : files) {
-            final var sql = loadData(database, file);
-            runSqlBatch(applyDeclaredFilterProperties(sql, declaredFilters), false, file);
+            runSqlFile(database, label, file, false, declaredFilters);
         }
     }
 
@@ -1115,6 +1172,7 @@ public final class RuntimeEngine {
         for (final var tableName : database.tableOrdering(moduleName)) {
             final var fixture = fixtures.get(tableName);
             if (null != fixture) {
+                output.accept(paddedLabel("Fixture") + cleanObjectName(tableName));
                 loadFixture(tableName, fixture, loadData(database, fixture));
             }
         }
@@ -1122,6 +1180,7 @@ public final class RuntimeEngine {
         for (final var sequenceName : database.sequenceOrdering(moduleName)) {
             final var fixture = fixtures.get(sequenceName);
             if (null != fixture) {
+                output.accept(paddedLabel("Fixture") + cleanObjectName(sequenceName));
                 loadSequenceFixture(sequenceName, fixture, loadData(database, fixture));
             }
         }
