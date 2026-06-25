@@ -343,6 +343,21 @@ bazel run //src/main/java/org/realityforge/jdbt:jdbt_bin -- package-data \
   --output ./build/data.zip
 ```
 
+`verify-constraints`
+
+```bash
+bazel run //src/main/java/org/realityforge/jdbt:jdbt_bin -- verify-constraints \
+  --target-host localhost --target-port 1433 \
+  --target-database MyDb --target-username sa --password-env DB_PASS \
+  --schema Core \
+  --check-query "EXEC [Analysis].[spPerformChecks]"
+```
+
+`--schema` may be repeated. For SQL Server, each schema runs `<schema>.spCheckConstraints` and the command fails if
+any row is returned. Other drivers return no schema constraint rows unless they implement a native equivalent.
+
+`--check-query` may be repeated. Each query must return zero rows; any returned row is reported as a failed check.
+
 `export-fixtures`
 
 ```bash

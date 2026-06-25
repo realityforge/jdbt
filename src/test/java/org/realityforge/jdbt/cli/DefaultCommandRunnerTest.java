@@ -53,6 +53,7 @@ final class DefaultCommandRunnerTest {
         runner.loadDataset("default", "noop", "seed", target, Map.of());
         runner.upModuleGroup("default", "noop", "all", target, Map.of());
         runner.downModuleGroup("default", "noop", "all", target, Map.of());
+        runner.verifyConstraints("default", "noop", target, List.of("MyModule"), List.of(), Map.of());
 
         assertThat(output.toString(StandardCharsets.UTF_8))
                 .contains("Database Version")
@@ -313,6 +314,12 @@ final class DefaultCommandRunnerTest {
         public QueryResult query(final String sql) {
             events.add("query:" + sql.trim());
             return new QueryResult(List.of("ID", "NAME"), List.of(List.of(7, "A")));
+        }
+
+        @Override
+        public QueryResult verifySchemaConstraints(final String schemaName) {
+            events.add("verify:" + schemaName);
+            return new QueryResult(List.of(), List.of());
         }
 
         @Override

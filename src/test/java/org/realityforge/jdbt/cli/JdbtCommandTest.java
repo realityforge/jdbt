@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
@@ -277,6 +278,39 @@ final class JdbtCommandTest {
     }
 
     @Test
+    void verifyConstraintsDispatchesSchemasAndCheckQueries() {
+        final var runner = new RecordingRunner();
+
+        final var exitCode = JdbtCommand.execute(
+                new String[] {
+                    "verify-constraints",
+                    "--target-host",
+                    "localhost",
+                    "--target-port",
+                    "1433",
+                    "--target-database",
+                    "db",
+                    "--target-username",
+                    "sa",
+                    "--password",
+                    "secret",
+                    "--schema",
+                    "Core",
+                    "--schema",
+                    "Analysis",
+                    "--check-query",
+                    "EXEC [Analysis].[spPerformChecks]"
+                },
+                runner,
+                new PasswordResolver(Map.of(), new ByteArrayInputStream(new byte[0])));
+
+        assertThat(exitCode).isZero();
+        assertThat(runner.lastCall).isEqualTo("verify-constraints");
+        assertThat(runner.schemas).containsExactly("Core", "Analysis");
+        assertThat(runner.checkQueries).containsExactly("EXEC [Analysis].[spPerformChecks]");
+    }
+
+    @Test
     void dumpFixturesCommandIsNotExposed() {
         final var runner = new RecordingRunner();
 
@@ -324,6 +358,8 @@ final class JdbtCommandTest {
         private @Nullable Path outputFile;
         private @Nullable Path propertiesFile;
         private @Nullable Path outputDirectory;
+        private List<String> schemas = List.of();
+        private List<String> checkQueries = List.of();
         private Map<String, String> filterProperties = Map.of();
 
         @Override
@@ -482,6 +518,23 @@ final class JdbtCommandTest {
             this.lastCall = "package-data";
             this.databaseKey = databaseKey;
             this.outputFile = outputFile;
+        }
+
+        @Override
+        public void verifyConstraints(
+                final @Nullable String databaseKey,
+                final String driver,
+                final DatabaseConnection target,
+                final List<String> schemas,
+                final List<String> checkQueries,
+                final Map<String, String> filterProperties) {
+            this.lastCall = "verify-constraints";
+            this.databaseKey = databaseKey;
+            this.driver = driver;
+            this.targetConnection = target;
+            this.schemas = schemas;
+            this.checkQueries = checkQueries;
+            this.filterProperties = filterProperties;
         }
 
         @Override

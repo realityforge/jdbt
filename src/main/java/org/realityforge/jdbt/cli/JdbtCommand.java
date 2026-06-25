@@ -28,6 +28,7 @@ import picocli.CommandLine;
             JdbtCommand.UpModuleGroupCommand.class,
             JdbtCommand.DownModuleGroupCommand.class,
             JdbtCommand.PackageDataCommand.class,
+            JdbtCommand.VerifyConstraintsCommand.class,
             JdbtCommand.ExportFixturesCommand.class
         })
 public final class JdbtCommand implements Callable<Integer> {
@@ -437,6 +438,38 @@ public final class JdbtCommand implements Callable<Integer> {
         @Override
         public Integer call() {
             runner().packageData(databaseKey(), outputFile);
+            return 0;
+        }
+    }
+
+    @CommandLine.Command(
+            name = "verify-constraints",
+            description = "Run schema constraint checks and additional no-row check queries")
+    @SuppressWarnings("FieldCanBeFinal")
+    static final class VerifyConstraintsCommand extends BaseSqlCommand {
+        @CommandLine.Option(
+                names = "--schema",
+                required = true,
+                description = "Schema containing an spCheckConstraints routine. May be specified multiple times.")
+        private List<String> schemas = new ArrayList<>();
+
+        @CommandLine.Option(
+                names = "--check-query",
+                description = "Additional query that must return no rows. May be specified multiple times.")
+        private List<String> checkQueries = new ArrayList<>();
+
+        @CommandLine.Mixin
+        private TargetConnectionOptions target = new TargetConnectionOptions();
+
+        @Override
+        public Integer call() {
+            runner().verifyConstraints(
+                            databaseKey(),
+                            driver(),
+                            target.toConnection(passwordResolver()),
+                            List.copyOf(schemas),
+                            List.copyOf(checkQueries),
+                            filterProperties());
             return 0;
         }
     }

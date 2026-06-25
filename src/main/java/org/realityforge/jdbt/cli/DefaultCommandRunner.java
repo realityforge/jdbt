@@ -5,6 +5,7 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import org.jspecify.annotations.Nullable;
 import org.realityforge.jdbt.db.DatabaseConnection;
@@ -166,6 +167,18 @@ final class DefaultCommandRunner implements CommandRunner {
         } finally {
             deleteRecursively(stagingDirectory);
         }
+    }
+
+    @Override
+    public void verifyConstraints(
+            final @Nullable String databaseKey,
+            final String driver,
+            final DatabaseConnection target,
+            final List<String> schemas,
+            final List<String> checkQueries,
+            final Map<String, String> filterProperties) {
+        final var runtime = projectRuntimeLoader.load(databaseKey);
+        runtimeEngine(driver).verifyConstraints(runtime.database(), target, schemas, checkQueries, filterProperties);
     }
 
     @Override

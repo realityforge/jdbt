@@ -214,6 +214,39 @@ public final class RuntimeEngine {
         });
     }
 
+    public void verifyConstraints(
+            final RuntimeDatabase database,
+            final DatabaseConnection target,
+            final List<String> schemas,
+            final List<String> checkQueries,
+            final Map<String, String> filterProperties) {
+        validateProvidedFilterProperties(database, filterProperties);
+        withDatabaseConnection(target, false, () -> {
+            final var errorMessage = new StringBuilder();
+            for (final var schema : schemas) {
+                final var result = db.verifySchemaConstraints(schema);
+                if (!result.rows().isEmpty()) {
+                    errorMessage
+                            .append("Failed Constraints:\n")
+                            .append(formatQueryRows(result))
+                            .append('\n');
+                }
+            }
+            for (final var query : checkQueries) {
+                final var result = db.query(query);
+                if (!result.rows().isEmpty()) {
+                    errorMessage
+                            .append("Failed Checks:\n")
+                            .append(formatQueryRows(result))
+                            .append('\n');
+                }
+            }
+            if (!errorMessage.isEmpty()) {
+                throw new RuntimeExecutionException(errorMessage.toString().trim());
+            }
+        });
+    }
+
     public void databaseImport(
             final RuntimeDatabase database,
             final String importKey,
@@ -856,6 +889,21 @@ public final class RuntimeEngine {
 
     private static String exportFixtureDirectory(final RuntimeDatabase database, final @Nullable String datasetName) {
         return null == datasetName ? database.fixtureDirName() : database.datasetsDirName() + '/' + datasetName;
+    }
+
+    private static String formatQueryRows(final QueryResult result) {
+        final var output = new StringBuilder();
+        for (final var row : result.rows()) {
+            output.append('\t');
+            for (int i = 0; i < result.columnLabels().size(); i++) {
+                if (0 != i) {
+                    output.append(", ");
+                }
+                output.append(result.columnLabels().get(i)).append('=').append(row.get(i));
+            }
+            output.append('\n');
+        }
+        return output.toString();
     }
 
     private void exportTable(

@@ -483,6 +483,38 @@ final class RuntimeEngineTest {
     }
 
     @Test
+    void verifyConstraintsFailsWhenAnyCheckReturnsRows(@TempDir final Path tempDir) {
+        final var driver = new RecordingDriver();
+        driver.queryResults.put(
+                "verify:Core",
+                new QueryResult(
+                        List.of("ConstraintName", "SchemaName", "TableName"),
+                        List.of(List.of("CK_tblFoo", "Core", "tblFoo"))));
+        driver.queryResults.put(
+                "EXEC [Analysis].[spPerformChecks]",
+                new QueryResult(
+                        List.of("Category", "Description", "ViewSQL"),
+                        List.of(List.of("Data", "Broken", "SELECT * FROM x"))));
+        final var engine = new RuntimeEngine(driver, new FileResolver());
+        final var database =
+                runtimeDatabase("default", RepositoryConfigTestData.singleModule(), List.of(tempDir.resolve("db")));
+
+        assertThatThrownBy(() -> engine.verifyConstraints(
+                        database, connection, List.of("Core"), List.of("EXEC [Analysis].[spPerformChecks]"), Map.of()))
+                .isInstanceOf(RuntimeExecutionException.class)
+                .hasMessageContaining("Failed Constraints")
+                .hasMessageContaining("ConstraintName=CK_tblFoo")
+                .hasMessageContaining("Failed Checks")
+                .hasMessageContaining("Category=Data");
+        assertThat(driver.calls)
+                .containsSubsequence(
+                        "open(false)",
+                        "verifySchemaConstraints(Core)",
+                        "query:EXEC [Analysis].[spPerformChecks]",
+                        "close");
+    }
+
+    @Test
     void exportFixturesRejectsInvalidInputsBeforePartialOutput(@TempDir final Path tempDir) throws IOException {
         final var driver = new RecordingDriver();
         final var engine = new RuntimeEngine(driver, new FileResolver());
@@ -1080,6 +1112,14 @@ final class RuntimeEngineTest {
         public QueryResult query(final String sql) {
             calls.add("query:" + sql.trim());
             return queryResults.getOrDefault(sql.trim(), new QueryResult(List.of("ID"), List.of(List.of(1))));
+        }
+
+        @Override
+        public QueryResult verifySchemaConstraints(final String schemaName) {
+            calls.add("verifySchemaConstraints(" + schemaName + ")");
+            return queryResults.getOrDefault(
+                    "verify:" + schemaName,
+                    new QueryResult(List.of("ConstraintName", "SchemaName", "TableName"), List.of()));
         }
 
         @Override

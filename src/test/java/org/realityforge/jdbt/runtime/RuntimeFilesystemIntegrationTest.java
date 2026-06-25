@@ -270,6 +270,12 @@ final class RuntimeFilesystemIntegrationTest {
         }
 
         @Override
+        public QueryResult verifySchemaConstraints(final String schemaName) {
+            events.add("verify:" + schemaName);
+            return new QueryResult(List.of(), List.of());
+        }
+
+        @Override
         public void setupMigrations() {
             events.add("setup-migrations");
         }

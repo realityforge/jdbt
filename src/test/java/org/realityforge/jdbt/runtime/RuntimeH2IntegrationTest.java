@@ -210,6 +210,11 @@ final class RuntimeH2IntegrationTest {
         }
 
         @Override
+        public QueryResult verifySchemaConstraints(final String schemaName) {
+            return new QueryResult(List.of(), List.of());
+        }
+
+        @Override
         public void setupMigrations() {}
 
         @Override

@@ -1,6 +1,7 @@
 package org.realityforge.jdbt.cli;
 
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 import org.jspecify.annotations.Nullable;
 import org.realityforge.jdbt.db.DatabaseConnection;
@@ -77,6 +78,14 @@ interface CommandRunner {
             Map<String, String> filterProperties);
 
     void packageData(@Nullable String databaseKey, Path outputFile);
+
+    void verifyConstraints(
+            @Nullable String databaseKey,
+            String driver,
+            DatabaseConnection target,
+            List<String> schemas,
+            List<String> checkQueries,
+            Map<String, String> filterProperties);
 
     void exportFixtures(
             @Nullable String databaseKey,

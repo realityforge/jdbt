@@ -46,6 +46,8 @@ public interface DbDriver {
 
     QueryResult query(String sql);
 
+    QueryResult verifySchemaConstraints(String schemaName);
+
     void setupMigrations();
 
     boolean shouldMigrate(String namespace, String migrationName);

@@ -271,6 +271,11 @@ final class SqlServerDbDriver implements DbDriver {
     }
 
     @Override
+    public QueryResult verifySchemaConstraints(final String schemaName) {
+        return query("EXEC " + quote(schemaName) + ".spCheckConstraints");
+    }
+
+    @Override
     public void setupMigrations() {
         if (!tableExists("[dbo].[tblMigration]")) {
             execute(
