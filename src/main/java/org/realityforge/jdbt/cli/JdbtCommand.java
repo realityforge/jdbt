@@ -452,6 +452,11 @@ public final class JdbtCommand implements Callable<Integer> {
                 description = "Output base directory (defaults to jdbt.yml directory)")
         private @Nullable Path outputDirectory;
 
+        @CommandLine.Option(
+                names = "--dataset",
+                description = "Write fixtures under datasets/DATASET instead of fixtures")
+        private @Nullable String dataset;
+
         @CommandLine.Mixin
         private TargetConnectionOptions target = new TargetConnectionOptions();
 
@@ -462,6 +467,7 @@ public final class JdbtCommand implements Callable<Integer> {
                             driver(),
                             target.toConnection(passwordResolver()),
                             propertiesFile,
+                            dataset,
                             outputDirectory,
                             filterProperties());
             return 0;

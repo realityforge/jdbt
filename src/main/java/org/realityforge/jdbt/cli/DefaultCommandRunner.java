@@ -174,13 +174,15 @@ final class DefaultCommandRunner implements CommandRunner {
             final String driver,
             final DatabaseConnection target,
             final Path propertiesFile,
+            final @Nullable String dataset,
             final @Nullable Path outputDirectory,
             final Map<String, String> filterProperties) {
         final var runtime = projectRuntimeLoader.load(databaseKey);
         final var resolvedOutputDirectory =
                 null == outputDirectory ? runtime.database().searchDirs().get(0) : outputDirectory;
         runtimeEngine(driver)
-                .exportFixtures(runtime.database(), target, propertiesFile, resolvedOutputDirectory, filterProperties);
+                .exportFixtures(
+                        runtime.database(), target, propertiesFile, dataset, resolvedOutputDirectory, filterProperties);
     }
 
     private static String resolveImportKey(

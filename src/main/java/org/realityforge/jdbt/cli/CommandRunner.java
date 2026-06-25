@@ -83,6 +83,7 @@ interface CommandRunner {
             String driver,
             DatabaseConnection target,
             Path propertiesFile,
+            @Nullable String dataset,
             @Nullable Path outputDirectory,
             Map<String, String> filterProperties);
 }

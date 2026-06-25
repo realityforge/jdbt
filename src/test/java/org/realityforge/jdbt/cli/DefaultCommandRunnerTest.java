@@ -132,7 +132,13 @@ final class DefaultCommandRunnerTest {
                 new DefaultCommandRunner(new ProjectRuntimeLoader(tempDir), driverFactory, new FileResolver());
 
         runner.exportFixtures(
-                "default", "recording", target, tempDir.resolve("fixtures.properties"), null, Map.of("tenant", "7"));
+                "default",
+                "recording",
+                target,
+                tempDir.resolve("fixtures.properties"),
+                null,
+                null,
+                Map.of("tenant", "7"));
 
         assertThat(driverFactory.driver.transcript()).isEqualTo("""
             open target

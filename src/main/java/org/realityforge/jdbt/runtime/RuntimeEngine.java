@@ -185,9 +185,13 @@ public final class RuntimeEngine {
             final RuntimeDatabase database,
             final DatabaseConnection target,
             final Path propertiesFile,
+            final @Nullable String datasetName,
             final Path outputDirectory,
             final Map<String, String> filterProperties) {
         final var declaredFilters = resolveDeclaredFilterValues(database, filterProperties);
+        if (null != datasetName) {
+            ensureDatasetExists(database, datasetName);
+        }
         final var exportSqlByCleanName = loadExportProperties(propertiesFile);
         final var exportObjects = exportObjects(database);
         validateExportKeys(exportSqlByCleanName, exportObjects);
@@ -199,7 +203,7 @@ public final class RuntimeEngine {
                 }
                 final var outputFile = outputDirectory
                         .resolve(exportObject.moduleName())
-                        .resolve(database.fixtureDirName())
+                        .resolve(exportFixtureDirectory(database, datasetName))
                         .resolve(exportObject.cleanName() + ".yml");
                 if (exportObject.sequence()) {
                     exportSequence(exportObject.objectName(), configuredSql, outputFile, declaredFilters);
@@ -848,6 +852,10 @@ public final class RuntimeEngine {
                         "Export properties contain unknown table or sequence key '" + cleanName + "'");
             }
         }
+    }
+
+    private static String exportFixtureDirectory(final RuntimeDatabase database, final @Nullable String datasetName) {
+        return null == datasetName ? database.fixtureDirName() : database.datasetsDirName() + '/' + datasetName;
     }
 
     private void exportTable(

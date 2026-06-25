@@ -403,6 +403,7 @@ final class RuntimeEngineTest {
                 database,
                 connection,
                 tempDir.resolve("exports.properties"),
+                null,
                 tempDir.resolve("out"),
                 Map.of("tenant", "tenant-7"));
 
@@ -448,9 +449,36 @@ final class RuntimeEngineTest {
                 runtimeDatabase("default", RepositoryConfigTestData.singleModule(), List.of(tempDir.resolve("db")));
 
         engine.exportFixtures(
-                database, connection, tempDir.resolve("exports.properties"), tempDir.resolve("out"), Map.of());
+                database, connection, tempDir.resolve("exports.properties"), null, tempDir.resolve("out"), Map.of());
 
         assertThat(Files.readString(tempDir.resolve("out/MyModule/fixtures/MyModule.foo.yml"), StandardCharsets.UTF_8))
+                .isEqualTo("{}\n");
+    }
+
+    @Test
+    void exportFixturesCanWriteToDatasetDirectory(@TempDir final Path tempDir) throws IOException {
+        createFile(tempDir, "exports.properties", "MyModule.foo=SELECT ID FROM [MyModule].[foo] WHERE 1 = 0\n");
+        final var driver = new RecordingDriver();
+        driver.queryResults.put(
+                "SELECT ID FROM [MyModule].[foo] WHERE 1 = 0", new QueryResult(List.of("ID"), List.of()));
+        final var engine = new RuntimeEngine(driver, new FileResolver());
+        final var database = runtimeDatabase(
+                "default",
+                RepositoryConfigTestData.singleModule(),
+                List.of(tempDir.resolve("db")),
+                Map.of(),
+                List.of("sample"));
+
+        engine.exportFixtures(
+                database,
+                connection,
+                tempDir.resolve("exports.properties"),
+                "sample",
+                tempDir.resolve("out"),
+                Map.of());
+
+        assertThat(Files.readString(
+                        tempDir.resolve("out/MyModule/datasets/sample/MyModule.foo.yml"), StandardCharsets.UTF_8))
                 .isEqualTo("{}\n");
     }
 
@@ -463,20 +491,20 @@ final class RuntimeEngineTest {
 
         createFile(tempDir, "unknown.properties", "MyModule.missing=\n");
         assertThatThrownBy(() -> engine.exportFixtures(
-                        database, connection, tempDir.resolve("unknown.properties"), tempDir, Map.of()))
+                        database, connection, tempDir.resolve("unknown.properties"), null, tempDir, Map.of()))
                 .isInstanceOf(RuntimeExecutionException.class)
                 .hasMessageContaining("unknown table or sequence key");
 
         createFile(tempDir, "duplicate.properties", "MyModule.foo=SELECT 1\nMyModule.foo=SELECT 2\n");
         assertThatThrownBy(() -> engine.exportFixtures(
-                        database, connection, tempDir.resolve("duplicate.properties"), tempDir, Map.of()))
+                        database, connection, tempDir.resolve("duplicate.properties"), null, tempDir, Map.of()))
                 .isInstanceOf(RuntimeExecutionException.class)
                 .hasMessageContaining("Duplicate export properties key");
 
         createFile(tempDir, "nopk.properties", "MyModule.foo=\n");
         driver.primaryKeyColumnNames = List.of();
         assertThatThrownBy(() -> engine.exportFixtures(
-                        database, connection, tempDir.resolve("nopk.properties"), tempDir, Map.of()))
+                        database, connection, tempDir.resolve("nopk.properties"), null, tempDir, Map.of()))
                 .isInstanceOf(RuntimeExecutionException.class)
                 .hasMessageContaining("no primary key");
 
@@ -488,7 +516,12 @@ final class RuntimeEngineTest {
         final var duplicateCleanDatabase =
                 runtimeDatabase("default", duplicateCleanRepository, List.of(tempDir.resolve("db")));
         assertThatThrownBy(() -> engine.exportFixtures(
-                        duplicateCleanDatabase, connection, tempDir.resolve("nopk.properties"), tempDir, Map.of()))
+                        duplicateCleanDatabase,
+                        connection,
+                        tempDir.resolve("nopk.properties"),
+                        null,
+                        tempDir,
+                        Map.of()))
                 .isInstanceOf(RuntimeExecutionException.class)
                 .hasMessageContaining("Duplicate clean fixture export key");
     }
@@ -504,7 +537,7 @@ final class RuntimeEngineTest {
                 runtimeDatabase("default", RepositoryConfigTestData.singleModule(), List.of(tempDir.resolve("db")));
 
         assertThatThrownBy(() -> engine.exportFixtures(
-                        database, connection, tempDir.resolve("exports.properties"), tempDir, Map.of()))
+                        database, connection, tempDir.resolve("exports.properties"), null, tempDir, Map.of()))
                 .isInstanceOf(RuntimeExecutionException.class)
                 .hasMessageContaining("duplicate column label");
 
@@ -519,7 +552,7 @@ final class RuntimeEngineTest {
                 "SELECT value FROM seq", new QueryResult(List.of("value"), List.of(List.of(1), List.of(2))));
 
         assertThatThrownBy(() -> engine.exportFixtures(
-                        sequenceDatabase, connection, tempDir.resolve("sequence.properties"), tempDir, Map.of()))
+                        sequenceDatabase, connection, tempDir.resolve("sequence.properties"), null, tempDir, Map.of()))
                 .isInstanceOf(RuntimeExecutionException.class)
                 .hasMessageContaining("exactly one row with exactly one column");
     }

@@ -255,6 +255,8 @@ final class JdbtCommandTest {
                     "secret",
                     "--output-dir",
                     "tmp/fixtures",
+                    "--dataset",
+                    "sample",
                     "--property",
                     "tenant=42",
                     "fixtures.properties"
@@ -269,6 +271,7 @@ final class JdbtCommandTest {
         assertThat(runner.targetConnection)
                 .isEqualTo(new DatabaseConnection("localhost", 5432, "db", "postgres", "secret"));
         assertThat(runner.propertiesFile).isEqualTo(Path.of("fixtures.properties"));
+        assertThat(runner.dataset).isEqualTo("sample");
         assertThat(runner.outputDirectory).isEqualTo(Path.of("tmp/fixtures"));
         assertThat(runner.filterProperties).containsExactly(entry("tenant", "42"));
     }
@@ -487,6 +490,7 @@ final class JdbtCommandTest {
                 final String driver,
                 final DatabaseConnection target,
                 final Path propertiesFile,
+                final @Nullable String dataset,
                 final @Nullable Path outputDirectory,
                 final Map<String, String> filterProperties) {
             this.lastCall = "export-fixtures";
@@ -494,6 +498,7 @@ final class JdbtCommandTest {
             this.driver = driver;
             this.targetConnection = target;
             this.propertiesFile = propertiesFile;
+            this.dataset = dataset;
             this.outputDirectory = outputDirectory;
             this.filterProperties = filterProperties;
         }
