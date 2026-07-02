@@ -11,10 +11,8 @@ _java_plugin(
 
 # DO NOT EDIT: Content is auto-generated from //third_party/java:dependencies.yml by https://github.com/realityforge/bazel-depgen version 0.26
 
-load("@rules_java//java:defs.bzl", _java_binary = "java_binary", _java_import = "java_import", _java_test = "java_test")
-
 # SHA256 of the configuration content that generated this content
-_CONFIG_SHA256 = "079DEE2DC200C7BB8CBD3B365FD1C34232BB2BC709B3B873708B47BF7115D36F"
+_CONFIG_SHA256 = "B6AC99F898C0F9B2EAFCFF1A6DC94EE90AFB7200BAC7BEDAB9D4099CF0E3414E"
 
 exports_files(["dependencies.yml"])
 
@@ -41,46 +39,22 @@ exports_files(["dependencies.yml"])
 # |  +- net.bytebuddy:byte-buddy-agent:jar:1.17.5 [compile]
 # |  \- org.objenesis:objenesis:jar:3.3 [runtime]
 # +- com.h2database:h2:jar:2.4.240 [compile]
-# +- com.palantir.javaformat:palantir-java-format:jar:2.93.0 [compile]
-# |  +- com.palantir.javaformat:palantir-java-format-spi:jar:2.93.0 [compile]
-# |  |  +- com.google.guava:guava:jar:33.6.0-jre [compile]
-# |  |  +- com.fasterxml.jackson.core:jackson-annotations:jar:2.21 [compile]
-# |  |  \- com.fasterxml.jackson.datatype:jackson-datatype-guava:jar:2.21.4 [compile]
-# |  |     +- com.google.guava:guava:jar:25.1-jre [compile] (conflicts with 33.6.0-jre)
-# |  |     +- com.fasterxml.jackson.core:jackson-annotations:jar:2.21 [compile]
-# |  |     +- com.fasterxml.jackson.core:jackson-core:jar:2.21.4 [compile]
-# |  |     \- com.fasterxml.jackson.core:jackson-databind:jar:2.21.4 [compile]
-# |  +- com.google.guava:guava:jar:33.6.0-jre [compile]
-# |  |  +- com.google.guava:failureaccess:jar:1.0.3 [compile]
-# |  |  +- com.google.guava:listenablefuture:jar:9999.0-empty-to-avoid-conflict-with-guava [compile]
-# |  |  +- org.jspecify:jspecify:jar:1.0.0 [compile]
-# |  |  +- com.google.errorprone:error_prone_annotations:jar:2.47.0 [compile]
-# |  |  \- com.google.j2objc:j2objc-annotations:jar:3.1 [compile]
-# |  +- org.functionaljava:functionaljava:jar:5.0 [runtime]
-# |  +- com.fasterxml.jackson.core:jackson-core:jar:2.21.4 [compile]
-# |  +- com.fasterxml.jackson.core:jackson-databind:jar:2.21.4 [compile]
-# |  |  +- com.fasterxml.jackson.core:jackson-annotations:jar:2.21 [compile]
-# |  |  \- com.fasterxml.jackson.core:jackson-core:jar:2.21.4 [compile]
-# |  +- com.fasterxml.jackson.datatype:jackson-datatype-jdk8:jar:2.21.4 [runtime]
-# |  |  +- com.fasterxml.jackson.core:jackson-core:jar:2.21.4 [runtime]
-# |  |  \- com.fasterxml.jackson.core:jackson-databind:jar:2.21.4 [runtime]
-# |  +- com.fasterxml.jackson.module:jackson-module-parameter-names:jar:2.21.4 [runtime]
-# |  |  +- com.fasterxml.jackson.core:jackson-core:jar:2.21.4 [runtime]
-# |  |  \- com.fasterxml.jackson.core:jackson-databind:jar:2.21.4 [runtime]
-# |  \- com.google.code.findbugs:jsr305:jar:3.0.2 [runtime]
 # +- com.uber.nullaway:nullaway:jar:0.13.7 [compile]
 # |  +- org.jspecify:jspecify:jar:1.0.0 [compile]
 # |  +- org.checkerframework:dataflow-nullaway:jar:4.0.0 [runtime]
 # |  |  \- org.checkerframework:checker-qual:jar:4.0.0 [runtime] (conflicts with 3.49.5)
-# |  \- com.google.guava:guava:jar:31.1-jre [runtime] (conflicts with 33.6.0-jre)
+# |  \- com.google.guava:guava:jar:31.1-jre [runtime]
+# |     +- com.google.guava:failureaccess:jar:1.0.1 [runtime]
+# |     +- com.google.guava:listenablefuture:jar:9999.0-empty-to-avoid-conflict-with-guava [runtime]
+# |     +- com.google.code.findbugs:jsr305:jar:3.0.2 [runtime]
+# |     +- org.checkerframework:checker-qual:jar:3.12.0 [runtime] (conflicts with 3.49.5)
+# |     +- com.google.errorprone:error_prone_annotations:jar:2.11.0 [runtime]
+# |     \- com.google.j2objc:j2objc-annotations:jar:1.3 [runtime]
 # \- com.google.guava:listenablefuture:jar:9999.0-empty-to-avoid-conflict-with-guava [compile]
 
 _java_test(
     name = "verify_config_sha256",
     size = "small",
-    runtime_deps = [":bazel_depgen"],
-    main_class = "org.realityforge.bazel.depgen.Main",
-    use_testrunner = False,
     args = [
         "--config-file",
         "$(rootpath //third_party/java:dependencies.yml)",
@@ -90,7 +64,10 @@ _java_test(
         _CONFIG_SHA256,
     ],
     data = ["//third_party/java:dependencies.yml"],
+    main_class = "org.realityforge.bazel.depgen.Main",
+    use_testrunner = False,
     visibility = ["//visibility:private"],
+    runtime_deps = [":bazel_depgen"],
 )
 
 _java_binary(
@@ -131,72 +108,6 @@ _java_import(
 )
 
 _java_import(
-    name = "jackson_annotations",
-    jars = ["@jackson_annotations//file"],
-    srcjar = "@jackson_annotations__sources//file",
-    tags = ["maven_coordinates=com.fasterxml.jackson.core:jackson-annotations:2.21"],
-    visibility = ["//visibility:private"],
-)
-
-_java_import(
-    name = "jackson_core",
-    jars = ["@jackson_core//file"],
-    srcjar = "@jackson_core__sources//file",
-    tags = ["maven_coordinates=com.fasterxml.jackson.core:jackson-core:2.21.4"],
-    visibility = ["//visibility:private"],
-)
-
-_java_import(
-    name = "jackson_databind",
-    jars = ["@jackson_databind//file"],
-    srcjar = "@jackson_databind__sources//file",
-    tags = ["maven_coordinates=com.fasterxml.jackson.core:jackson-databind:2.21.4"],
-    visibility = ["//visibility:private"],
-    deps = [
-        ":jackson_annotations",
-        ":jackson_core",
-    ],
-)
-
-_java_import(
-    name = "jackson_datatype_guava",
-    jars = ["@jackson_datatype_guava//file"],
-    srcjar = "@jackson_datatype_guava__sources//file",
-    tags = ["maven_coordinates=com.fasterxml.jackson.datatype:jackson-datatype-guava:2.21.4"],
-    visibility = ["//visibility:private"],
-    deps = [
-        ":guava",
-        ":jackson_annotations",
-        ":jackson_core",
-        ":jackson_databind",
-    ],
-)
-
-_java_import(
-    name = "jackson_datatype_jdk8",
-    jars = ["@jackson_datatype_jdk8//file"],
-    srcjar = "@jackson_datatype_jdk8__sources//file",
-    tags = ["maven_coordinates=com.fasterxml.jackson.datatype:jackson-datatype-jdk8:2.21.4"],
-    visibility = ["//visibility:private"],
-    runtime_deps = [
-        ":jackson_core",
-        ":jackson_databind",
-    ],
-)
-
-_java_import(
-    name = "jackson_module_parameter_names",
-    jars = ["@jackson_module_parameter_names//file"],
-    srcjar = "@jackson_module_parameter_names__sources//file",
-    tags = ["maven_coordinates=com.fasterxml.jackson.module:jackson-module-parameter-names:2.21.4"],
-    visibility = ["//visibility:private"],
-    runtime_deps = [
-        ":jackson_core",
-        ":jackson_databind",
-    ],
-)
-
-_java_import(
     name = "waffle_jna",
     jars = ["@waffle_jna//file"],
     srcjar = "@waffle_jna__sources//file",
@@ -224,7 +135,7 @@ _java_import(
     name = "error_prone_annotations",
     jars = ["@error_prone_annotations//file"],
     srcjar = "@error_prone_annotations__sources//file",
-    tags = ["maven_coordinates=com.google.errorprone:error_prone_annotations:2.47.0"],
+    tags = ["maven_coordinates=com.google.errorprone:error_prone_annotations:2.11.0"],
     visibility = ["//visibility:private"],
 )
 
@@ -232,7 +143,7 @@ _java_import(
     name = "failureaccess",
     jars = ["@failureaccess//file"],
     srcjar = "@failureaccess__sources//file",
-    tags = ["maven_coordinates=com.google.guava:failureaccess:1.0.3"],
+    tags = ["maven_coordinates=com.google.guava:failureaccess:1.0.1"],
     visibility = ["//visibility:private"],
 )
 
@@ -240,13 +151,14 @@ _java_import(
     name = "guava",
     jars = ["@guava//file"],
     srcjar = "@guava__sources//file",
-    tags = ["maven_coordinates=com.google.guava:guava:33.6.0-jre"],
+    tags = ["maven_coordinates=com.google.guava:guava:31.1-jre"],
     visibility = ["//visibility:private"],
-    deps = [
+    runtime_deps = [
+        ":checker_qual",
         ":error_prone_annotations",
         ":failureaccess",
         ":j2objc_annotations",
-        ":jspecify",
+        ":jsr305",
         ":listenablefuture",
     ],
 )
@@ -261,7 +173,7 @@ _java_import(
     name = "j2objc_annotations",
     jars = ["@j2objc_annotations//file"],
     srcjar = "@j2objc_annotations__sources//file",
-    tags = ["maven_coordinates=com.google.j2objc:j2objc-annotations:3.1"],
+    tags = ["maven_coordinates=com.google.j2objc:j2objc-annotations:1.3"],
     visibility = ["//visibility:private"],
 )
 
@@ -283,37 +195,6 @@ _java_import(
     name = "mssql_jdbc",
     jars = ["@mssql_jdbc//file"],
     tags = ["maven_coordinates=com.microsoft.sqlserver:mssql-jdbc:12.8.1.jre11"],
-)
-
-_java_import(
-    name = "palantir_java_format",
-    jars = ["@palantir_java_format//file"],
-    tags = ["maven_coordinates=com.palantir.javaformat:palantir-java-format:2.93.0"],
-    runtime_deps = [
-        ":functionaljava",
-        ":jackson_datatype_jdk8",
-        ":jackson_module_parameter_names",
-        ":jsr305",
-    ],
-    deps = [
-        ":guava",
-        ":jackson_core",
-        ":jackson_databind",
-        ":palantir_java_format_spi",
-    ],
-)
-
-_java_import(
-    name = "palantir_java_format_spi",
-    jars = ["@palantir_java_format_spi//file"],
-    srcjar = "@palantir_java_format_spi__sources//file",
-    tags = ["maven_coordinates=com.palantir.javaformat:palantir-java-format-spi:2.93.0"],
-    visibility = ["//visibility:private"],
-    deps = [
-        ":guava",
-        ":jackson_annotations",
-        ":jackson_datatype_guava",
-    ],
 )
 
 _java_import(
@@ -395,14 +276,6 @@ _java_import(
     tags = ["maven_coordinates=org.checkerframework:dataflow-nullaway:4.0.0"],
     visibility = ["//visibility:private"],
     runtime_deps = [":checker_qual"],
-)
-
-_java_import(
-    name = "functionaljava",
-    jars = ["@functionaljava//file"],
-    srcjar = "@functionaljava__sources//file",
-    tags = ["maven_coordinates=org.functionaljava:functionaljava:5.0"],
-    visibility = ["//visibility:private"],
 )
 
 _java_import(

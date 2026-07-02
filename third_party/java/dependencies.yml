@@ -32,10 +32,6 @@ artifacts:
     includeSource: false
   - coord: com.h2database:h2:2.4.240
     includeSource: false
-  - coord: com.palantir.javaformat:palantir-java-format:2.93.0
-    includeSource: false
-    excludes:
-      - com.palantir.javaformat:palantir-java-format-parent
   - coord: com.uber.nullaway:nullaway:0.13.7
     includeSource: false
   - coord: com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava

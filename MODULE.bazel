@@ -46,90 +46,6 @@ _http_file(
 )
 
 _http_file(
-    name = "jackson_annotations",
-    downloaded_file_path = "com/fasterxml/jackson/core/jackson-annotations/2.21/jackson-annotations-2.21.jar",
-    sha256 = "53ca085f4a150f703f49e1aabd935bd03b43e1ea3d55d135438292af22cef56b",
-    urls = ["https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-annotations/2.21/jackson-annotations-2.21.jar"],
-)
-
-_http_file(
-    name = "jackson_annotations__sources",
-    downloaded_file_path = "com/fasterxml/jackson/core/jackson-annotations/2.21/jackson-annotations-2.21-sources.jar",
-    sha256 = "71fe6323d91b16d5d1007fd1e1533fa06bb369abde74f68a42a68c0f8f061a8b",
-    urls = ["https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-annotations/2.21/jackson-annotations-2.21-sources.jar"],
-)
-
-_http_file(
-    name = "jackson_core",
-    downloaded_file_path = "com/fasterxml/jackson/core/jackson-core/2.21.4/jackson-core-2.21.4.jar",
-    sha256 = "4b40a06396f239f8de2da57419adde6e94e5edc18a2171d471ea05eeed4e5c2d",
-    urls = ["https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-core/2.21.4/jackson-core-2.21.4.jar"],
-)
-
-_http_file(
-    name = "jackson_core__sources",
-    downloaded_file_path = "com/fasterxml/jackson/core/jackson-core/2.21.4/jackson-core-2.21.4-sources.jar",
-    sha256 = "90ccada55626ce4f00a81bde235af0a942ec2bc4c701fcc86a93af1be9b3e08d",
-    urls = ["https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-core/2.21.4/jackson-core-2.21.4-sources.jar"],
-)
-
-_http_file(
-    name = "jackson_databind",
-    downloaded_file_path = "com/fasterxml/jackson/core/jackson-databind/2.21.4/jackson-databind-2.21.4.jar",
-    sha256 = "3888e9e69ab66fbacaacc9aea0e9ffbf15368288e4aca468b024dba11c09fbf9",
-    urls = ["https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.21.4/jackson-databind-2.21.4.jar"],
-)
-
-_http_file(
-    name = "jackson_databind__sources",
-    downloaded_file_path = "com/fasterxml/jackson/core/jackson-databind/2.21.4/jackson-databind-2.21.4-sources.jar",
-    sha256 = "23188e78e912c9866367bf038fb7f729e79f1c2724174ca66e0a00915de70e61",
-    urls = ["https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.21.4/jackson-databind-2.21.4-sources.jar"],
-)
-
-_http_file(
-    name = "jackson_datatype_guava",
-    downloaded_file_path = "com/fasterxml/jackson/datatype/jackson-datatype-guava/2.21.4/jackson-datatype-guava-2.21.4.jar",
-    sha256 = "6fa3c09d6a89869a56ba042de642cae629ee6f39b8694d1d16776ae5b36f6323",
-    urls = ["https://repo.maven.apache.org/maven2/com/fasterxml/jackson/datatype/jackson-datatype-guava/2.21.4/jackson-datatype-guava-2.21.4.jar"],
-)
-
-_http_file(
-    name = "jackson_datatype_guava__sources",
-    downloaded_file_path = "com/fasterxml/jackson/datatype/jackson-datatype-guava/2.21.4/jackson-datatype-guava-2.21.4-sources.jar",
-    sha256 = "97d8371d60b6c6fef3c5aed1aeb0b6323fda5036e0e0b13fd9b5ae31d84c9f9e",
-    urls = ["https://repo.maven.apache.org/maven2/com/fasterxml/jackson/datatype/jackson-datatype-guava/2.21.4/jackson-datatype-guava-2.21.4-sources.jar"],
-)
-
-_http_file(
-    name = "jackson_datatype_jdk8",
-    downloaded_file_path = "com/fasterxml/jackson/datatype/jackson-datatype-jdk8/2.21.4/jackson-datatype-jdk8-2.21.4.jar",
-    sha256 = "2dde4a8f1aad3306c040f56ff40da81c6d58dcef3434c00849c9bce09f56a074",
-    urls = ["https://repo.maven.apache.org/maven2/com/fasterxml/jackson/datatype/jackson-datatype-jdk8/2.21.4/jackson-datatype-jdk8-2.21.4.jar"],
-)
-
-_http_file(
-    name = "jackson_datatype_jdk8__sources",
-    downloaded_file_path = "com/fasterxml/jackson/datatype/jackson-datatype-jdk8/2.21.4/jackson-datatype-jdk8-2.21.4-sources.jar",
-    sha256 = "9bf668a180d7b749e3d6f8b03357c390b116716f7051e26a986a08d8ee526b15",
-    urls = ["https://repo.maven.apache.org/maven2/com/fasterxml/jackson/datatype/jackson-datatype-jdk8/2.21.4/jackson-datatype-jdk8-2.21.4-sources.jar"],
-)
-
-_http_file(
-    name = "jackson_module_parameter_names",
-    downloaded_file_path = "com/fasterxml/jackson/module/jackson-module-parameter-names/2.21.4/jackson-module-parameter-names-2.21.4.jar",
-    sha256 = "9510f91a4be2c700753ad244596b67424cb32c23659db1dc534219226e5df3a3",
-    urls = ["https://repo.maven.apache.org/maven2/com/fasterxml/jackson/module/jackson-module-parameter-names/2.21.4/jackson-module-parameter-names-2.21.4.jar"],
-)
-
-_http_file(
-    name = "jackson_module_parameter_names__sources",
-    downloaded_file_path = "com/fasterxml/jackson/module/jackson-module-parameter-names/2.21.4/jackson-module-parameter-names-2.21.4-sources.jar",
-    sha256 = "e4dd3ca21b04c3e7abe0732a1ed159703a404f1308a65f9ba8fe3b9394857d34",
-    urls = ["https://repo.maven.apache.org/maven2/com/fasterxml/jackson/module/jackson-module-parameter-names/2.21.4/jackson-module-parameter-names-2.21.4-sources.jar"],
-)
-
-_http_file(
     name = "waffle_jna",
     downloaded_file_path = "com/github/waffle/waffle-jna/1.9.1/waffle-jna-1.9.1.jar",
     sha256 = "5dfeb0acbe917b90af65705c614243b84d4b1b9d92858eeaeafa8885fca0f88e",
@@ -173,44 +89,44 @@ _http_file(
 
 _http_file(
     name = "error_prone_annotations",
-    downloaded_file_path = "com/google/errorprone/error_prone_annotations/2.47.0/error_prone_annotations-2.47.0.jar",
-    sha256 = "5364bc6f22e72e98195e406a58d3ba1c09ffa11dea0729592cb870dc2de4056d",
-    urls = ["https://repo.maven.apache.org/maven2/com/google/errorprone/error_prone_annotations/2.47.0/error_prone_annotations-2.47.0.jar"],
+    downloaded_file_path = "com/google/errorprone/error_prone_annotations/2.11.0/error_prone_annotations-2.11.0.jar",
+    sha256 = "721cb91842b46fa056847d104d5225c8b8e1e8b62263b993051e1e5a0137b7ec",
+    urls = ["https://repo.maven.apache.org/maven2/com/google/errorprone/error_prone_annotations/2.11.0/error_prone_annotations-2.11.0.jar"],
 )
 
 _http_file(
     name = "error_prone_annotations__sources",
-    downloaded_file_path = "com/google/errorprone/error_prone_annotations/2.47.0/error_prone_annotations-2.47.0-sources.jar",
-    sha256 = "a253b9fee9e23bce516f5edc45849fb7d13f8dac04b961a95bac6f0c71fdd066",
-    urls = ["https://repo.maven.apache.org/maven2/com/google/errorprone/error_prone_annotations/2.47.0/error_prone_annotations-2.47.0-sources.jar"],
+    downloaded_file_path = "com/google/errorprone/error_prone_annotations/2.11.0/error_prone_annotations-2.11.0-sources.jar",
+    sha256 = "31a8f1bd791fb22c606af95049062a3c8252ce4b1b17555d00dc609e6371101d",
+    urls = ["https://repo.maven.apache.org/maven2/com/google/errorprone/error_prone_annotations/2.11.0/error_prone_annotations-2.11.0-sources.jar"],
 )
 
 _http_file(
     name = "failureaccess",
-    downloaded_file_path = "com/google/guava/failureaccess/1.0.3/failureaccess-1.0.3.jar",
-    sha256 = "cbfc3906b19b8f55dd7cfd6dfe0aa4532e834250d7f080bd8d211a3e246b59cb",
-    urls = ["https://repo.maven.apache.org/maven2/com/google/guava/failureaccess/1.0.3/failureaccess-1.0.3.jar"],
+    downloaded_file_path = "com/google/guava/failureaccess/1.0.1/failureaccess-1.0.1.jar",
+    sha256 = "a171ee4c734dd2da837e4b16be9df4661afab72a41adaf31eb84dfdaf936ca26",
+    urls = ["https://repo.maven.apache.org/maven2/com/google/guava/failureaccess/1.0.1/failureaccess-1.0.1.jar"],
 )
 
 _http_file(
     name = "failureaccess__sources",
-    downloaded_file_path = "com/google/guava/failureaccess/1.0.3/failureaccess-1.0.3-sources.jar",
-    sha256 = "6fef4dfd2eb9f961655f2a3c4ea87c023618d9fcbfb6b104c17862e5afe66b97",
-    urls = ["https://repo.maven.apache.org/maven2/com/google/guava/failureaccess/1.0.3/failureaccess-1.0.3-sources.jar"],
+    downloaded_file_path = "com/google/guava/failureaccess/1.0.1/failureaccess-1.0.1-sources.jar",
+    sha256 = "092346eebbb1657b51aa7485a246bf602bb464cc0b0e2e1c7e7201fadce1e98f",
+    urls = ["https://repo.maven.apache.org/maven2/com/google/guava/failureaccess/1.0.1/failureaccess-1.0.1-sources.jar"],
 )
 
 _http_file(
     name = "guava",
-    downloaded_file_path = "com/google/guava/guava/33.6.0-jre/guava-33.6.0-jre.jar",
-    sha256 = "dc573e1fca4fd5454f4a5fd3d7da2df03002876a4175bafc14a95980dd7713b3",
-    urls = ["https://repo.maven.apache.org/maven2/com/google/guava/guava/33.6.0-jre/guava-33.6.0-jre.jar"],
+    downloaded_file_path = "com/google/guava/guava/31.1-jre/guava-31.1-jre.jar",
+    sha256 = "a42edc9cab792e39fe39bb94f3fca655ed157ff87a8af78e1d6ba5b07c4a00ab",
+    urls = ["https://repo.maven.apache.org/maven2/com/google/guava/guava/31.1-jre/guava-31.1-jre.jar"],
 )
 
 _http_file(
     name = "guava__sources",
-    downloaded_file_path = "com/google/guava/guava/33.6.0-jre/guava-33.6.0-jre-sources.jar",
-    sha256 = "eff31867dd63a92d63ca856127a424a6836418d8bfa044162cac20430abd3500",
-    urls = ["https://repo.maven.apache.org/maven2/com/google/guava/guava/33.6.0-jre/guava-33.6.0-jre-sources.jar"],
+    downloaded_file_path = "com/google/guava/guava/31.1-jre/guava-31.1-jre-sources.jar",
+    sha256 = "8ab1853cdaf936ec88be80c17302b7c20abafbd4f54d4fb54d7011c529e3a44a",
+    urls = ["https://repo.maven.apache.org/maven2/com/google/guava/guava/31.1-jre/guava-31.1-jre-sources.jar"],
 )
 
 _http_file(
@@ -222,16 +138,16 @@ _http_file(
 
 _http_file(
     name = "j2objc_annotations",
-    downloaded_file_path = "com/google/j2objc/j2objc-annotations/3.1/j2objc-annotations-3.1.jar",
-    sha256 = "84d3a150518485f8140ea99b8a985656749629f6433c92b80c75b36aba3b099b",
-    urls = ["https://repo.maven.apache.org/maven2/com/google/j2objc/j2objc-annotations/3.1/j2objc-annotations-3.1.jar"],
+    downloaded_file_path = "com/google/j2objc/j2objc-annotations/1.3/j2objc-annotations-1.3.jar",
+    sha256 = "21af30c92267bd6122c0e0b4d20cccb6641a37eaf956c6540ec471d584e64a7b",
+    urls = ["https://repo.maven.apache.org/maven2/com/google/j2objc/j2objc-annotations/1.3/j2objc-annotations-1.3.jar"],
 )
 
 _http_file(
     name = "j2objc_annotations__sources",
-    downloaded_file_path = "com/google/j2objc/j2objc-annotations/3.1/j2objc-annotations-3.1-sources.jar",
-    sha256 = "295938307f4016b3f128f7347101b236ada1394808104519c9e93cd61b64602b",
-    urls = ["https://repo.maven.apache.org/maven2/com/google/j2objc/j2objc-annotations/3.1/j2objc-annotations-3.1-sources.jar"],
+    downloaded_file_path = "com/google/j2objc/j2objc-annotations/1.3/j2objc-annotations-1.3-sources.jar",
+    sha256 = "ba4df669fec153fa4cd0ef8d02c6d3ef0702b7ac4cabe080facf3b6e490bb972",
+    urls = ["https://repo.maven.apache.org/maven2/com/google/j2objc/j2objc-annotations/1.3/j2objc-annotations-1.3-sources.jar"],
 )
 
 _http_file(
@@ -260,27 +176,6 @@ _http_file(
     downloaded_file_path = "com/microsoft/sqlserver/mssql-jdbc/12.8.1.jre11/mssql-jdbc-12.8.1.jre11.jar",
     sha256 = "e6933c0711e598a224060e52ed31392f720a4a7664e85d8ae37c52a85b67ebb0",
     urls = ["https://repo.maven.apache.org/maven2/com/microsoft/sqlserver/mssql-jdbc/12.8.1.jre11/mssql-jdbc-12.8.1.jre11.jar"],
-)
-
-_http_file(
-    name = "palantir_java_format",
-    downloaded_file_path = "com/palantir/javaformat/palantir-java-format/2.93.0/palantir-java-format-2.93.0.jar",
-    sha256 = "04e5a7e2cb86acefc448443cce4a2729f929b3bc50eeaa9c5ce33eedaf388b1f",
-    urls = ["https://repo.maven.apache.org/maven2/com/palantir/javaformat/palantir-java-format/2.93.0/palantir-java-format-2.93.0.jar"],
-)
-
-_http_file(
-    name = "palantir_java_format_spi",
-    downloaded_file_path = "com/palantir/javaformat/palantir-java-format-spi/2.93.0/palantir-java-format-spi-2.93.0.jar",
-    sha256 = "a7de2e9113105f473bbb616dac590f2a4632a3a6674329ba353673a06770ecc2",
-    urls = ["https://repo.maven.apache.org/maven2/com/palantir/javaformat/palantir-java-format-spi/2.93.0/palantir-java-format-spi-2.93.0.jar"],
-)
-
-_http_file(
-    name = "palantir_java_format_spi__sources",
-    downloaded_file_path = "com/palantir/javaformat/palantir-java-format-spi/2.93.0/palantir-java-format-spi-2.93.0-sources.jar",
-    sha256 = "8a1a9c5197435fe7fd0b3d58cf305f242a9a55199eec8dfe86649b9a06626641",
-    urls = ["https://repo.maven.apache.org/maven2/com/palantir/javaformat/palantir-java-format-spi/2.93.0/palantir-java-format-spi-2.93.0-sources.jar"],
 )
 
 _http_file(
@@ -403,20 +298,6 @@ _http_file(
 )
 
 _http_file(
-    name = "functionaljava",
-    downloaded_file_path = "org/functionaljava/functionaljava/5.0/functionaljava-5.0.jar",
-    sha256 = "377ad140e7d26ba04fadf219b09d7e1c74bc0232fa4010b20c1c79db11f9670e",
-    urls = ["https://repo.maven.apache.org/maven2/org/functionaljava/functionaljava/5.0/functionaljava-5.0.jar"],
-)
-
-_http_file(
-    name = "functionaljava__sources",
-    downloaded_file_path = "org/functionaljava/functionaljava/5.0/functionaljava-5.0-sources.jar",
-    sha256 = "6a27c0262420cb71d2087d7f40046de1fbc9d9ab4776d33bbdddf7e1b4aa6d39",
-    urls = ["https://repo.maven.apache.org/maven2/org/functionaljava/functionaljava/5.0/functionaljava-5.0-sources.jar"],
-)
-
-_http_file(
     name = "jspecify",
     downloaded_file_path = "org/jspecify/jspecify/1.0.0/jspecify-1.0.0.jar",
     sha256 = "1fad6e6be7557781e4d33729d49ae1cdc8fdda6fe477bb0cc68ce351eafdfbab",
@@ -473,3 +354,120 @@ _http_file(
 )
 
 # --- depgen-generated repository rules end ---
+# --- depgen-generated java-format repository rules start ---
+
+# DO NOT EDIT: Content is auto-generated from //tools/java-format:dependencies.yml by https://github.com/realityforge/bazel-depgen version 0.26
+
+_http_file(
+    name = "com_fasterxml_jackson_core__jackson_annotations__2_21",
+    downloaded_file_path = "com/fasterxml/jackson/core/jackson-annotations/2.21/jackson-annotations-2.21.jar",
+    sha256 = "53ca085f4a150f703f49e1aabd935bd03b43e1ea3d55d135438292af22cef56b",
+    urls = ["https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-annotations/2.21/jackson-annotations-2.21.jar"],
+)
+
+_http_file(
+    name = "com_fasterxml_jackson_core__jackson_core__2_21_4",
+    downloaded_file_path = "com/fasterxml/jackson/core/jackson-core/2.21.4/jackson-core-2.21.4.jar",
+    sha256 = "4b40a06396f239f8de2da57419adde6e94e5edc18a2171d471ea05eeed4e5c2d",
+    urls = ["https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-core/2.21.4/jackson-core-2.21.4.jar"],
+)
+
+_http_file(
+    name = "com_fasterxml_jackson_core__jackson_databind__2_21_4",
+    downloaded_file_path = "com/fasterxml/jackson/core/jackson-databind/2.21.4/jackson-databind-2.21.4.jar",
+    sha256 = "3888e9e69ab66fbacaacc9aea0e9ffbf15368288e4aca468b024dba11c09fbf9",
+    urls = ["https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.21.4/jackson-databind-2.21.4.jar"],
+)
+
+_http_file(
+    name = "com_fasterxml_jackson_datatype__jackson_datatype_guava__2_21_4",
+    downloaded_file_path = "com/fasterxml/jackson/datatype/jackson-datatype-guava/2.21.4/jackson-datatype-guava-2.21.4.jar",
+    sha256 = "6fa3c09d6a89869a56ba042de642cae629ee6f39b8694d1d16776ae5b36f6323",
+    urls = ["https://repo.maven.apache.org/maven2/com/fasterxml/jackson/datatype/jackson-datatype-guava/2.21.4/jackson-datatype-guava-2.21.4.jar"],
+)
+
+_http_file(
+    name = "com_fasterxml_jackson_datatype__jackson_datatype_jdk8__2_21_4",
+    downloaded_file_path = "com/fasterxml/jackson/datatype/jackson-datatype-jdk8/2.21.4/jackson-datatype-jdk8-2.21.4.jar",
+    sha256 = "2dde4a8f1aad3306c040f56ff40da81c6d58dcef3434c00849c9bce09f56a074",
+    urls = ["https://repo.maven.apache.org/maven2/com/fasterxml/jackson/datatype/jackson-datatype-jdk8/2.21.4/jackson-datatype-jdk8-2.21.4.jar"],
+)
+
+_http_file(
+    name = "com_fasterxml_jackson_module__jackson_module_parameter_names__2_21_4",
+    downloaded_file_path = "com/fasterxml/jackson/module/jackson-module-parameter-names/2.21.4/jackson-module-parameter-names-2.21.4.jar",
+    sha256 = "9510f91a4be2c700753ad244596b67424cb32c23659db1dc534219226e5df3a3",
+    urls = ["https://repo.maven.apache.org/maven2/com/fasterxml/jackson/module/jackson-module-parameter-names/2.21.4/jackson-module-parameter-names-2.21.4.jar"],
+)
+
+_http_file(
+    name = "com_google_code_findbugs__jsr305__3_0_2",
+    downloaded_file_path = "com/google/code/findbugs/jsr305/3.0.2/jsr305-3.0.2.jar",
+    sha256 = "766ad2a0783f2687962c8ad74ceecc38a28b9f72a2d085ee438b7813e928d0c7",
+    urls = ["https://repo.maven.apache.org/maven2/com/google/code/findbugs/jsr305/3.0.2/jsr305-3.0.2.jar"],
+)
+
+_http_file(
+    name = "com_google_errorprone__error_prone_annotations__2_47_0",
+    downloaded_file_path = "com/google/errorprone/error_prone_annotations/2.47.0/error_prone_annotations-2.47.0.jar",
+    sha256 = "5364bc6f22e72e98195e406a58d3ba1c09ffa11dea0729592cb870dc2de4056d",
+    urls = ["https://repo.maven.apache.org/maven2/com/google/errorprone/error_prone_annotations/2.47.0/error_prone_annotations-2.47.0.jar"],
+)
+
+_http_file(
+    name = "com_google_guava__failureaccess__1_0_3",
+    downloaded_file_path = "com/google/guava/failureaccess/1.0.3/failureaccess-1.0.3.jar",
+    sha256 = "cbfc3906b19b8f55dd7cfd6dfe0aa4532e834250d7f080bd8d211a3e246b59cb",
+    urls = ["https://repo.maven.apache.org/maven2/com/google/guava/failureaccess/1.0.3/failureaccess-1.0.3.jar"],
+)
+
+_http_file(
+    name = "com_google_guava__guava__33_6_0_jre",
+    downloaded_file_path = "com/google/guava/guava/33.6.0-jre/guava-33.6.0-jre.jar",
+    sha256 = "dc573e1fca4fd5454f4a5fd3d7da2df03002876a4175bafc14a95980dd7713b3",
+    urls = ["https://repo.maven.apache.org/maven2/com/google/guava/guava/33.6.0-jre/guava-33.6.0-jre.jar"],
+)
+
+_http_file(
+    name = "com_google_guava__listenablefuture__9999_0_empty_to_avoid_conflict_with_guava",
+    downloaded_file_path = "com/google/guava/listenablefuture/9999.0-empty-to-avoid-conflict-with-guava/listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar",
+    sha256 = "b372a037d4230aa57fbeffdef30fd6123f9c0c2db85d0aced00c91b974f33f99",
+    urls = ["https://repo.maven.apache.org/maven2/com/google/guava/listenablefuture/9999.0-empty-to-avoid-conflict-with-guava/listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar"],
+)
+
+_http_file(
+    name = "com_google_j2objc__j2objc_annotations__3_1",
+    downloaded_file_path = "com/google/j2objc/j2objc-annotations/3.1/j2objc-annotations-3.1.jar",
+    sha256 = "84d3a150518485f8140ea99b8a985656749629f6433c92b80c75b36aba3b099b",
+    urls = ["https://repo.maven.apache.org/maven2/com/google/j2objc/j2objc-annotations/3.1/j2objc-annotations-3.1.jar"],
+)
+
+_http_file(
+    name = "com_palantir_javaformat__palantir_java_format__2_93_0",
+    downloaded_file_path = "com/palantir/javaformat/palantir-java-format/2.93.0/palantir-java-format-2.93.0.jar",
+    sha256 = "04e5a7e2cb86acefc448443cce4a2729f929b3bc50eeaa9c5ce33eedaf388b1f",
+    urls = ["https://repo.maven.apache.org/maven2/com/palantir/javaformat/palantir-java-format/2.93.0/palantir-java-format-2.93.0.jar"],
+)
+
+_http_file(
+    name = "com_palantir_javaformat__palantir_java_format_spi__2_93_0",
+    downloaded_file_path = "com/palantir/javaformat/palantir-java-format-spi/2.93.0/palantir-java-format-spi-2.93.0.jar",
+    sha256 = "a7de2e9113105f473bbb616dac590f2a4632a3a6674329ba353673a06770ecc2",
+    urls = ["https://repo.maven.apache.org/maven2/com/palantir/javaformat/palantir-java-format-spi/2.93.0/palantir-java-format-spi-2.93.0.jar"],
+)
+
+_http_file(
+    name = "org_functionaljava__functionaljava__5_0",
+    downloaded_file_path = "org/functionaljava/functionaljava/5.0/functionaljava-5.0.jar",
+    sha256 = "377ad140e7d26ba04fadf219b09d7e1c74bc0232fa4010b20c1c79db11f9670e",
+    urls = ["https://repo.maven.apache.org/maven2/org/functionaljava/functionaljava/5.0/functionaljava-5.0.jar"],
+)
+
+_http_file(
+    name = "org_jspecify__jspecify__1_0_0",
+    downloaded_file_path = "org/jspecify/jspecify/1.0.0/jspecify-1.0.0.jar",
+    sha256 = "1fad6e6be7557781e4d33729d49ae1cdc8fdda6fe477bb0cc68ce351eafdfbab",
+    urls = ["https://repo.maven.apache.org/maven2/org/jspecify/jspecify/1.0.0/jspecify-1.0.0.jar"],
+)
+
+# --- depgen-generated java-format repository rules end ---
