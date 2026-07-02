@@ -1,8 +1,0 @@
-*.iml
-/*.ipr
-/*.iws
-/.rakeTasks
-/Gemfile.lock
-/patch.*
-/pkg
-/rdoc
