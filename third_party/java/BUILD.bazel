@@ -9,12 +9,12 @@ _java_plugin(
 
 # --- depgen-generated targets start ---
 
-# DO NOT EDIT: Content is auto-generated from //third_party/java:dependencies.yml by https://github.com/realityforge/bazel-depgen version 0.24
+# DO NOT EDIT: Content is auto-generated from //third_party/java:dependencies.yml by https://github.com/realityforge/bazel-depgen version 0.26
 
 load("@rules_java//java:defs.bzl", _java_binary = "java_binary", _java_import = "java_import", _java_test = "java_test")
 
 # SHA256 of the configuration content that generated this content
-_CONFIG_SHA256 = "601F97B6D7C78D9EA85E97799FE678AC4628C2346A5090497C952DC4EAAF3DE2"
+_CONFIG_SHA256 = "079DEE2DC200C7BB8CBD3B365FD1C34232BB2BC709B3B873708B47BF7115D36F"
 
 exports_files(["dependencies.yml"])
 
@@ -95,14 +95,14 @@ _java_test(
 
 _java_binary(
     name = "update_depgen_generated_outputs",
-    runtime_deps = [":bazel_depgen"],
-    main_class = "org.realityforge.bazel.depgen.Main",
     args = [
         "--config-file",
         "$(rootpath //third_party/java:dependencies.yml)",
         "--verbose",
         "generate",
     ],
+    data = ["//third_party/java:dependencies.yml"],
+    main_class = "org.realityforge.bazel.depgen.Main",
     tags = [
         "local",
         "manual",
@@ -110,8 +110,8 @@ _java_binary(
         "no-remote",
         "no-sandbox",
     ],
-    data = ["//third_party/java:dependencies.yml"],
     visibility = ["//visibility:private"],
+    runtime_deps = [":bazel_depgen"],
 )
 
 _java_import(
@@ -289,17 +289,17 @@ _java_import(
     name = "palantir_java_format",
     jars = ["@palantir_java_format//file"],
     tags = ["maven_coordinates=com.palantir.javaformat:palantir-java-format:2.93.0"],
-    deps = [
-        ":guava",
-        ":jackson_core",
-        ":jackson_databind",
-        ":palantir_java_format_spi",
-    ],
     runtime_deps = [
         ":functionaljava",
         ":jackson_datatype_jdk8",
         ":jackson_module_parameter_names",
         ":jsr305",
+    ],
+    deps = [
+        ":guava",
+        ":jackson_core",
+        ":jackson_databind",
+        ":palantir_java_format_spi",
     ],
 )
 
@@ -320,11 +320,11 @@ _java_import(
     name = "nullaway",
     jars = ["@nullaway//file"],
     tags = ["maven_coordinates=com.uber.nullaway:nullaway:0.13.7"],
-    deps = [":jspecify"],
     runtime_deps = [
         ":dataflow_nullaway",
         ":guava",
     ],
+    deps = [":jspecify"],
 )
 
 _java_import(
@@ -421,11 +421,11 @@ _java_import(
     name = "mockito_core",
     jars = ["@mockito_core//file"],
     tags = ["maven_coordinates=org.mockito:mockito-core:5.18.0"],
+    runtime_deps = [":objenesis"],
     deps = [
         ":byte_buddy",
         ":byte_buddy_agent",
     ],
-    runtime_deps = [":objenesis"],
 )
 
 _java_import(
@@ -446,7 +446,7 @@ _java_import(
 _java_import(
     name = "bazel_depgen",
     jars = ["@bazel_depgen//file"],
-    tags = ["maven_coordinates=org.realityforge.bazel.depgen:bazel-depgen:0.24"],
+    tags = ["maven_coordinates=org.realityforge.bazel.depgen:bazel-depgen:0.26"],
 )
 
 _java_import(

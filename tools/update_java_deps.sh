@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-VERSION="0.24"
+VERSION="0.26"
 URL="https://repo.maven.apache.org/maven2/org/realityforge/bazel/depgen/bazel-depgen/${VERSION}/bazel-depgen-${VERSION}-all.jar"
 OUTPUT_BASE="$(cd "${ROOT}" && bazel info output_base)"
 TOOLS_DIR="${OUTPUT_BASE}/.depgen-tools"
@@ -23,3 +23,5 @@ java -jar "${JAR}" \
   --config-file third_party/java/dependencies.yml \
   --cache-directory "${CACHE_DIR}" \
   generate
+bazel run //third_party/java:update_depgen_generated_outputs
+bazel run //:buildifier -- MODULE.bazel third_party/java/BUILD.bazel tools/java-format/BUILD.bazel
