@@ -1,5 +1,4 @@
 .git
 .bazelbsp/
-.ijwb
 # Ignore temp directory
 tmp
