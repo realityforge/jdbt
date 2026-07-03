@@ -1,4 +1,0 @@
-.git
-.bazelbsp/
-# Ignore temp directory
-tmp

@@ -1,0 +1,8 @@
+# Directories Bazel should not scan as source packages in the main repository.
+# Vendor directories are still consumed through MODULE.bazel local_path_override
+# entries, where they are separate external repository roots.
+ignore_directories([
+    ".git",
+    "tmp",
+    ".bazelbsp",
+])
