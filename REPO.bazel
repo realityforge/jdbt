@@ -2,5 +2,4 @@
 ignore_directories([
     ".git",
     "tmp",
-    ".bazelbsp",
 ])
