@@ -9,5 +9,6 @@ bazel run //:buildifier_check
 tools/java_format.sh check
 bazel build //...
 bazel test //...
+coverage_report="$(bazel info output_path)/_coverage/_coverage_report.dat"
 bazel coverage //src/test/java/org/realityforge/jdbt:all_tests --combined_report=lcov
-tools/check_coverage.py bazel-out/_coverage/_coverage_report.dat 0.85 0.75
+tools/check_coverage.py "${coverage_report}" 0.85 0.75
