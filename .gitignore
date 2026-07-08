@@ -1,2 +1,5 @@
 # Ignore local temp file
 tmp/
+
+# Local user configuration
+.bazelrc.user

@@ -10,3 +10,5 @@ test --explicit_java_test_deps
 # Generate the symlink tree as a peer directory
 # If we generate in the current directory, IDEA can start scanning an ultimately get locked up or crash
 common --symlink_prefix=../.bazel/jdbt/
+
+try-import %workspace%/.bazelrc.user
