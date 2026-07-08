@@ -2,4 +2,4 @@
 tmp/
 
 # Local user configuration
-.bazelrc.user
+/user.bazelrc

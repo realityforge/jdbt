@@ -11,4 +11,5 @@ test --explicit_java_test_deps
 # If we generate in the current directory, IDEA can start scanning an ultimately get locked up or crash
 common --symlink_prefix=../.bazel/jdbt/
 
-try-import %workspace%/.bazelrc.user
+# # Try and import a user specific configuration
+try-import %workspace%/user.bazelrc
