@@ -449,7 +449,6 @@ public final class JdbtCommand implements Callable<Integer> {
     static final class VerifyConstraintsCommand extends BaseSqlCommand {
         @CommandLine.Option(
                 names = "--schema",
-                required = true,
                 description = "Schema containing an spCheckConstraints routine. May be specified multiple times.")
         private List<String> schemas = new ArrayList<>();
 
@@ -461,8 +460,15 @@ public final class JdbtCommand implements Callable<Integer> {
         @CommandLine.Mixin
         private TargetConnectionOptions target = new TargetConnectionOptions();
 
+        @CommandLine.Spec
+        private CommandLine.Model.CommandSpec spec;
+
         @Override
         public Integer call() {
+            if (schemas.isEmpty() && checkQueries.isEmpty()) {
+                throw new CommandLine.ParameterException(
+                        spec.commandLine(), "At least one --schema or --check-query must be specified.");
+            }
             runner().verifyConstraints(
                             databaseKey(),
                             driver(),

@@ -311,6 +311,60 @@ final class JdbtCommandTest {
     }
 
     @Test
+    void verifyConstraintsDispatchesCheckQueryWithoutSchema() {
+        final var runner = new RecordingRunner();
+
+        final var exitCode = JdbtCommand.execute(
+                new String[] {
+                    "verify-constraints",
+                    "--target-host",
+                    "localhost",
+                    "--target-port",
+                    "1433",
+                    "--target-database",
+                    "db",
+                    "--target-username",
+                    "sa",
+                    "--password",
+                    "secret",
+                    "--check-query",
+                    "EXEC [Analysis].[spPerformChecks]"
+                },
+                runner,
+                new PasswordResolver(Map.of(), new ByteArrayInputStream(new byte[0])));
+
+        assertThat(exitCode).isZero();
+        assertThat(runner.lastCall).isEqualTo("verify-constraints");
+        assertThat(runner.schemas).isEmpty();
+        assertThat(runner.checkQueries).containsExactly("EXEC [Analysis].[spPerformChecks]");
+    }
+
+    @Test
+    void verifyConstraintsRequiresSchemaOrCheckQuery() {
+        final var runner = new RecordingRunner();
+
+        final var exitCode = JdbtCommand.execute(
+                new String[] {
+                    "verify-constraints",
+                    "--target-host",
+                    "localhost",
+                    "--target-port",
+                    "1433",
+                    "--target-database",
+                    "db",
+                    "--target-username",
+                    "sa",
+                    "--password",
+                    "secret"
+                },
+                runner,
+                new PasswordResolver(Map.of(), new ByteArrayInputStream(new byte[0])));
+
+        assertThat(exitCode).isEqualTo(JdbtCommand.USAGE_EXIT_CODE);
+        assertThat(runner.lastCall).isEmpty();
+    }
+
+    @Test
     void dumpFixturesCommandIsNotExposed() {
         final var runner = new RecordingRunner();
 
