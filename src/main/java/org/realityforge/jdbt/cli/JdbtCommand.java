@@ -11,6 +11,7 @@ import java.util.concurrent.Callable;
 import org.jspecify.annotations.Nullable;
 import org.realityforge.jdbt.db.DatabaseConnection;
 import picocli.CommandLine;
+import picocli.CommandLine.Model.CommandSpec;
 
 @CommandLine.Command(
         name = "jdbt",
@@ -461,13 +462,14 @@ public final class JdbtCommand implements Callable<Integer> {
         private TargetConnectionOptions target = new TargetConnectionOptions();
 
         @CommandLine.Spec
-        private CommandLine.Model.CommandSpec spec;
+        private @Nullable CommandSpec spec;
 
         @Override
         public Integer call() {
             if (schemas.isEmpty() && checkQueries.isEmpty()) {
                 throw new CommandLine.ParameterException(
-                        spec.commandLine(), "At least one --schema or --check-query must be specified.");
+                        Objects.requireNonNull(spec).commandLine(),
+                        "At least one --schema or --check-query must be specified.");
             }
             runner().verifyConstraints(
                             databaseKey(),
