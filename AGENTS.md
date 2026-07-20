@@ -20,6 +20,10 @@ Run this command before handoff and before step-completion commits:
 
 `tools/check.sh`
 
+`tools/check.sh` verifies depgen outputs without modifying them. After changing
+`third_party/java/dependencies.yml` or `tools/java-format/dependencies.yml`, run
+`tools/update_java_deps.sh` to regenerate the Bazel outputs and Bzlmod lockfile.
+
 ## Commit Rules
 
 - Use $commit skill for commits.

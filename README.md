@@ -26,6 +26,10 @@ This project keeps parity-first behavior with the Ruby reference while using Jav
 tools/check.sh
 ```
 
+The check verifies generated dependency files without rewriting them. After changing
+`third_party/java/dependencies.yml` or `tools/java-format/dependencies.yml`, regenerate the checked-in Bazel
+outputs and lockfile with `tools/update_java_deps.sh`.
+
 Run the CLI through Bazel:
 
 ```bash
