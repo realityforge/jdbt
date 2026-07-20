@@ -2,9 +2,10 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+BAZEL="${ROOT}/bazelw"
 VERSION="0.28"
 URL="https://repo.maven.apache.org/maven2/org/realityforge/bazel/depgen/bazel-depgen/${VERSION}/bazel-depgen-${VERSION}-all.jar"
-OUTPUT_BASE="$(cd "${ROOT}" && bazel info output_base)"
+OUTPUT_BASE="$(cd "${ROOT}" && "${BAZEL}" info output_base)"
 TOOLS_DIR="${OUTPUT_BASE}/.depgen-tools"
 CACHE_DIR="${OUTPUT_BASE}/.depgen-cache"
 JAR="${TOOLS_DIR}/bazel-depgen-${VERSION}-all.jar"
@@ -50,8 +51,8 @@ if [[ "${CHECK_ONLY}" == true ]]; then
   cp third_party/java/BUILD.bazel third_party/java/dependencies.yml "${CHECK_ROOT}/third_party/java/"
   cp tools/java-format/BUILD.bazel tools/java-format/dependencies.yml "${CHECK_ROOT}/tools/java-format/"
   generate "${CHECK_ROOT}"
-  bazel build //:buildifier
-  BUILDIFIER_DIRECTORY="$(bazel info bazel-bin)"
+  "${BAZEL}" build //:buildifier
+  BUILDIFIER_DIRECTORY="$("${BAZEL}" info bazel-bin)"
   BUILDIFIER="$(find "${BUILDIFIER_DIRECTORY}/buildifier.bash.runfiles" -name buildifier -print -quit)"
   if [[ ! -x "${BUILDIFIER}" ]]; then
     echo "Unable to locate the Buildifier executable" >&2
@@ -69,8 +70,8 @@ if [[ "${CHECK_ONLY}" == true ]]; then
   diff -u tools/java-format/BUILD.bazel "${CHECK_ROOT}/tools/java-format/BUILD.bazel"
 else
   generate "${ROOT}"
-  bazel mod deps --lockfile_mode=update
-  bazel run //third_party/java:update_depgen_generated_outputs
-  bazel mod deps --lockfile_mode=update
-  bazel run //:buildifier -- MODULE.bazel third_party/java/BUILD.bazel tools/java-format/BUILD.bazel
+  "${BAZEL}" mod deps --lockfile_mode=update
+  "${BAZEL}" run //third_party/java:update_depgen_generated_outputs
+  "${BAZEL}" mod deps --lockfile_mode=update
+  "${BAZEL}" run //:buildifier -- MODULE.bazel third_party/java/BUILD.bazel tools/java-format/BUILD.bazel
 fi
