@@ -38,5 +38,6 @@ Run this command before handoff and before step-completion commits:
 - Formatting is enforced via palantir-java-format.
 - Bazel targets must list source files explicitly; do not use `glob()`.
 - Each source directory owns its own `BUILD.bazel`; targets must not list source files from child, sibling, or parent directories.
+- Name a Bazel Java test target containing a single test class after its source file without the `.java` suffix.
 - Prefer deterministic behavior (ordering, timestamps, output stability).
 - Default test runs must not require an external database, an in-memory database is ok.

@@ -3,7 +3,7 @@ load("//third_party/java:rules.bzl", "junit5_test")
 package(default_visibility = ["//visibility:public"])
 
 junit5_test(
-    name = "jdbt_tests",
+    name = "MainTest",
     srcs = [
         "MainTest.java",
         "package-info.java",
@@ -18,7 +18,7 @@ junit5_test(
 test_suite(
     name = "all_tests",
     tests = [
-        ":jdbt_tests",
+        ":MainTest",
         "//src/test/java/org/realityforge/jdbt/cli:cli_tests",
         "//src/test/java/org/realityforge/jdbt/config:config_tests",
         "//src/test/java/org/realityforge/jdbt/db:db_tests",
