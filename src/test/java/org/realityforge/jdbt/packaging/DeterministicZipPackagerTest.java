@@ -16,7 +16,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 final class DeterministicZipPackagerTest {
     @Test
-    void writesStoredEntriesInStableLexicalOrder(@TempDir final Path tempDir) throws IOException {
+    void writesCompressedEntriesInStableLexicalOrder(@TempDir final Path tempDir) throws IOException {
         final var source = tempDir.resolve("source");
         writeFile(source, "z/2.sql", "two");
         writeFile(source, "a/1.sql", "one");
@@ -27,7 +27,7 @@ final class DeterministicZipPackagerTest {
 
         final var entries = readEntries(zipFile);
         assertThat(entries.stream().map(ZipEntry::getName).toList()).containsExactly("a/0.sql", "a/1.sql", "z/2.sql");
-        assertThat(entries.stream().map(ZipEntry::getMethod).toList()).allMatch(method -> method == ZipEntry.STORED);
+        assertThat(entries.stream().map(ZipEntry::getMethod).toList()).allMatch(method -> method == ZipEntry.DEFLATED);
         assertThat(entries.stream().map(ZipEntry::getTime).toList()).containsOnly(0L);
     }
 

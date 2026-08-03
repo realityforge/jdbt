@@ -8,10 +8,12 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.zip.CRC32;
+import java.util.zip.Deflater;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 public final class DeterministicZipPackager {
+    private static final int COMPRESSION_LEVEL = Deflater.BEST_COMPRESSION;
     private static final long FIXED_ENTRY_TIME_MILLIS = 0L;
 
     public void write(final Path sourceDirectory, final Path zipFile) {
@@ -19,6 +21,7 @@ public final class DeterministicZipPackager {
         createParentDirectory(zipFile);
         try (var output = Files.newOutputStream(zipFile);
                 var zip = new ZipOutputStream(output)) {
+            zip.setLevel(COMPRESSION_LEVEL);
             for (final var file : files) {
                 writeEntry(sourceDirectory, file, zip);
             }
@@ -61,9 +64,8 @@ public final class DeterministicZipPackager {
         crc.update(content);
 
         final var entry = new ZipEntry(entryName);
-        entry.setMethod(ZipEntry.STORED);
+        entry.setMethod(ZipEntry.DEFLATED);
         entry.setSize(content.length);
-        entry.setCompressedSize(content.length);
         entry.setCrc(crc.getValue());
         entry.setTime(FIXED_ENTRY_TIME_MILLIS);
         zip.putNextEntry(entry);
