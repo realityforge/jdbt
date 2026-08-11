@@ -21,7 +21,7 @@ public final class RepositoryConfigMerger {
     private static final class MergeAccumulator {
         private final List<String> modules = new ArrayList<>();
         private final Map<String, String> schemaOverrides = new LinkedHashMap<>();
-        private final Map<String, List<String>> tableMap = new LinkedHashMap<>();
+        private final Map<String, List<RepositoryTable>> tableMap = new LinkedHashMap<>();
         private final Map<String, List<String>> sequenceMap = new LinkedHashMap<>();
 
         void merge(final RepositoryConfig source) {

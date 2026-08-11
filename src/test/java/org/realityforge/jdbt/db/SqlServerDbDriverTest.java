@@ -1,8 +1,11 @@
 package org.realityforge.jdbt.db;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -13,6 +16,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -35,13 +39,12 @@ final class SqlServerDbDriverTest {
     }
 
     @Test
-    void executeUsesControlConnectionWhenRequested() throws Exception {
+    void executeUsesTargetSessionAndTemporarilySelectsControlCatalogWhenTargetIsOpen() throws Exception {
         final var target = mock(Connection.class);
         final var control = mock(Connection.class);
         final var targetStatement = mock(Statement.class);
-        final var controlStatement = mock(Statement.class);
+        when(target.getCatalog()).thenReturn("DB");
         when(target.createStatement()).thenReturn(targetStatement);
-        when(control.createStatement()).thenReturn(controlStatement);
         final var driver = new SqlServerDbDriver((connection, controlDatabase) -> controlDatabase ? control : target);
         driver.open(config, false);
 
@@ -49,7 +52,72 @@ final class SqlServerDbDriverTest {
         driver.execute("SELECT 2", true);
 
         verify(targetStatement).execute("SELECT 1");
-        verify(controlStatement).execute("SELECT 2");
+        final var ordered = inOrder(target, targetStatement);
+        ordered.verify(target).getCatalog();
+        ordered.verify(target).setCatalog("msdb");
+        ordered.verify(target).createStatement();
+        ordered.verify(targetStatement).execute("SELECT 2");
+        ordered.verify(target).setCatalog("DB");
+        verify(control, never()).createStatement();
+    }
+
+    @Test
+    void executeRestoresTargetCatalogWhenControlSqlFails() throws Exception {
+        final var target = mock(Connection.class);
+        final var control = mock(Connection.class);
+        final var statement = mock(Statement.class);
+        when(target.getCatalog()).thenReturn("DB");
+        when(target.createStatement()).thenReturn(statement);
+        doThrow(new SQLException("boom")).when(statement).execute("FAIL");
+        final var driver = new SqlServerDbDriver((connection, controlDatabase) -> controlDatabase ? control : target);
+        driver.open(config, false);
+
+        assertThatThrownBy(() -> driver.execute("FAIL", true))
+                .isInstanceOf(DatabaseException.class)
+                .hasMessageContaining("Failed to execute SQL");
+
+        final var ordered = inOrder(target, statement);
+        ordered.verify(target).getCatalog();
+        ordered.verify(target).setCatalog("msdb");
+        ordered.verify(target).createStatement();
+        ordered.verify(statement).execute("FAIL");
+        ordered.verify(target).setCatalog("DB");
+        verify(control, never()).createStatement();
+    }
+
+    @Test
+    void identityToggleAndControlCatalogImportShareTargetSessionInOrder() throws Exception {
+        final var target = mock(Connection.class);
+        final var control = mock(Connection.class);
+        final var identityQuery = mock(PreparedStatement.class);
+        final var identityResult = mock(ResultSet.class);
+        final var statement = mock(Statement.class);
+        when(target.prepareStatement(contains("COLUMNPROPERTY"))).thenReturn(identityQuery);
+        when(identityQuery.executeQuery()).thenReturn(identityResult);
+        when(identityResult.next()).thenReturn(true, true);
+        when(identityResult.getLong(1)).thenReturn(1L, 1L);
+        when(target.getCatalog()).thenReturn("DB");
+        when(target.createStatement()).thenReturn(statement);
+        final var driver = new SqlServerDbDriver((connection, controlDatabase) -> controlDatabase ? control : target);
+        final var metadata = new DatabaseMetadata("default", "1", "hash", null, null, false, true, false, false);
+        final var importConfig = new ImportConfig("default", List.of("Core"), "import", List.of(), List.of());
+        driver.open(config, false);
+
+        driver.preTableImport(metadata, importConfig, "[Core].[tbl]");
+        driver.execute("INSERT IMPORT ROWS", true);
+        driver.postTableImport(metadata, importConfig, "[Core].[tbl]");
+
+        final var ordered = inOrder(target, statement);
+        ordered.verify(target).createStatement();
+        ordered.verify(statement).execute("SET IDENTITY_INSERT [Core].[tbl] ON");
+        ordered.verify(target).getCatalog();
+        ordered.verify(target).setCatalog("msdb");
+        ordered.verify(target).createStatement();
+        ordered.verify(statement).execute("INSERT IMPORT ROWS");
+        ordered.verify(target).setCatalog("DB");
+        ordered.verify(target).createStatement();
+        ordered.verify(statement).execute("SET IDENTITY_INSERT [Core].[tbl] OFF");
+        verify(control, never()).createStatement();
     }
 
     @Test
@@ -207,6 +275,26 @@ final class SqlServerDbDriverTest {
         verify(statement, times(2)).execute("SET IDENTITY_INSERT [dbo].[tbl] ON");
         verify(statement, times(2)).execute("SET IDENTITY_INSERT [dbo].[tbl] OFF");
         verify(statement).execute("DBCC DBREINDEX (N'[dbo].[tbl]', '', 0) WITH NO_INFOMSGS");
+    }
+
+    @Test
+    void fixtureImportDoesNotToggleIdentityInsertWhenIdentityAbsent() throws Exception {
+        final var target = mock(Connection.class);
+        final var identityQuery = mock(PreparedStatement.class);
+        final var identityResult = mock(ResultSet.class);
+        when(target.prepareStatement(contains("COLUMNPROPERTY"))).thenReturn(identityQuery);
+        when(identityQuery.executeQuery()).thenReturn(identityResult);
+        when(identityResult.next()).thenReturn(true, true);
+        when(identityResult.getLong(1)).thenReturn(0L, 0L);
+        final var statement = mock(Statement.class);
+        when(target.createStatement()).thenReturn(statement);
+        final var driver = new SqlServerDbDriver((connection, controlDatabase) -> target);
+        driver.open(config, false);
+
+        driver.preFixtureImport("[dbo].[tbl]");
+        driver.postFixtureImport("[dbo].[tbl]");
+
+        verify(statement, never()).execute(contains("IDENTITY_INSERT"));
     }
 
     @Test

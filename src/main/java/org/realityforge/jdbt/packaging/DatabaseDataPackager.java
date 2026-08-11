@@ -12,6 +12,8 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.jspecify.annotations.Nullable;
 import org.realityforge.jdbt.files.FileResolver;
+import org.realityforge.jdbt.repository.RepositoryTable;
+import org.realityforge.jdbt.repository.RowSource;
 import org.realityforge.jdbt.runtime.RuntimeDatabase;
 import org.realityforge.jdbt.runtime.RuntimeExecutionException;
 
@@ -201,10 +203,28 @@ public final class DatabaseDataPackager {
                 yaml.append("    schema: ").append(toYamlScalar(schemaName)).append('\n');
             }
 
-            appendYamlList(yaml, "tables", database.repository().tableOrdering(module));
+            appendYamlTables(yaml, database.repository().tablesForModule(module));
             appendYamlList(yaml, "sequences", database.repository().sequenceOrdering(module));
         }
         writeText(path, yaml.toString());
+    }
+
+    private static void appendYamlTables(final StringBuilder yaml, final List<RepositoryTable> tables) {
+        if (tables.isEmpty()) {
+            yaml.append("    tables: []\n");
+            return;
+        }
+        yaml.append("    tables:\n");
+        for (final var table : tables) {
+            yaml.append("      - name: ").append(toYamlScalar(table.name())).append('\n');
+            yaml.append("        columns:\n");
+            for (final var column : table.columns()) {
+                yaml.append("          - ").append(toYamlScalar(column)).append('\n');
+            }
+            if (RowSource.DEPLOYMENT == table.rowSource()) {
+                yaml.append("        rowSource: deployment\n");
+            }
+        }
     }
 
     private static void appendYamlList(final StringBuilder yaml, final String key, final List<String> values) {

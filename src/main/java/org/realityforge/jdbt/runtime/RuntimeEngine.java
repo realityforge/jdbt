@@ -37,6 +37,7 @@ import org.realityforge.jdbt.db.DatabaseMetadata;
 import org.realityforge.jdbt.db.DbDriver;
 import org.realityforge.jdbt.db.QueryResult;
 import org.realityforge.jdbt.files.FileResolver;
+import org.realityforge.jdbt.repository.RowSource;
 
 public final class RuntimeEngine {
     private static final Pattern ARTIFACT_FILE_PATTERN = Pattern.compile("^zip:([^:]+):(.+)$");
@@ -78,6 +79,7 @@ public final class RuntimeEngine {
             final boolean noCreate,
             final Map<String, String> filterProperties) {
         final var declaredFilters = resolveDeclaredFilterValues(database, filterProperties);
+        validateInitialFixtures(database);
         createDatabaseIfRequired(database, target, noCreate);
         withDatabaseConnection(target, false, () -> {
             for (final var dir : database.preCreateDirs()) {
@@ -100,6 +102,7 @@ public final class RuntimeEngine {
             final Map<String, String> filterProperties) {
         final var declaredFilters = resolveDeclaredFilterValues(database, filterProperties);
         ensureDatasetExists(database, datasetName);
+        validateInitialFixtures(database);
         createDatabaseIfRequired(database, target, noCreate);
         withDatabaseConnection(target, false, () -> {
             for (final var dir : database.preCreateDirs()) {
@@ -141,6 +144,7 @@ public final class RuntimeEngine {
             final Map<String, String> filterProperties) {
         final var declaredFilters = resolveDeclaredFilterValues(database, filterProperties);
         final var moduleGroup = moduleGroup(database, moduleGroupKey);
+        validateInitialFixtures(database);
         withDatabaseConnection(target, false, () -> {
             for (final var moduleName : database.repository().modules()) {
                 if (!moduleGroup.modules().contains(moduleName)) {
@@ -265,6 +269,8 @@ public final class RuntimeEngine {
         final var declaredFilters = resolveDeclaredFilterValues(database, filterProperties);
         final var importConfig = importByKey(database, importKey);
         final var moduleGroup = null == moduleGroupKey ? null : moduleGroup(database, moduleGroupKey);
+        validateInitialFixtures(database);
+        validateImportInputs(database, importConfig, moduleGroup, resumeAt);
         final var metadata = databaseMetadata(database);
         withDatabaseConnection(
                 target,
@@ -291,6 +297,8 @@ public final class RuntimeEngine {
             final Map<String, String> filterProperties) {
         final var declaredFilters = resolveDeclaredFilterValues(database, filterProperties);
         final var importConfig = importByKey(database, importKey);
+        validateInitialFixtures(database);
+        validateImportInputs(database, importConfig, null, resumeAt);
         if (null == resumeAt) {
             createDatabaseIfRequired(database, target, noCreate);
         }
@@ -331,14 +339,10 @@ public final class RuntimeEngine {
             }
         }
 
-        for (final var moduleName : selectedModules) {
-            verifyNoUnexpectedImportFiles(database, moduleName, importConfig.dir());
-        }
-
         if (shouldPerformDelete && null != moduleGroup && null == resumeAt.value) {
             final var deleteOrder = new ArrayList<String>();
             for (final var moduleName : selectedModules) {
-                final var tables = new ArrayList<>(database.tableOrdering(moduleName));
+                final var tables = new ArrayList<>(importTableOrdering(database, moduleName));
                 Collections.reverse(tables);
                 deleteOrder.addAll(tables);
             }
@@ -401,33 +405,18 @@ public final class RuntimeEngine {
             final boolean shouldPerformDelete,
             final ResumeState resumeAt,
             final Map<String, String> declaredFilters) {
-        final var orderedTables = new ArrayList<>(database.tableOrdering(moduleName));
+        final var orderedTables = new ArrayList<>(importTableOrdering(database, moduleName));
         final var orderedSequences = new ArrayList<>(database.sequenceOrdering(moduleName));
 
-        final var tables = new ArrayList<String>();
-        for (final var table : orderedTables) {
-            final var fixture = fileResolver.findFileInModule(
-                    database.searchDirs(),
-                    moduleName,
-                    database.fixtureDirName(),
-                    table,
-                    "yml",
-                    database.postDbArtifacts(),
-                    database.preDbArtifacts());
-            if (null == fixture) {
-                tables.add(table);
-            }
-        }
-
         if (shouldPerformDelete && null == resumeAt.value) {
-            final var deleteOrder = new ArrayList<>(tables);
+            final var deleteOrder = new ArrayList<>(orderedTables);
             Collections.reverse(deleteOrder);
             for (final var table : deleteOrder) {
                 db.execute("DELETE FROM " + table, false);
             }
         }
 
-        for (final var table : tables) {
+        for (final var table : orderedTables) {
             final var cleanName = cleanObjectName(table);
             if (cleanName.equals(resumeAt.value)) {
                 db.execute("DELETE FROM " + table, false);
@@ -461,6 +450,79 @@ public final class RuntimeEngine {
 
         if (null == resumeAt.value) {
             db.postDataModuleImport(metadata, importConfig, moduleName, orderedTables);
+        }
+    }
+
+    private static List<String> importTableOrdering(final RuntimeDatabase database, final String moduleName) {
+        return database.tablesForModule(moduleName).stream()
+                .filter(table -> RowSource.IMPORT == table.rowSource())
+                .map(table -> table.name())
+                .toList();
+    }
+
+    private void validateInitialFixtures(final RuntimeDatabase database) {
+        for (final var moduleName : database.repository().modules()) {
+            for (final var table : database.tablesForModule(moduleName)) {
+                if (RowSource.IMPORT != table.rowSource()) {
+                    continue;
+                }
+                final var fixture = fileResolver.findFileInModule(
+                        database.searchDirs(),
+                        moduleName,
+                        database.fixtureDirName(),
+                        table.name(),
+                        "yml",
+                        database.postDbArtifacts(),
+                        database.preDbArtifacts());
+                if (null != fixture) {
+                    throw new RuntimeExecutionException("Initial Fixture '" + fixture
+                            + "' targets Import Row Source table '" + cleanObjectName(table.name()) + "'.");
+                }
+            }
+        }
+    }
+
+    private void validateImportInputs(
+            final RuntimeDatabase database,
+            final ImportConfig importConfig,
+            final @Nullable ModuleGroupConfig moduleGroup,
+            final @Nullable String resumeAt) {
+        for (final var moduleName : selectedImportModules(database, importConfig, moduleGroup)) {
+            verifyNoUnexpectedImportFiles(database, moduleName, importConfig.dir());
+            for (final var table : database.tablesForModule(moduleName)) {
+                final var fixture = fileResolver.findFileInModule(
+                        database.searchDirs(),
+                        moduleName,
+                        importConfig.dir(),
+                        table.name(),
+                        "yml",
+                        database.postDbArtifacts(),
+                        database.preDbArtifacts());
+                final var sql = fileResolver.findFileInModule(
+                        database.searchDirs(),
+                        moduleName,
+                        importConfig.dir(),
+                        table.name(),
+                        "sql",
+                        database.postDbArtifacts(),
+                        database.preDbArtifacts());
+                if (RowSource.DEPLOYMENT == table.rowSource()) {
+                    if (null != fixture || null != sql) {
+                        final var asset = null != fixture ? fixture : sql;
+                        throw new RuntimeExecutionException("Import Definition '" + importConfig.key() + "' asset '"
+                                + asset + "' targets Deployment Row Source table '"
+                                + cleanObjectName(table.name()) + "'.");
+                    }
+                    if (cleanObjectName(table.name()).equals(resumeAt)) {
+                        throw new RuntimeExecutionException("Import Definition '" + importConfig.key()
+                                + "' can not resume at Deployment Row Source table '" + resumeAt + "'.");
+                    }
+                } else if (null != fixture && null != sql) {
+                    throw new RuntimeExecutionException("Import Definition '" + importConfig.key()
+                            + "' unexpectedly defines both Import Fixture '" + fixture + "' and Explicit Import SQL '"
+                            + sql + "' for table '" + cleanObjectName(table.name()) + "'.");
+                }
+            }
         }
     }
 
@@ -1202,8 +1264,8 @@ public final class RuntimeEngine {
                 }
                 db.insert(tableName, toStringObjectMap(data));
             }
-            db.postFixtureImport(tableName);
         }
+        db.postFixtureImport(tableName);
     }
 
     private void loadSequenceFixture(final String sequenceName, final String sourceName, final String content) {

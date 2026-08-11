@@ -166,6 +166,61 @@ final class DefaultCommandRunnerTest {
                 .hasMessageContaining("Unable to locate import definition by key");
     }
 
+    @Test
+    void emitStandardImportsUsesDefaultAndNamedImportDefinitions(@TempDir final Path tempDir) throws IOException {
+        writeFile(tempDir, "jdbt.yml", """
+            imports:
+              default:
+                modules: [MyModule]
+              empty:
+                modules: []
+            """);
+        writeFile(tempDir, "repository.yml", repositoryConfig());
+        writeFile(tempDir, "MyModule/import/MyModule.foo.sql", "EXPLICIT IMPORT");
+        writeFile(tempDir, "MyModule/import/MyModule.foo.yml", "row: {ID: 1}\n");
+        final var runner = new DefaultCommandRunner(new ProjectRuntimeLoader(tempDir));
+
+        runner.emitStandardImports(null, null, false);
+
+        assertThat(tempDir.resolve("tmp/imports/MyModule/import/MyModule.foo.sql"))
+                .content()
+                .contains("[__TARGET__].[MyModule].[foo]", "[__SOURCE__].[MyModule].[foo]")
+                .doesNotContain("IDENTITY_INSERT");
+
+        final var namedOutput = tempDir.resolve("tmp/named");
+        runner.emitStandardImports("empty", namedOutput, false);
+        assertThat(namedOutput).isDirectory().isEmptyDirectory();
+    }
+
+    @Test
+    void emitStandardImportsUsesRepositoryMetadataFromDatabaseArtifact(@TempDir final Path tempDir) throws IOException {
+        final var producer = tempDir.resolve("producer");
+        writeFile(producer, "jdbt.yml", "{}\n");
+        writeFile(producer, "repository.yml", """
+            modules:
+              Artifact:
+                tables: [{name: "[Artifact].[tbl]", columns: ["[ID]", "[Code]"]}]
+                sequences: []
+            """);
+        final var artifact = tempDir.resolve("artifact.zip");
+        new DefaultCommandRunner(new ProjectRuntimeLoader(producer)).packageData(null, artifact);
+
+        final var consumer = tempDir.resolve("consumer");
+        writeFile(consumer, "jdbt.yml", """
+            postDbArtifacts: ['%s']
+            imports:
+              default:
+                modules: [Artifact]
+            """.formatted(artifact));
+        final var output = consumer.resolve("generated");
+
+        new DefaultCommandRunner(new ProjectRuntimeLoader(consumer)).emitStandardImports(null, output, false);
+
+        assertThat(output.resolve("Artifact/import/Artifact.tbl.sql"))
+                .content()
+                .contains("([ID], [Code])", "SELECT [ID], [Code]");
+    }
+
     private static String projectConfig(final boolean withMigrations) {
         return """
             datasets: [seed]
@@ -197,7 +252,7 @@ final class DefaultCommandRunnerTest {
         return """
             modules:
               MyModule:
-                tables: ["[MyModule].[foo]"]
+                tables: [{name: "[MyModule].[foo]", columns: ["[ID]"]}]
                 sequences: []
             """;
     }

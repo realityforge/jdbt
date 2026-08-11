@@ -1,5 +1,7 @@
 # jdbt User Guide
 
+The [jdbt glossary](glossary/README.md) defines the canonical structure, import, Row Source, and fixture terms used here. [Database Imports](specs/database-imports.md) is the durable behavior specification.
+
 ## Prerequisites
 
 - Java 17+
@@ -94,7 +96,7 @@ Search directory behavior is fixed:
 - `preImportDirs`
 - `postImportDirs`
 
-If `modules` is missing, all repository modules are used.
+If `modules` is missing, all Database Modules in Repository Metadata are used.
 
 #### `moduleGroups`
 
@@ -131,7 +133,7 @@ These keys mirror Ruby SQL Server runtime behavior and are ignored by non-SQL Se
 
 ### `repository.yml`
 
-`repository.yml` defines module ordering, table ordering, sequence ordering, and optional schema overrides.
+The Repository Descriptor, `repository.yml`, defines Database Module ordering, table ordering, ordered SQL columns, Row Sources, sequence ordering, and optional schema overrides.
 
 Supported shapes:
 
@@ -145,11 +147,14 @@ modules:
   Core:
     schema: Core
     tables:
-      - '[Core].[tblA]'
+      - name: '[Core].[tblA]'
+        columns: ['[ID]', '[Name]']
     sequences: []
   Billing:
     tables:
-      - '[Billing].[tblInvoice]'
+      - name: '[Billing].[tblInvoice]'
+        columns: ['[InvoiceID]', '[Amount]']
+        rowSource: deployment
     sequences: []
 ```
 
@@ -160,15 +165,18 @@ modules:
   - Core:
       schema: Core
       tables:
-        - '[Core].[tblA]'
+        - name: '[Core].[tblA]'
+          columns: ['[ID]', '[Name]']
       sequences: []
   - Billing:
       tables:
-        - '[Billing].[tblInvoice]'
+        - name: '[Billing].[tblInvoice]'
+          columns: ['[InvoiceID]', '[Amount]']
+          rowSource: deployment
       sequences: []
 ```
 
-If `schema` is omitted, the module name is used.
+Each table requires a qualified `name` and a non-empty ordered list of unique quoted SQL `columns`. Optional `rowSource` is `import` or `deployment` and defaults to `import`. If `schema` is omitted, the Database Module name is used.
 
 ## Directory conventions
 
@@ -191,13 +199,15 @@ All module and hook paths are resolved relative to the directory containing `jdb
 
 ## CLI usage
 
-Global options available on subcommands:
+Options available on database-executing subcommands:
 
 - `--database <databaseKey>` (optional compatibility flag; only `default` is accepted)
 - `--driver <sqlserver|postgres>` (default: `sqlserver`)
 - `--property <key=value>` (repeatable; available on SQL-executing commands)
 
 If `--database` is omitted, `default` is used.
+
+The offline `emit-standard-imports` command has its own credential-free option set documented below.
 
 ### Connection options
 
@@ -301,6 +311,8 @@ Import-only SQL Server assert macros:
 
 These macros are expanded only during `import` and `create-by-import` when the active driver is `sqlserver`.
 
+Database Import processes only Import Row Source tables. It selects an Import Fixture before Explicit Import SQL, then falls back to Standard Import. Deployment Row Source tables are not deleted, imported, or valid `--resume-at` targets. SQL Server determines identity handling from live target metadata and performs the identity toggle and import on the same JDBC session.
+
 `create-by-import`
 
 ```bash
@@ -342,6 +354,27 @@ bazel run //src/main/java/org/realityforge/jdbt:jdbt_bin -- down-module-group al
 bazel run //src/main/java/org/realityforge/jdbt:jdbt_bin -- package-data \
   --output ./build/data.zip
 ```
+
+`emit-standard-imports`
+
+```bash
+bazel run //src/main/java/org/realityforge/jdbt:jdbt_bin -- emit-standard-imports \
+  --import default \
+  --output-dir ./tmp/imports \
+  --replace
+```
+
+This SQL Server-only command requires no database credentials. It emits a Standard Import Script for every Import Row Source table and every sequence in the selected Import Definition, regardless of checked-in Import Fixtures or Explicit Import SQL. Omit `--import` to use the configured default Import Definition. Omit `--output-dir` to use `<database-project>/tmp/imports`.
+
+Relative output paths resolve from the Database Project. A non-empty custom output requires `--replace`. The destination may not be a symbolic link, filesystem root, Database Project, or an ancestor of the Database Project.
+
+Output paths are:
+
+```text
+<output-dir>/<module>/import/<clean-qualified-object-name>.sql
+```
+
+Table scripts use ordered Repository Metadata columns and retain `__TARGET__` and `__SOURCE__` tokens. They deliberately omit `IDENTITY_INSERT`; live identity handling belongs to Database Import runtime behavior.
 
 `verify-constraints`
 
@@ -394,16 +427,16 @@ Use `--dataset <datasetKey>` to write dataset fixtures instead:
 
 ## Artifacts and packaging
 
-- `package-data` creates deterministic zip output.
-- `repository.yml` is embedded in package data.
-- Artifacts referenced by `preDbArtifacts` and `postDbArtifacts` must be zip files with `data/repository.yml` and relevant `data/**` entries.
+- `package-data` creates a deterministic Database Artifact zip.
+- The merged Repository Descriptor is embedded as `data/repository.yml` without losing table columns or Row Sources.
+- Database Artifacts referenced by `preDbArtifacts` and `postDbArtifacts` must contain `data/repository.yml` and relevant `data/**` entries.
 
 ## Driver-specific behavior notes
 
-- SQL Server supports generated standard import SQL that references source and target databases.
+- SQL Server supports Standard Import across source and target databases and offline Standard Import Script emission.
 - SQL Server drop always sets deadlock priority high and deletes backup history by default; `forceDrop` controls whether it forces `SINGLE_USER`.
 - SQL Server create uses `dataPath`/`logPath` when supplied and writes `DatabaseSchemaVersion` extended metadata when `version` is configured.
-- PostgreSQL standard cross-database import SQL is intentionally not generated; use explicit import SQL files when source and target differ.
+- PostgreSQL Standard Import across databases and Standard Import Script emission are intentionally unsupported; use Explicit Import SQL when source and target differ.
 
 ## Troubleshooting
 

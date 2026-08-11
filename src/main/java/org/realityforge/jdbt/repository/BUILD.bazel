@@ -8,6 +8,8 @@ java_library(
         "RepositoryConfig.java",
         "RepositoryConfigLoader.java",
         "RepositoryConfigMerger.java",
+        "RepositoryTable.java",
+        "RowSource.java",
         "package-info.java",
     ],
     deps = ["//src/main/java/org/realityforge/jdbt/config"],

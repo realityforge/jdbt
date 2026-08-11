@@ -114,8 +114,12 @@ final class SqlServerDbDriver implements DbDriver {
 
     @Override
     public void execute(final String sql, final boolean executeInControlDatabase) {
-        final var connection = executeInControlDatabase ? controlConnection() : targetConnection();
-        executeSql(connection, sql);
+        if (executeInControlDatabase && null != targetConnection) {
+            executeInCatalog(targetConnection, "msdb", sql);
+        } else {
+            final var connection = executeInControlDatabase ? controlConnection() : targetConnection();
+            executeSql(connection, sql);
+        }
     }
 
     @Override
@@ -201,6 +205,11 @@ final class SqlServerDbDriver implements DbDriver {
 
     @Override
     public boolean supportsImportAssertFilters() {
+        return true;
+    }
+
+    @Override
+    public boolean supportsStandardImportScripts() {
         return true;
     }
 
@@ -471,6 +480,38 @@ final class SqlServerDbDriver implements DbDriver {
             statement.execute(sql);
         } catch (final SQLException sqle) {
             throw new DatabaseException("Failed to execute SQL", sqle);
+        }
+    }
+
+    private static void executeInCatalog(final Connection connection, final String catalog, final String sql) {
+        final String originalCatalog;
+        try {
+            originalCatalog = connection.getCatalog();
+        } catch (final SQLException sqle) {
+            throw new DatabaseException("Failed to read SQL Server connection catalog", sqle);
+        }
+
+        @Nullable DatabaseException failure = null;
+        try {
+            connection.setCatalog(catalog);
+            executeSql(connection, sql);
+        } catch (final SQLException sqle) {
+            failure = new DatabaseException("Failed to select SQL Server catalog " + catalog, sqle);
+            throw failure;
+        } catch (final DatabaseException e) {
+            failure = e;
+            throw e;
+        } finally {
+            try {
+                connection.setCatalog(originalCatalog);
+            } catch (final SQLException sqle) {
+                if (null != failure) {
+                    failure.addSuppressed(sqle);
+                } else {
+                    throw new DatabaseException(
+                            "Failed to restore SQL Server connection catalog " + originalCatalog, sqle);
+                }
+            }
         }
     }
 

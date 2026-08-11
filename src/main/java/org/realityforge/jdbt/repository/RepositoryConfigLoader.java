@@ -5,6 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.jspecify.annotations.Nullable;
 import org.realityforge.jdbt.config.ConfigException;
 import org.realityforge.jdbt.config.YamlMapSupport;
 
@@ -21,7 +22,7 @@ public final class RepositoryConfigLoader {
         final var entries = parseModuleEntries(modulesValue, sourceName + ".modules");
         final var modules = new ArrayList<String>(entries.size());
         final var schemaOverrides = new LinkedHashMap<String, String>();
-        final var tableMap = new LinkedHashMap<String, List<String>>();
+        final var tableMap = new LinkedHashMap<String, List<RepositoryTable>>();
         final var sequenceMap = new LinkedHashMap<String, List<String>>();
 
         for (final var entry : entries) {
@@ -81,10 +82,55 @@ public final class RepositoryConfigLoader {
         final var schema = YamlMapSupport.optionalString(body, "schema", path) == null
                 ? moduleName
                 : YamlMapSupport.requireString(body, "schema", path);
-        final var tables = YamlMapSupport.optionalStringList(body, "tables", path, List.of());
+        final var tables = parseTables(body.get("tables"), path + ".tables");
         final var sequences = YamlMapSupport.optionalStringList(body, "sequences", path, List.of());
         return new ModuleEntry(moduleName, schema, tables, sequences);
     }
 
-    private record ModuleEntry(String name, String schema, List<String> tables, List<String> sequences) {}
+    private static List<RepositoryTable> parseTables(final @Nullable Object tablesValue, final String path) {
+        if (tablesValue == null) {
+            return List.of();
+        }
+        if (!(tablesValue instanceof List<?> list)) {
+            throw new ConfigException("Expected list for " + path + '.');
+        }
+        final var tables = new ArrayList<RepositoryTable>(list.size());
+        for (int i = 0; i < list.size(); i++) {
+            final var tablePath = path + '[' + i + ']';
+            final var value = list.get(i);
+            if (!(value instanceof Map<?, ?> map)) {
+                throw new ConfigException("Expected table map at " + tablePath + '.');
+            }
+            final var body = YamlMapSupport.toStringMap(map, tablePath);
+            YamlMapSupport.assertKeys(body, Set.of("name", "columns", "rowSource"), tablePath);
+            final var name = YamlMapSupport.requireString(body, "name", tablePath);
+            if (name.isBlank()) {
+                throw new ConfigException("Repository table name must not be blank at " + tablePath + ".name.");
+            }
+            final var columns = YamlMapSupport.requireStringList(body, "columns", tablePath);
+            if (columns.isEmpty()) {
+                throw new ConfigException("Repository table columns must not be empty at " + tablePath + ".columns.");
+            }
+            final var rowSourceValue = YamlMapSupport.optionalString(body, "rowSource", tablePath);
+            final var rowSource = parseRowSource(rowSourceValue, tablePath + ".rowSource");
+            try {
+                tables.add(new RepositoryTable(name, columns, rowSource));
+            } catch (final ConfigException e) {
+                throw new ConfigException(e.getMessage() + " Source: " + tablePath + '.');
+            }
+        }
+        return List.copyOf(tables);
+    }
+
+    private static RowSource parseRowSource(final @Nullable String value, final String path) {
+        if (null == value || RowSource.IMPORT.externalValue().equals(value)) {
+            return RowSource.IMPORT;
+        }
+        if (RowSource.DEPLOYMENT.externalValue().equals(value)) {
+            return RowSource.DEPLOYMENT;
+        }
+        throw new ConfigException("Invalid Row Source '" + value + "' at " + path + ". Expected import or deployment.");
+    }
+
+    private record ModuleEntry(String name, String schema, List<RepositoryTable> tables, List<String> sequences) {}
 }

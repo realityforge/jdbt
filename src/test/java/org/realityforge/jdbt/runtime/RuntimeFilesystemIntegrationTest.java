@@ -21,6 +21,8 @@ import org.realityforge.jdbt.db.DbDriver;
 import org.realityforge.jdbt.db.QueryResult;
 import org.realityforge.jdbt.files.FileResolver;
 import org.realityforge.jdbt.repository.RepositoryConfig;
+import org.realityforge.jdbt.repository.RepositoryTable;
+import org.realityforge.jdbt.repository.RowSource;
 
 final class RuntimeFilesystemIntegrationTest {
     private final DatabaseConnection target = new DatabaseConnection("127.0.0.1", 1433, "TARGET", "sa", "secret");
@@ -40,7 +42,7 @@ final class RuntimeFilesystemIntegrationTest {
 
         final var driver = new TranscriptDriver();
         final var engine = new RuntimeEngine(driver, new FileResolver());
-        final var database = runtimeDatabase(tempDir.resolve("db"));
+        final var database = runtimeDatabase(tempDir.resolve("db"), RowSource.DEPLOYMENT);
 
         engine.createWithDataset(database, target, true, "snapshot", Map.of());
 
@@ -74,7 +76,7 @@ final class RuntimeFilesystemIntegrationTest {
 
         final var firstDriver = new TranscriptDriver("FAIL");
         final var engine = new RuntimeEngine(firstDriver, new FileResolver());
-        final var database = runtimeDatabase(tempDir.resolve("db"));
+        final var database = runtimeDatabase(tempDir.resolve("db"), RowSource.IMPORT);
 
         assertThatThrownBy(() -> engine.databaseImport(database, "custom", null, target, source, null, Map.of()))
                 .isInstanceOf(RuntimeExecutionException.class)
@@ -112,11 +114,16 @@ final class RuntimeFilesystemIntegrationTest {
             """);
     }
 
-    private static RuntimeDatabase runtimeDatabase(final Path searchDir) {
+    private static RuntimeDatabase runtimeDatabase(final Path searchDir, final RowSource fooRowSource) {
         final var repository = new RepositoryConfig(
                 List.of("Core"),
                 Map.of(),
-                Map.of("Core", List.of("[Core].[foo]", "[Core].[bar]", "[Core].[baz]")),
+                Map.of(
+                        "Core",
+                        List.of(
+                                new RepositoryTable("[Core].[foo]", List.of("[ID]"), fooRowSource),
+                                new RepositoryTable("[Core].[bar]", List.of("[ID]")),
+                                new RepositoryTable("[Core].[baz]", List.of("[ID]")))),
                 Map.of("Core", List.of()));
         return new RuntimeDatabase(
                 "default",

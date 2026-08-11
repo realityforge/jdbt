@@ -79,6 +79,8 @@ interface CommandRunner {
 
     void packageData(@Nullable String databaseKey, Path outputFile);
 
+    void emitStandardImports(@Nullable String importKey, @Nullable Path outputDirectory, boolean replace);
+
     void verifyConstraints(
             @Nullable String databaseKey,
             String driver,

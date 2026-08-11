@@ -3,6 +3,7 @@ package org.realityforge.jdbt.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.realityforge.jdbt.config.ConfigException;
 
@@ -16,19 +17,27 @@ final class RepositoryConfigLoaderTest {
               - Core:
                   schema: Core
                   tables:
-                    - '[Core].[tblA]'
+                    - name: '[Core].[tblA]'
+                      columns:
+                        - '[ID]'
                   sequences:
                     - '[Core].[tblASeq]'
               - Geo:
                   schema: G
                   tables:
-                    - '[G].[tblB]'
+                    - name: '[G].[tblB]'
+                      columns:
+                        - '[ID]'
+                      rowSource: deployment
                   sequences: []
             """, "repository.yml");
 
         assertThat(config.modules()).containsExactly("Core", "Geo");
         assertThat(config.schemaOverrides()).containsEntry("Geo", "G");
-        assertThat(config.tableMap().get("Core")).containsExactly("[Core].[tblA]");
+        assertThat(config.tablesForModule("Core"))
+                .containsExactly(new RepositoryTable("[Core].[tblA]", List.of("[ID]")));
+        assertThat(config.tablesForModule("Geo"))
+                .containsExactly(new RepositoryTable("[G].[tblB]", List.of("[ID]"), RowSource.DEPLOYMENT));
         assertThat(config.sequenceMap().get("Core")).containsExactly("[Core].[tblASeq]");
         assertThat(config.sequenceMap().get("Geo")).isEmpty();
     }
@@ -41,19 +50,25 @@ final class RepositoryConfigLoaderTest {
             - CodeMetrics:
                 schema: CodeMetrics
                 tables:
-                - '[CodeMetrics].[tblCollection]'
-                - '[CodeMetrics].[tblMethodMetric]'
+                - name: '[CodeMetrics].[tblCollection]'
+                  columns:
+                  - '[ID]'
+                - name: '[CodeMetrics].[tblMethodMetric]'
+                  columns:
+                  - '[ID]'
                 sequences:
                 - '[CodeMetrics].[tblCollection_IDSeq]'
             - Geo:
                 schema: Geo
                 tables:
-                - '[Geo].[tblMobilePOI]'
+                - name: '[Geo].[tblMobilePOI]'
+                  columns:
+                  - '[ID]'
                 sequences: []
             """, "repository.yml");
 
         assertThat(config.modules()).containsExactly("CodeMetrics", "Geo");
-        assertThat(config.tableMap().get("CodeMetrics"))
+        assertThat(config.tableOrdering("CodeMetrics"))
                 .containsExactly("[CodeMetrics].[tblCollection]", "[CodeMetrics].[tblMethodMetric]");
         assertThat(config.sequenceMap().get("CodeMetrics")).containsExactly("[CodeMetrics].[tblCollection_IDSeq]");
     }
@@ -69,11 +84,13 @@ final class RepositoryConfigLoaderTest {
               Billing:
                 schema: Billing
                 tables:
-                  - '[Billing].[tblInvoice]'
+                  - name: '[Billing].[tblInvoice]'
+                    columns:
+                      - '[ID]'
             """, "repository.yml");
 
         assertThat(config.modules()).containsExactly("Core", "Billing");
-        assertThat(config.tableMap().get("Billing")).containsExactly("[Billing].[tblInvoice]");
+        assertThat(config.tableOrdering("Billing")).containsExactly("[Billing].[tblInvoice]");
         assertThat(config.sequenceMap().get("Billing")).isEmpty();
     }
 
@@ -135,5 +152,102 @@ final class RepositoryConfigLoaderTest {
             """, "repository.yml"))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("Expected map body for module 'Core'");
+    }
+
+    @Test
+    void loadRejectsScalarTableEntry() {
+        assertThatThrownBy(() -> loader.load("""
+            modules:
+              Core:
+                tables:
+                  - '[Core].[tblA]'
+            """, "repository.yml"))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("Expected table map at repository.yml.modules.Core.tables[0]");
+    }
+
+    @Test
+    void loadRejectsInvalidTableObjects() {
+        assertThatThrownBy(() -> loader.load("""
+            modules:
+              Core:
+                tables:
+                  - name: ''
+                    columns: ['[ID]']
+            """, "repository.yml"))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("name must not be blank");
+
+        assertThatThrownBy(() -> loader.load("""
+            modules:
+              Core:
+                tables:
+                  - name: 'tblA'
+                    columns: ['[ID]']
+            """, "repository.yml"))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("must be a qualified SQL name");
+
+        assertThatThrownBy(() -> loader.load("""
+            modules:
+              Core:
+                tables:
+                  - name: '[Core].[tblA]'
+                    columns: ['ID']
+            """, "repository.yml"))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("must be a quoted SQL identifier");
+
+        assertThatThrownBy(() -> loader.load("""
+            modules:
+              Core:
+                tables:
+                  - name: '[Core].[tblA]'
+                    columns: []
+            """, "repository.yml"))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("columns must not be empty");
+
+        assertThatThrownBy(() -> loader.load("""
+            modules:
+              Core:
+                tables:
+                  - name: '[Core].[tblA]'
+                    columns: ['[ID]', '[ID]']
+            """, "repository.yml"))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("duplicate column '[ID]'");
+
+        assertThatThrownBy(() -> loader.load("""
+            modules:
+              Core:
+                tables:
+                  - name: '[Core].[tblA]'
+                    columns: [1]
+            """, "repository.yml"))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("Expected string list entry");
+
+        assertThatThrownBy(() -> loader.load("""
+            modules:
+              Core:
+                tables:
+                  - name: '[Core].[tblA]'
+                    columns: ['[ID]']
+                    rowSource: external
+            """, "repository.yml"))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("Invalid Row Source 'external'");
+
+        assertThatThrownBy(() -> loader.load("""
+            modules:
+              Core:
+                tables:
+                  - name: '[Core].[tblA]'
+                    columns: ['[ID]']
+                    unknown: true
+            """, "repository.yml"))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("Unknown key 'unknown'");
     }
 }

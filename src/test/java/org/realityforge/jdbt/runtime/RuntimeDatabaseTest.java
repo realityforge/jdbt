@@ -10,6 +10,7 @@ import org.realityforge.jdbt.config.ImportConfig;
 import org.realityforge.jdbt.config.ModuleGroupConfig;
 import org.realityforge.jdbt.files.ArtifactContent;
 import org.realityforge.jdbt.repository.RepositoryConfig;
+import org.realityforge.jdbt.repository.RepositoryTable;
 
 final class RuntimeDatabaseTest {
     @Test
@@ -17,12 +18,14 @@ final class RuntimeDatabaseTest {
         final var repository = new RepositoryConfig(
                 List.of("Core"),
                 Map.of("Core", "C"),
-                Map.of("Core", List.of("[C].[tblA]")),
+                Map.of("Core", List.of(new RepositoryTable("[C].[tblA]", List.of("[ID]")))),
                 Map.of("Core", List.of("[C].[seqA]")));
         final var database = runtimeDatabase(repository, List.of(), List.of());
 
         assertThat(database.schemaNameForModule("Core")).isEqualTo("C");
         assertThat(database.tableOrdering("Core")).containsExactly("[C].[tblA]");
+        assertThat(database.tablesForModule("Core"))
+                .containsExactly(new RepositoryTable("[C].[tblA]", List.of("[ID]")));
         assertThat(database.sequenceOrdering("Core")).containsExactly("[C].[seqA]");
         assertThat(database.orderedElementsForModule("Core")).containsExactly("[C].[tblA]", "[C].[seqA]");
         assertThat(database.filterProperties()).isEmpty();

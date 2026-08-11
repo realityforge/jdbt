@@ -11,6 +11,7 @@ import org.realityforge.jdbt.config.ImportConfig;
 import org.realityforge.jdbt.config.ModuleGroupConfig;
 import org.realityforge.jdbt.files.ArtifactContent;
 import org.realityforge.jdbt.repository.RepositoryConfig;
+import org.realityforge.jdbt.repository.RepositoryTable;
 
 public record RuntimeDatabase(
         String key,
@@ -182,6 +183,10 @@ public record RuntimeDatabase(
 
     public List<String> tableOrdering(final String moduleName) {
         return repository.tableOrdering(moduleName);
+    }
+
+    public List<RepositoryTable> tablesForModule(final String moduleName) {
+        return repository.tablesForModule(moduleName);
     }
 
     public List<String> sequenceOrdering(final String moduleName) {

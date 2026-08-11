@@ -11,6 +11,7 @@ junit5_test(
         "RuntimeFilesystemIntegrationTest.java",
         "RuntimeH2IntegrationTest.java",
         "SqlServerImportAssertExpanderTest.java",
+        "StandardImportEmitterTest.java",
         "package-info.java",
     ],
     test_package = "org.realityforge.jdbt.runtime",

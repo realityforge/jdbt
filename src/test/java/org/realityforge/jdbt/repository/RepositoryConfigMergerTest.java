@@ -21,7 +21,8 @@ final class RepositoryConfigMergerTest {
 
         assertThat(merged.modules()).containsExactly("Pre", "Local", "Post");
         assertThat(merged.schemaOverrides()).containsEntry("Pre", "PreSchema").containsEntry("Post", "P");
-        assertThat(merged.tableMap().get("Local")).containsExactly("[Local].[tblB]");
+        assertThat(merged.tablesForModule("Local"))
+                .containsExactly(new RepositoryTable("[Local].[tblB]", List.of("[ID]")));
         assertThat(merged.sequenceMap().get("Post")).containsExactly("[P].[seqC]");
     }
 
@@ -49,7 +50,7 @@ final class RepositoryConfigMergerTest {
         return new RepositoryConfig(
                 List.of(module),
                 module.equals(schema) ? Map.of() : Map.of(module, schema),
-                Map.of(module, List.of(table)),
+                Map.of(module, List.of(new RepositoryTable(table, List.of("[ID]")))),
                 Map.of(module, List.of(sequence)));
     }
 }

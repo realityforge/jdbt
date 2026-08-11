@@ -40,6 +40,10 @@ public interface DbDriver {
         return false;
     }
 
+    default boolean supportsStandardImportScripts() {
+        return false;
+    }
+
     List<String> columnNamesForTable(String tableName);
 
     List<String> primaryKeyColumnNamesForTable(String tableName);

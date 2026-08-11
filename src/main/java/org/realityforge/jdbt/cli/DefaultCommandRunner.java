@@ -15,6 +15,7 @@ import org.realityforge.jdbt.packaging.DatabaseDataPackager;
 import org.realityforge.jdbt.packaging.DeterministicZipPackager;
 import org.realityforge.jdbt.runtime.RuntimeEngine;
 import org.realityforge.jdbt.runtime.RuntimeExecutionException;
+import org.realityforge.jdbt.runtime.StandardImportEmitter;
 
 final class DefaultCommandRunner implements CommandRunner {
     private final ProjectRuntimeLoader projectRuntimeLoader;
@@ -167,6 +168,15 @@ final class DefaultCommandRunner implements CommandRunner {
         } finally {
             deleteRecursively(stagingDirectory);
         }
+    }
+
+    @Override
+    public void emitStandardImports(
+            final @Nullable String importKey, final @Nullable Path outputDirectory, final boolean replace) {
+        final var runtime = projectRuntimeLoader.load(null);
+        final var resolvedImport = resolveImportKey(runtime, importKey);
+        new StandardImportEmitter(dbDriverFactory.create("sqlserver"))
+                .emit(runtime.database(), resolvedImport, outputDirectory, replace);
     }
 
     @Override

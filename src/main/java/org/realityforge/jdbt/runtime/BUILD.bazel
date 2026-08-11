@@ -10,6 +10,7 @@ java_library(
         "RuntimeEngine.java",
         "RuntimeExecutionException.java",
         "SqlServerImportAssertExpander.java",
+        "StandardImportEmitter.java",
         "package-info.java",
     ],
     deps = [

@@ -16,6 +16,8 @@ import org.realityforge.jdbt.files.ArtifactContent;
 import org.realityforge.jdbt.files.FileResolver;
 import org.realityforge.jdbt.repository.RepositoryConfig;
 import org.realityforge.jdbt.repository.RepositoryConfigLoader;
+import org.realityforge.jdbt.repository.RepositoryTable;
+import org.realityforge.jdbt.repository.RowSource;
 import org.realityforge.jdbt.runtime.RuntimeDatabase;
 import org.realityforge.jdbt.runtime.RuntimeExecutionException;
 
@@ -188,7 +190,10 @@ final class DatabaseDataPackagerTest {
         final var repository = new RepositoryConfig(
                 List.of("MyModule"),
                 Map.of("MyModule", "CustomSchema"),
-                Map.of("MyModule", List.of("[CustomSchema].[foo]")),
+                Map.of(
+                        "MyModule",
+                        List.of(new RepositoryTable(
+                                "[CustomSchema].[foo]", List.of("[ID]", "[Name]"), RowSource.DEPLOYMENT))),
                 Map.of("MyModule", List.of("[CustomSchema].[foo_seq]")));
         final var database = runtimeDatabase(
                 repository,
@@ -202,6 +207,11 @@ final class DatabaseDataPackagerTest {
         new DatabaseDataPackager(new FileResolver()).packageDatabaseData(database, output);
 
         final var repositoryYaml = Files.readString(output.resolve("repository.yml"));
+        assertThat(repositoryYaml)
+                .contains("      - name: '[CustomSchema].[foo]'\n")
+                .contains("          - '[ID]'\n")
+                .contains("          - '[Name]'\n")
+                .contains("        rowSource: deployment\n");
         final var loaded = new RepositoryConfigLoader().load(repositoryYaml, "repository.yml");
         assertThat(loaded).isEqualTo(repository);
     }
@@ -258,7 +268,7 @@ final class DatabaseDataPackagerTest {
         return new RepositoryConfig(
                 List.of("MyModule"),
                 Map.of(),
-                Map.of("MyModule", List.of("[MyModule].[foo]")),
+                Map.of("MyModule", List.of(new RepositoryTable("[MyModule].[foo]", List.of("[ID]")))),
                 Map.of("MyModule", List.of()));
     }
 

@@ -25,14 +25,16 @@ import org.realityforge.jdbt.db.DbDriver;
 import org.realityforge.jdbt.db.QueryResult;
 import org.realityforge.jdbt.files.FileResolver;
 import org.realityforge.jdbt.repository.RepositoryConfig;
+import org.realityforge.jdbt.repository.RepositoryTable;
+import org.realityforge.jdbt.repository.RowSource;
 
 final class RuntimeH2IntegrationTest {
     @Test
     void runtimeCanCreateAndLoadFixturesAgainstInMemoryDatabase(@TempDir final Path tempDir) throws Exception {
         createFile(tempDir, "db/Core/ddl/create.sql", "CREATE TABLE FOO(ID INT PRIMARY KEY, NAME VARCHAR(30))");
-        createFile(tempDir, "db/Core/base-fixtures/FOO.yml", "row1:\n  ID: 1\n  NAME: base\n");
+        createFile(tempDir, "db/Core/base-fixtures/PUBLIC.FOO.yml", "row1:\n  ID: 1\n  NAME: base\n");
         createFile(tempDir, "db/datasets/snapshot/before/delete.sql", "DELETE FROM FOO");
-        createFile(tempDir, "db/Core/custom-datasets/snapshot/FOO.yml", "row2:\n  ID: 2\n  NAME: snapshot\n");
+        createFile(tempDir, "db/Core/custom-datasets/snapshot/PUBLIC.FOO.yml", "row2:\n  ID: 2\n  NAME: snapshot\n");
 
         final var jdbcUrl = "jdbc:h2:mem:jdbt_" + UUID.randomUUID() + ";DB_CLOSE_DELAY=-1";
         final var connection = new DatabaseConnection("", 0, jdbcUrl, "sa", "");
@@ -53,7 +55,13 @@ final class RuntimeH2IntegrationTest {
 
     private static RuntimeDatabase runtimeDatabase(final Path searchDir) {
         final var repository = new RepositoryConfig(
-                List.of("Core"), Map.of(), Map.of("Core", List.of("FOO")), Map.of("Core", List.of()));
+                List.of("Core"),
+                Map.of(),
+                Map.of(
+                        "Core",
+                        List.of(new RepositoryTable(
+                                "\"PUBLIC\".\"FOO\"", List.of("\"ID\"", "\"NAME\""), RowSource.DEPLOYMENT))),
+                Map.of("Core", List.of()));
         return new RuntimeDatabase(
                 "default",
                 repository,

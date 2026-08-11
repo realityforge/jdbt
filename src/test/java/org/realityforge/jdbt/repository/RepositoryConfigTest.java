@@ -12,7 +12,9 @@ final class RepositoryConfigTest {
     private final RepositoryConfig config = new RepositoryConfig(
             List.of("Core", "Geo"),
             Map.of("Geo", "G"),
-            Map.of("Core", List.of("[Core].[tblA]"), "Geo", List.of("[G].[tblB]")),
+            Map.of(
+                    "Core", List.of(new RepositoryTable("[Core].[tblA]", List.of("[ID]", "[Name]"))),
+                    "Geo", List.of(new RepositoryTable("[G].[tblB]", List.of("[ID]"), RowSource.DEPLOYMENT))),
             Map.of("Core", List.of("[Core].[seqA]"), "Geo", List.of()));
 
     @Test
@@ -31,6 +33,8 @@ final class RepositoryConfigTest {
     @Test
     void orderingMethodsReturnConfiguredValues() {
         assertThat(config.tableOrdering("Core")).containsExactly("[Core].[tblA]");
+        assertThat(config.tablesForModule("Core").get(0).columns()).containsExactly("[ID]", "[Name]");
+        assertThat(config.tablesForModule("Geo").get(0).rowSource()).isEqualTo(RowSource.DEPLOYMENT);
         assertThat(config.sequenceOrdering("Core")).containsExactly("[Core].[seqA]");
         assertThat(config.orderedElementsForModule("Core")).containsExactly("[Core].[tblA]", "[Core].[seqA]");
     }

@@ -234,6 +234,37 @@ final class JdbtCommandTest {
     }
 
     @Test
+    void emitStandardImportsDispatchesWithoutDatabaseCredentials() {
+        final var runner = new RecordingRunner();
+
+        final var exitCode = JdbtCommand.execute(
+                new String[] {
+                    "emit-standard-imports", "--import", "full", "--output-dir", "tmp/generated-imports", "--replace"
+                },
+                runner,
+                new PasswordResolver(Map.of(), new ByteArrayInputStream(new byte[0])));
+
+        assertThat(exitCode).isZero();
+        assertThat(runner.lastCall).isEqualTo("emit-standard-imports");
+        assertThat(runner.importKey).isEqualTo("full");
+        assertThat(runner.outputDirectory).isEqualTo(Path.of("tmp/generated-imports"));
+        assertThat(runner.replace).isTrue();
+    }
+
+    @Test
+    void emitStandardImportsRejectsConnectionAndDriverOptions() {
+        final var runner = new RecordingRunner();
+
+        final var exitCode = JdbtCommand.execute(
+                new String[] {"emit-standard-imports", "--driver", "postgres"},
+                runner,
+                new PasswordResolver(Map.of(), new ByteArrayInputStream(new byte[0])));
+
+        assertThat(exitCode).isEqualTo(JdbtCommand.USAGE_EXIT_CODE);
+        assertThat(runner.lastCall).isEmpty();
+    }
+
+    @Test
     void exportFixturesDispatchesPropertiesOutputAndFilters() {
         final var runner = new RecordingRunner();
 
@@ -412,6 +443,7 @@ final class JdbtCommandTest {
         private @Nullable Path outputFile;
         private @Nullable Path propertiesFile;
         private @Nullable Path outputDirectory;
+        private boolean replace;
         private List<String> schemas = List.of();
         private List<String> checkQueries = List.of();
         private Map<String, String> filterProperties = Map.of();
@@ -572,6 +604,15 @@ final class JdbtCommandTest {
             this.lastCall = "package-data";
             this.databaseKey = databaseKey;
             this.outputFile = outputFile;
+        }
+
+        @Override
+        public void emitStandardImports(
+                final @Nullable String importKey, final @Nullable Path outputDirectory, final boolean replace) {
+            this.lastCall = "emit-standard-imports";
+            this.importKey = importKey;
+            this.outputDirectory = outputDirectory;
+            this.replace = replace;
         }
 
         @Override

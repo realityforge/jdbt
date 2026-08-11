@@ -15,6 +15,8 @@ final class DbDriverFactoryTest {
         assertThat(new DbDriverFactory().create("sqlserver")).isInstanceOf(SqlServerDbDriver.class);
         assertThat(new DbDriverFactory().create("sqlserver").supportsImportAssertFilters())
                 .isTrue();
+        assertThat(new DbDriverFactory().create("sqlserver").supportsStandardImportScripts())
+                .isTrue();
         assertThat(new DbDriverFactory().create("SQLSERVER")).isInstanceOf(SqlServerDbDriver.class);
     }
 

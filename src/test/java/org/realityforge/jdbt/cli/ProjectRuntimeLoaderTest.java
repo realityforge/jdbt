@@ -23,19 +23,19 @@ final class ProjectRuntimeLoaderTest {
         writeFile(tempDir, "repository.yml", """
             modules:
               Local:
-                tables: ["[Local].[tbl]"]
+                tables: [{name: "[Local].[tbl]", columns: ["[ID]"]}]
                 sequences: []
             """);
         writeArtifact(tempDir.resolve("pre.zip"), "data/repository.yml", """
             modules:
               Pre:
-                tables: ["[Pre].[tbl]"]
+                tables: [{name: "[Pre].[tbl]", columns: ["[ID]"]}]
                 sequences: []
             """);
         writeArtifact(tempDir.resolve("post.zip"), "data/repository.yml", """
             modules:
               Post:
-                tables: ["[Post].[tbl]"]
+                tables: [{name: "[Post].[tbl]", columns: ["[ID]"]}]
                 sequences: []
             """);
 
@@ -102,7 +102,7 @@ final class ProjectRuntimeLoaderTest {
         writeFile(tempDir, "repository.yml", """
             modules:
               MyModule:
-                tables: ["[MyModule].[foo]"]
+                tables: [{name: "[MyModule].[foo]", columns: ["[ID]"]}]
                 sequences: []
             """);
         writeFile(tempDir, "MyModule/a.sql", "SELECT 1");

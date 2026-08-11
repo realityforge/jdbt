@@ -29,6 +29,8 @@ import org.realityforge.jdbt.db.QueryResult;
 import org.realityforge.jdbt.files.ArtifactContent;
 import org.realityforge.jdbt.files.FileResolver;
 import org.realityforge.jdbt.repository.RepositoryConfig;
+import org.realityforge.jdbt.repository.RepositoryTable;
+import org.realityforge.jdbt.repository.RowSource;
 
 final class RuntimeEngineTest {
     private final DatabaseConnection connection = new DatabaseConnection("127.0.0.1", 1433, "DBT_TEST", "sa", "secret");
@@ -84,8 +86,10 @@ final class RuntimeEngineTest {
         final var driver = new RecordingDriver();
         final var output = new ArrayList<String>();
         final var engine = new RuntimeEngine(driver, new FileResolver(), output::add);
-        final var database =
-                runtimeDatabase("default", RepositoryConfigTestData.singleModule(), List.of(tempDir.resolve("db")));
+        final var database = runtimeDatabase(
+                "default",
+                singleModuleRepository(table("[MyModule].[foo]", RowSource.DEPLOYMENT)),
+                List.of(tempDir.resolve("db")));
 
         engine.create(database, connection, false, Map.of());
 
@@ -114,6 +118,43 @@ final class RuntimeEngineTest {
                         "Fixture        : MyModule.foo",
                         "MyModule       : finalize/final.sql",
                         "               : db-hooks/post/post.sql");
+    }
+
+    @Test
+    void createEntryPointsRejectImportRowSourceInitialFixtureBeforeDatabaseMutation(@TempDir final Path tempDir)
+            throws IOException {
+        createFile(tempDir, "db/MyModule/fixtures/MyModule.foo.yml", "r1:\n  ID: 1\n");
+        final var repository = singleModuleRepository(table("[MyModule].[foo]", RowSource.IMPORT));
+        final var database = runtimeDatabase(
+                "default",
+                repository,
+                List.of(tempDir.resolve("db")),
+                Map.of("grp", new ModuleGroupConfig("grp", List.of("MyModule"), false)),
+                List.of("defaultDataset"));
+        final var driver = new RecordingDriver();
+        final var engine = new RuntimeEngine(driver, new FileResolver());
+
+        assertThatThrownBy(() -> engine.create(database, connection, false, Map.of()))
+                .isInstanceOf(RuntimeExecutionException.class)
+                .hasMessageContaining("Initial Fixture")
+                .hasMessageContaining("MyModule.foo");
+        assertThat(driver.calls).isEmpty();
+
+        assertThatThrownBy(() -> engine.createWithDataset(database, connection, false, "defaultDataset", Map.of()))
+                .isInstanceOf(RuntimeExecutionException.class)
+                .hasMessageContaining("Initial Fixture");
+        assertThat(driver.calls).isEmpty();
+
+        assertThatThrownBy(() ->
+                        engine.createByImport(database, "default", connection, sourceConnection, null, false, Map.of()))
+                .isInstanceOf(RuntimeExecutionException.class)
+                .hasMessageContaining("Initial Fixture");
+        assertThat(driver.calls).isEmpty();
+
+        assertThatThrownBy(() -> engine.upModuleGroup(database, "grp", connection, Map.of()))
+                .isInstanceOf(RuntimeExecutionException.class)
+                .hasMessageContaining("Initial Fixture");
+        assertThat(driver.calls).isEmpty();
     }
 
     @Test
@@ -195,7 +236,7 @@ final class RuntimeEngineTest {
         final var repository = new RepositoryConfig(
                 List.of("MyModule"),
                 Map.of(),
-                Map.of("MyModule", List.of("[MyModule].[foo]", "[MyModule].[bar]")),
+                Map.of("MyModule", tables("[MyModule].[foo]", "[MyModule].[bar]")),
                 Map.of("MyModule", List.of()));
         final var importConfig = new ImportConfig(
                 "default", List.of("MyModule"), "import", List.of("import-hooks/pre"), List.of("import-hooks/post"));
@@ -238,13 +279,89 @@ final class RuntimeEngineTest {
     }
 
     @Test
+    void importUsesRowSourceAndPreservesFixtureSqlStandardPrecedence(@TempDir final Path tempDir) throws IOException {
+        createFile(tempDir, "db/MyModule/import/MyModule.foo.yml", "r1:\n  ID: 1\n");
+        createFile(tempDir, "db/MyModule/import/MyModule.bar.sql", "EXPLICIT __TABLE__ __SOURCE__ __TARGET__");
+        final var repository = singleModuleRepository(
+                table("[MyModule].[foo]", RowSource.IMPORT),
+                table("[MyModule].[bar]", RowSource.IMPORT),
+                table("[MyModule].[baz]", RowSource.IMPORT),
+                table("[MyModule].[deployment]", RowSource.DEPLOYMENT));
+        final var driver = new RecordingDriver();
+        final var output = new ArrayList<String>();
+        final var engine = new RuntimeEngine(driver, new FileResolver(), output::add);
+        final var database = runtimeDatabase("default", repository, List.of(tempDir.resolve("db")));
+
+        engine.databaseImport(database, "default", null, connection, sourceConnection, null, Map.of());
+
+        assertThat(driver.calls)
+                .containsSubsequence(
+                        "execute(false):DELETE FROM [MyModule].[baz]",
+                        "execute(false):DELETE FROM [MyModule].[bar]",
+                        "execute(false):DELETE FROM [MyModule].[foo]",
+                        "preTableImport(default,[MyModule].[foo])",
+                        "preFixtureImport([MyModule].[foo])",
+                        "insert([MyModule].[foo],{ID=1})",
+                        "postFixtureImport([MyModule].[foo])",
+                        "postTableImport(default,[MyModule].[foo])",
+                        "preTableImport(default,[MyModule].[bar])",
+                        "execute(true):EXPLICIT [MyModule].[bar] IMPORT_DB DBT_TEST",
+                        "postTableImport(default,[MyModule].[bar])",
+                        "preTableImport(default,[MyModule].[baz])",
+                        "columnNamesForTable([MyModule].[baz])",
+                        "postTableImport(default,[MyModule].[baz])");
+        assertThat(driver.calls).noneMatch(call -> call.contains("[MyModule].[deployment]"));
+        assertThat(output)
+                .containsExactly(
+                        "MyModule       : Importing MyModule.foo (By F)",
+                        "MyModule       : Importing MyModule.bar (By S)",
+                        "MyModule       : Importing MyModule.baz (By D)");
+    }
+
+    @Test
+    void importRejectsDeploymentRowSourceAssetsBeforeDatabaseMutation(@TempDir final Path tempDir) throws IOException {
+        final var repository = singleModuleRepository(table("[MyModule].[deployment]", RowSource.DEPLOYMENT));
+        for (final var extension : List.of("yml", "sql")) {
+            final var searchDir = tempDir.resolve(extension);
+            createFile(searchDir, "MyModule/import/MyModule.deployment." + extension, "content");
+            final var driver = new RecordingDriver();
+            final var engine = new RuntimeEngine(driver, new FileResolver());
+            final var database = runtimeDatabase("default", repository, List.of(searchDir));
+
+            assertThatThrownBy(() -> engine.databaseImport(
+                            database, "default", null, connection, sourceConnection, null, Map.of()))
+                    .isInstanceOf(RuntimeExecutionException.class)
+                    .hasMessageContaining("Import Definition 'default'")
+                    .hasMessageContaining("Deployment Row Source table 'MyModule.deployment'")
+                    .hasMessageContaining(extension);
+            assertThat(driver.calls).isEmpty();
+        }
+    }
+
+    @Test
+    void importRejectsResumeAtDeploymentRowSourceBeforeDatabaseMutation(@TempDir final Path tempDir) {
+        final var repository = singleModuleRepository(
+                table("[MyModule].[foo]", RowSource.IMPORT), table("[MyModule].[deployment]", RowSource.DEPLOYMENT));
+        final var driver = new RecordingDriver();
+        final var engine = new RuntimeEngine(driver, new FileResolver());
+        final var database = runtimeDatabase("default", repository, List.of(tempDir.resolve("db")));
+
+        assertThatThrownBy(() -> engine.databaseImport(
+                        database, "default", null, connection, sourceConnection, "MyModule.deployment", Map.of()))
+                .isInstanceOf(RuntimeExecutionException.class)
+                .hasMessageContaining("Import Definition 'default'")
+                .hasMessageContaining("can not resume at Deployment Row Source table 'MyModule.deployment'");
+        assertThat(driver.calls).isEmpty();
+    }
+
+    @Test
     void importResumesAtTableAndErrorsOnUnknownResume(@TempDir final Path tempDir) {
         final var driver = new RecordingDriver();
         final var engine = new RuntimeEngine(driver, new FileResolver());
         final var repository = new RepositoryConfig(
                 List.of("MyModule"),
                 Map.of(),
-                Map.of("MyModule", List.of("[MyModule].[foo]", "[MyModule].[bar]", "[MyModule].[baz]")),
+                Map.of("MyModule", tables("[MyModule].[foo]", "[MyModule].[bar]", "[MyModule].[baz]")),
                 Map.of("MyModule", List.of()));
         final var database = runtimeDatabase("default", repository, List.of(tempDir.resolve("db")));
 
@@ -334,6 +451,7 @@ final class RuntimeEngineTest {
                         engine.databaseImport(database, "default", null, connection, sourceConnection, null, Map.of()))
                 .isInstanceOf(RuntimeExecutionException.class)
                 .hasMessageContaining("Discovered additional files in import directory");
+        assertThat(driver.calls).isEmpty();
     }
 
     @Test
@@ -343,18 +461,25 @@ final class RuntimeEngineTest {
         createFile(tempDir, "db/datasets/myset/pre/pre.sql", "SELECT 'go up' AS Direction\nGO\nDSPRE");
         createFile(tempDir, "db/datasets/myset/post/post.sql", "DSPOST");
         createFile(tempDir, "db/MyModule/datasets/myset/MyModule.foo.yml", """
-            --- !!omap
             - r1:
                 ID: 2
             - r2:
                 ID: 3
             """);
+        createFile(tempDir, "db/MyModule/datasets/myset/MyModule.bar.yml", """
+            r1:
+              ID: 4
+            """);
+        createFile(tempDir, "db/MyModule/datasets/myset/MyModule.baz.yml", "[]\n");
 
         final var driver = new RecordingDriver();
         final var engine = new RuntimeEngine(driver, new FileResolver());
         final var database = runtimeDatabase(
                 "default",
-                RepositoryConfigTestData.singleModule(),
+                singleModuleRepository(
+                        table("[MyModule].[foo]", RowSource.IMPORT),
+                        table("[MyModule].[bar]", RowSource.DEPLOYMENT),
+                        table("[MyModule].[baz]", RowSource.DEPLOYMENT)),
                 List.of(tempDir.resolve("db")),
                 Map.of(),
                 List.of("myset"));
@@ -371,20 +496,31 @@ final class RuntimeEngineTest {
                         "execute(false):UP",
                         "execute(false):SELECT 'go up' AS Direction",
                         "execute(false):DSPRE",
+                        "execute(false):DELETE FROM [MyModule].[bar]",
                         "execute(false):DELETE FROM [MyModule].[foo]",
                         "preFixtureImport([MyModule].[foo])",
                         "insert([MyModule].[foo],{ID=2})",
                         "insert([MyModule].[foo],{ID=3})",
                         "postFixtureImport([MyModule].[foo])",
+                        "preFixtureImport([MyModule].[bar])",
+                        "insert([MyModule].[bar],{ID=4})",
+                        "postFixtureImport([MyModule].[bar])",
+                        "preFixtureImport([MyModule].[baz])",
+                        "postFixtureImport([MyModule].[baz])",
                         "execute(false):DSPOST",
                         "execute(false):FINAL");
         assertThat(driver.calls)
-                .filteredOn(call -> call.contains("FixtureImport") || call.startsWith("insert([MyModule].[foo]"))
+                .filteredOn(call -> call.contains("FixtureImport") || call.startsWith("insert([MyModule]"))
                 .containsExactly(
                         "preFixtureImport([MyModule].[foo])",
                         "insert([MyModule].[foo],{ID=2})",
                         "insert([MyModule].[foo],{ID=3})",
-                        "postFixtureImport([MyModule].[foo])");
+                        "postFixtureImport([MyModule].[foo])",
+                        "preFixtureImport([MyModule].[bar])",
+                        "insert([MyModule].[bar],{ID=4})",
+                        "postFixtureImport([MyModule].[bar])",
+                        "preFixtureImport([MyModule].[baz])",
+                        "postFixtureImport([MyModule].[baz])");
     }
 
     @Test
@@ -418,8 +554,8 @@ final class RuntimeEngineTest {
                 List.of("MyModule", "MyOtherModule"),
                 Map.of(),
                 Map.of(
-                        "MyModule", List.of("[MyModule].[foo]"),
-                        "MyOtherModule", List.of("[MyOtherModule].[baz]")),
+                        "MyModule", tables("[MyModule].[foo]"),
+                        "MyOtherModule", tables("[MyOtherModule].[baz]")),
                 Map.of("MyModule", List.of("[MyModule].[fooSeq]"), "MyOtherModule", List.of()));
         final var database = runtimeDatabase(
                 "default",
@@ -574,7 +710,7 @@ final class RuntimeEngineTest {
         final var duplicateCleanRepository = new RepositoryConfig(
                 List.of("MyModule"),
                 Map.of(),
-                Map.of("MyModule", List.of("[MyModule].[foo]")),
+                Map.of("MyModule", tables("[MyModule].[foo]")),
                 Map.of("MyModule", List.of("\"MyModule\".\"foo\"")));
         final var duplicateCleanDatabase =
                 runtimeDatabase("default", duplicateCleanRepository, List.of(tempDir.resolve("db")));
@@ -627,7 +763,7 @@ final class RuntimeEngineTest {
         final var repository = new RepositoryConfig(
                 List.of("MyModule"),
                 Map.of(),
-                Map.of("MyModule", List.of("[MyModule].[foo]", "[MyModule].[bar]")),
+                Map.of("MyModule", tables("[MyModule].[foo]", "[MyModule].[bar]")),
                 Map.of("MyModule", List.of()));
         final var database = runtimeDatabase("default", repository, List.of(tempDir.resolve("db")));
 
@@ -651,7 +787,7 @@ final class RuntimeEngineTest {
         final var repository = new RepositoryConfig(
                 List.of("MyModule"),
                 Map.of(),
-                Map.of("MyModule", List.of("[MyModule].[foo]")),
+                Map.of("MyModule", tables("[MyModule].[foo]")),
                 Map.of("MyModule", List.of("[MyModule].[fooSeq]")));
         final var database = runtimeDatabase("default", repository, List.of(tempDir.resolve("db")));
 
@@ -1233,12 +1369,25 @@ final class RuntimeEngineTest {
         }
     }
 
+    private static List<RepositoryTable> tables(final String... names) {
+        return Arrays.stream(names).map(name -> table(name, RowSource.IMPORT)).toList();
+    }
+
+    private static RepositoryTable table(final String name, final RowSource rowSource) {
+        return new RepositoryTable(name, List.of("[ID]"), rowSource);
+    }
+
+    private static RepositoryConfig singleModuleRepository(final RepositoryTable... tables) {
+        return new RepositoryConfig(
+                List.of("MyModule"), Map.of(), Map.of("MyModule", List.of(tables)), Map.of("MyModule", List.of()));
+    }
+
     private static final class RepositoryConfigTestData {
         static RepositoryConfig singleModule() {
             return new RepositoryConfig(
                     List.of("MyModule"),
                     Map.of(),
-                    Map.of("MyModule", List.of("[MyModule].[foo]")),
+                    Map.of("MyModule", tables("[MyModule].[foo]")),
                     Map.of("MyModule", List.of()));
         }
 
@@ -1247,8 +1396,8 @@ final class RuntimeEngineTest {
                     List.of("MyModule", "MyOtherModule"),
                     Map.of(),
                     Map.of(
-                            "MyModule", List.of("[MyModule].[foo]", "[MyModule].[bar]"),
-                            "MyOtherModule", List.of("[MyOtherModule].[baz]", "[MyOtherModule].[bark]")),
+                            "MyModule", tables("[MyModule].[foo]", "[MyModule].[bar]"),
+                            "MyOtherModule", tables("[MyOtherModule].[baz]", "[MyOtherModule].[bark]")),
                     Map.of("MyModule", List.of(), "MyOtherModule", List.of()));
         }
     }

@@ -10,6 +10,7 @@ This project keeps parity-first behavior with the Ruby reference while using Jav
 - Supported CLI commands:
   - `status`
   - `create`
+  - `create-with-dataset`
   - `drop`
   - `migrate`
   - `import`
@@ -18,6 +19,8 @@ This project keeps parity-first behavior with the Ruby reference while using Jav
   - `up-module-group`
   - `down-module-group`
   - `package-data`
+  - `emit-standard-imports`
+  - `verify-constraints`
   - `export-fixtures`
 
 ## Build
@@ -85,13 +88,20 @@ modules:
   Core:
     schema: Core
     tables:
-      - '[Core].[tblExample]'
+      - name: '[Core].[tblExample]'
+        columns: ['[ID]', '[Name]']
+      - name: '[Core].[tblDeploymentSetting]'
+        columns: ['[ID]', '[Value]']
+        rowSource: deployment
     sequences: []
 ```
 
 ## Documentation
 
-- User guide: `docs/user-guide.md`
+- User guide: [`docs/user-guide.md`](docs/user-guide.md)
+- Canonical terms: [`docs/glossary/README.md`](docs/glossary/README.md)
+- Database Import specification: [`docs/specs/database-imports.md`](docs/specs/database-imports.md)
+- Repository Metadata decision: [`docs/adr/0001-repository-metadata-for-standard-imports.md`](docs/adr/0001-repository-metadata-for-standard-imports.md)
 - Planning and parity tracking: `plans/jdbt/`
 - Agent workflow constraints: `AGENTS.md`
 
@@ -109,4 +119,5 @@ modules:
 - SQL Server import SQL additionally supports assert macros in import files: `ASSERT_ROW_COUNT(...)`, `ASSERT_DATABASE_VERSION(...)`, and `ASSERT_UNCHANGED_ROW_COUNT()`.
 - Import assert macros are expanded only for SQL Server driver import flows (`import` and `create-by-import`).
 - Import resume uses `--resume-at` (not environment variables).
+- `emit-standard-imports` is an offline SQL Server command; it requires no database credentials and emits tokenized Standard Import Scripts from Repository Metadata.
 - SQL Server database file placement and maintenance settings are configured in `jdbt.yml` with `dataPath`, `logPath`, `forceDrop`, `deleteBackupHistory`, `reindexOnImport`, and `shrinkOnImport`.

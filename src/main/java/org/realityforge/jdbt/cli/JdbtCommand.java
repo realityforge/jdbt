@@ -29,6 +29,7 @@ import picocli.CommandLine.Model.CommandSpec;
             JdbtCommand.UpModuleGroupCommand.class,
             JdbtCommand.DownModuleGroupCommand.class,
             JdbtCommand.PackageDataCommand.class,
+            JdbtCommand.EmitStandardImportsCommand.class,
             JdbtCommand.VerifyConstraintsCommand.class,
             JdbtCommand.ExportFixturesCommand.class
         })
@@ -439,6 +440,29 @@ public final class JdbtCommand implements Callable<Integer> {
         @Override
         public Integer call() {
             runner().packageData(databaseKey(), outputFile);
+            return 0;
+        }
+    }
+
+    @CommandLine.Command(name = "emit-standard-imports", description = "Emit offline Standard Import Scripts")
+    static final class EmitStandardImportsCommand implements Callable<Integer> {
+        @CommandLine.ParentCommand
+        private @Nullable JdbtCommand parent;
+
+        @CommandLine.Option(names = "--import", description = "Import key from jdbt.yml")
+        private @Nullable String importKey;
+
+        @CommandLine.Option(
+                names = "--output-dir",
+                description = "Output directory (defaults to tmp/imports under the Database Project)")
+        private @Nullable Path outputDirectory;
+
+        @CommandLine.Option(names = "--replace", description = "Replace a non-empty custom output directory")
+        private boolean replace;
+
+        @Override
+        public Integer call() {
+            Objects.requireNonNull(parent).runner.emitStandardImports(importKey, outputDirectory, replace);
             return 0;
         }
     }

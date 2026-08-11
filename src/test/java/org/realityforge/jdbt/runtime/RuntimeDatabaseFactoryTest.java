@@ -12,13 +12,17 @@ import org.realityforge.jdbt.config.FilterPropertyConfig;
 import org.realityforge.jdbt.config.ImportConfig;
 import org.realityforge.jdbt.config.ModuleGroupConfig;
 import org.realityforge.jdbt.repository.RepositoryConfig;
+import org.realityforge.jdbt.repository.RepositoryTable;
 
 final class RuntimeDatabaseFactoryTest {
     @Test
     void fromCreatesRuntimeDatabaseWithExpectedFields() {
         final var factory = new RuntimeDatabaseFactory();
         final var repository = new RepositoryConfig(
-                List.of("Core"), Map.of(), Map.of("Core", List.of("[Core].[tblA]")), Map.of("Core", List.of()));
+                List.of("Core"),
+                Map.of(),
+                Map.of("Core", List.of(new RepositoryTable("[Core].[tblA]", List.of("[ID]")))),
+                Map.of("Core", List.of()));
         final var database = new DatabaseConfig(
                 "default",
                 List.of("."),
