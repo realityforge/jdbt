@@ -6,7 +6,6 @@ _NULLAWAY_PLUGIN = "//third_party/java:nullaway_plugin"
 _JUNIT_PLATFORM_CONSOLE = "//third_party/java:junit_platform_console_standalone"
 
 _ERROR_PRONE_JAVACOPTS = [
-    "-XepExcludedPaths:(.*/" + "external/.*|.*/_javac/.*/.*_sources/.*)",
     "-Xep:AlmostJavadoc:ERROR",
     "-Xep:AlreadyChecked:ERROR",
     "-Xep:AmbiguousMethodReference:ERROR",
