@@ -5,11 +5,12 @@ package(default_visibility = ["//visibility:public"])
 java_library(
     name = "runtime",
     srcs = [
+        "DatabaseStatisticsExporter.java",
         "RuntimeDatabase.java",
         "RuntimeDatabaseFactory.java",
         "RuntimeEngine.java",
         "RuntimeExecutionException.java",
-        "SqlServerImportAssertExpander.java",
+        "SqlServerAssertExpander.java",
         "StandardImportEmitter.java",
         "package-info.java",
     ],

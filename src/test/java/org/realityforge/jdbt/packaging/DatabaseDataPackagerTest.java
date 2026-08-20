@@ -193,7 +193,10 @@ final class DatabaseDataPackagerTest {
                 Map.of(
                         "MyModule",
                         List.of(new RepositoryTable(
-                                "[CustomSchema].[foo]", List.of("[ID]", "[Name]"), RowSource.DEPLOYMENT))),
+                                "[CustomSchema].[foo]",
+                                List.of("[ID]", "[Name]"),
+                                List.of("[PK_foo]", "[IX_foo_Name]"),
+                                RowSource.DEPLOYMENT))),
                 Map.of("MyModule", List.of("[CustomSchema].[foo_seq]")));
         final var database = runtimeDatabase(
                 repository,
@@ -211,6 +214,9 @@ final class DatabaseDataPackagerTest {
                 .contains("      - name: '[CustomSchema].[foo]'\n")
                 .contains("          - '[ID]'\n")
                 .contains("          - '[Name]'\n")
+                .contains("        indexes:\n")
+                .contains("          - '[PK_foo]'\n")
+                .contains("          - '[IX_foo_Name]'\n")
                 .contains("        rowSource: deployment\n");
         final var loaded = new RepositoryConfigLoader().load(repositoryYaml, "repository.yml");
         assertThat(loaded).isEqualTo(repository);

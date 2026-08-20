@@ -13,7 +13,7 @@ final class DbDriverFactoryTest {
     @Test
     void createsSqlServerDriver() {
         assertThat(new DbDriverFactory().create("sqlserver")).isInstanceOf(SqlServerDbDriver.class);
-        assertThat(new DbDriverFactory().create("sqlserver").supportsImportAssertFilters())
+        assertThat(new DbDriverFactory().create("sqlserver").supportsAssertMacros())
                 .isTrue();
         assertThat(new DbDriverFactory().create("sqlserver").supportsStandardImportScripts())
                 .isTrue();
@@ -28,7 +28,7 @@ final class DbDriverFactoryTest {
     @Test
     void createsPostgresDriver() {
         assertThat(new DbDriverFactory().create("postgres")).isInstanceOf(PostgresDbDriver.class);
-        assertThat(new DbDriverFactory().create("postgres").supportsImportAssertFilters())
+        assertThat(new DbDriverFactory().create("postgres").supportsAssertMacros())
                 .isFalse();
         assertThat(new DbDriverFactory().create("POSTGRES")).isInstanceOf(PostgresDbDriver.class);
     }

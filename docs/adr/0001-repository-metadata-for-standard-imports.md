@@ -13,7 +13,7 @@ The earlier scalar-table [Repository Descriptor](../glossary/README.md#repositor
 
 The [Repository Metadata](../glossary/README.md#repository-metadata) contract is the seam between the static model producer and jdbt:
 
-- each Repository Descriptor table carries its qualified name, ordered quoted SQL columns, and [Row Source](../glossary/README.md#row-source);
+- each Repository Descriptor table carries its qualified name, ordered quoted SQL columns, physical index identities, and [Row Source](../glossary/README.md#row-source);
 - Domgen emits those facts from its SQL model;
 - jdbt merges them from pre-artifacts, the local [Database Project](../glossary/README.md#database-project), and post-artifacts;
 - Database Artifact packaging serializes the merged model without loss; and

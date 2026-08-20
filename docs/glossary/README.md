@@ -14,7 +14,7 @@ The `repository.yml` file in a [Database Project](#database-project) or [Databas
 
 ### Repository Metadata
 
-The ordered, merged description of [Database Modules](#database-module), schema overrides, tables, table columns, [Row Sources](#row-source), and sequences. Jdbt composes it from pre-artifact descriptors, the local descriptor, then post-artifact descriptors.
+The ordered, merged description of [Database Modules](#database-module), schema overrides, tables, table columns, physical table-index identities, [Row Sources](#row-source), and sequences. Jdbt composes it from pre-artifact descriptors, the local descriptor, then post-artifact descriptors.
 
 ### Database Module
 
@@ -23,6 +23,10 @@ A named, ordered unit of database ownership containing an optional schema overri
 ### Database Artifact
 
 A deterministic zip consumed through `preDbArtifacts` or `postDbArtifacts`. It contains `data/repository.yml` and the database assets owned by its [Database Modules](#database-module).
+
+### Database Statistics Export
+
+A deterministic CSV observation of approximate row counts for every table and physical index declared by [Repository Metadata](#repository-metadata). It validates the live database against the modeled identities and excludes database-only objects.
 
 ## Import behavior
 
@@ -74,4 +78,4 @@ A per-table or per-sequence YAML file in an [Import Definition](#import-definiti
 
 A table or sequence YAML file under a named dataset. It is loaded only by an explicit dataset command and may target either [Row Source](#row-source) because datasets are operator-requested data, not lifecycle ownership.
 
-The durable behavior behind these terms is specified in [Database Imports](../specs/database-imports.md).
+The durable behavior behind these terms is specified in [Database Imports](../specs/database-imports.md) and [Database Statistics Export](../specs/database-statistics.md).

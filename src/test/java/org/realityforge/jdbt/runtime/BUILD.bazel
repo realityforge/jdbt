@@ -3,6 +3,19 @@ load("//third_party/java:rules.bzl", "junit5_test")
 package(default_visibility = ["//visibility:public"])
 
 junit5_test(
+    name = "database_statistics_exporter_test",
+    srcs = ["DatabaseStatisticsExporterTest.java"],
+    test_package = "org.realityforge.jdbt.runtime",
+    deps = [
+        "//src/main/java/org/realityforge/jdbt/config",
+        "//src/main/java/org/realityforge/jdbt/db",
+        "//src/main/java/org/realityforge/jdbt/repository",
+        "//src/main/java/org/realityforge/jdbt/runtime",
+        "//third_party/java:assertj_core",
+    ],
+)
+
+junit5_test(
     name = "runtime_tests",
     srcs = [
         "RuntimeDatabaseFactoryTest.java",
@@ -10,7 +23,7 @@ junit5_test(
         "RuntimeEngineTest.java",
         "RuntimeFilesystemIntegrationTest.java",
         "RuntimeH2IntegrationTest.java",
-        "SqlServerImportAssertExpanderTest.java",
+        "SqlServerAssertExpanderTest.java",
         "StandardImportEmitterTest.java",
         "package-info.java",
     ],

@@ -87,6 +87,22 @@ final class DefaultCommandRunnerTest {
     }
 
     @Test
+    void packageDataReadsCanonicalResourcesFromConfiguredRoot(@TempDir final Path tempDir) throws IOException {
+        final var projectDirectory = tempDir.resolve("profile");
+        final var resourceRoot = tempDir.resolve("resources");
+        writeFile(projectDirectory, "jdbt.yml", "resourceRoot: ../resources\n");
+        writeFile(projectDirectory, "repository.yml", repositoryConfig());
+        writeFile(resourceRoot, "MyModule/a.sql", "SELECT 1");
+
+        final var output = tempDir.resolve("out.zip");
+        createRunner(projectDirectory).packageData("default", output);
+
+        try (var zip = new ZipFile(output.toFile())) {
+            assertThat(zip.getEntry("data/MyModule/a.sql")).isNotNull();
+        }
+    }
+
+    @Test
     void packageDataArtifactExecutesThroughRuntime(@TempDir final Path tempDir) throws IOException {
         writeFile(tempDir, "jdbt.yml", projectConfig(false));
         writeFile(tempDir, "repository.yml", repositoryConfig());
@@ -155,6 +171,40 @@ final class DefaultCommandRunnerTest {
     }
 
     @Test
+    void exportFixturesDefaultsToProjectDirectoryRatherThanResourceRoot(@TempDir final Path tempDir)
+            throws IOException {
+        final var projectDirectory = tempDir.resolve("profile");
+        final var resourceRoot = tempDir.resolve("resources");
+        writeFile(projectDirectory, "jdbt.yml", "resourceRoot: ../resources\n" + projectConfig(false));
+        writeFile(projectDirectory, "repository.yml", repositoryConfig());
+        writeFile(projectDirectory, "fixtures.properties", "MyModule.foo=SELECT 1 AS ID\n");
+        Files.createDirectories(resourceRoot);
+        final var driverFactory = new RecordingDriverFactory();
+        final var runner =
+                new DefaultCommandRunner(new ProjectRuntimeLoader(projectDirectory), driverFactory, new FileResolver());
+
+        runner.exportFixtures(
+                "default", "recording", target, projectDirectory.resolve("fixtures.properties"), null, null, Map.of());
+
+        assertThat(projectDirectory.resolve("MyModule/fixtures/MyModule.foo.yml"))
+                .exists();
+        assertThat(resourceRoot.resolve("MyModule/fixtures/MyModule.foo.yml")).doesNotExist();
+    }
+
+    @Test
+    void exportDatabaseStatisticsRejectsUnsupportedDriver(@TempDir final Path tempDir) {
+        assertThatThrownBy(() -> createRunner(tempDir)
+                        .exportDatabaseStatistics(
+                                null,
+                                "postgres",
+                                new DatabaseConnection("localhost", 5432, "rose", "admin", "secret"),
+                                tempDir.resolve("statistics.csv")))
+                .isInstanceOf(RuntimeExecutionException.class)
+                .hasMessageContaining("only supports the sqlserver driver")
+                .hasMessageContaining("postgres");
+    }
+
+    @Test
     void databaseImportRequiresDefaultImportWhenImportNotProvided(@TempDir final Path tempDir) throws IOException {
         writeFile(tempDir, "jdbt.yml", projectConfigWithoutImports());
         writeFile(tempDir, "repository.yml", repositoryConfig());
@@ -199,7 +249,7 @@ final class DefaultCommandRunnerTest {
         writeFile(producer, "repository.yml", """
             modules:
               Artifact:
-                tables: [{name: "[Artifact].[tbl]", columns: ["[ID]", "[Code]"]}]
+                tables: [{name: "[Artifact].[tbl]", columns: ["[ID]", "[Code]"], indexes: []}]
                 sequences: []
             """);
         final var artifact = tempDir.resolve("artifact.zip");
@@ -252,7 +302,7 @@ final class DefaultCommandRunnerTest {
         return """
             modules:
               MyModule:
-                tables: [{name: "[MyModule].[foo]", columns: ["[ID]"]}]
+                tables: [{name: "[MyModule].[foo]", columns: ["[ID]"], indexes: []}]
                 sequences: []
             """;
     }

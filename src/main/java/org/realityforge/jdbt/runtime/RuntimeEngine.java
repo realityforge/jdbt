@@ -83,12 +83,12 @@ public final class RuntimeEngine {
         createDatabaseIfRequired(database, target, noCreate);
         withDatabaseConnection(target, false, () -> {
             for (final var dir : database.preCreateDirs()) {
-                processDirSet(database, dir, declaredFilters);
+                processCreationDirSet(database, dir, declaredFilters);
             }
             performCreateAction(database, ModuleMode.UP, declaredFilters);
             performCreateAction(database, ModuleMode.FINALIZE, declaredFilters);
             for (final var dir : database.postCreateDirs()) {
-                processDirSet(database, dir, declaredFilters);
+                processCreationDirSet(database, dir, declaredFilters);
             }
             performPostCreateMigrationsSetup(database, declaredFilters);
         });
@@ -106,15 +106,15 @@ public final class RuntimeEngine {
         createDatabaseIfRequired(database, target, noCreate);
         withDatabaseConnection(target, false, () -> {
             for (final var dir : database.preCreateDirs()) {
-                processDirSet(database, dir, declaredFilters);
+                processCreationDirSet(database, dir, declaredFilters);
             }
             performCreateAction(database, ModuleMode.UP, declaredFilters);
-            performPreDatasetHooks(database, datasetName, declaredFilters);
+            performPreDatasetHooks(database, datasetName, declaredFilters, true);
             performLoadDataset(database, datasetName);
-            performPostDatasetHooks(database, datasetName, declaredFilters);
+            performPostDatasetHooks(database, datasetName, declaredFilters, true);
             performCreateAction(database, ModuleMode.FINALIZE, declaredFilters);
             for (final var dir : database.postCreateDirs()) {
-                processDirSet(database, dir, declaredFilters);
+                processCreationDirSet(database, dir, declaredFilters);
             }
             performPostCreateMigrationsSetup(database, declaredFilters);
         });
@@ -150,8 +150,8 @@ public final class RuntimeEngine {
                 if (!moduleGroup.modules().contains(moduleName)) {
                     continue;
                 }
-                createModule(database, moduleName, ModuleMode.UP, declaredFilters);
-                createModule(database, moduleName, ModuleMode.FINALIZE, declaredFilters);
+                createModule(database, moduleName, ModuleMode.UP, declaredFilters, false);
+                createModule(database, moduleName, ModuleMode.FINALIZE, declaredFilters, false);
             }
         });
     }
@@ -170,7 +170,7 @@ public final class RuntimeEngine {
                 if (!moduleGroup.modules().contains(moduleName)) {
                     continue;
                 }
-                processModule(database, moduleName, ModuleMode.DOWN, declaredFilters);
+                processModule(database, moduleName, ModuleMode.DOWN, declaredFilters, false);
                 final var tables = new ArrayList<>(database.tableOrdering(moduleName));
                 Collections.reverse(tables);
                 db.dropSchema(database.schemaNameForModule(moduleName), tables);
@@ -186,9 +186,9 @@ public final class RuntimeEngine {
         final var declaredFilters = resolveDeclaredFilterValues(database, filterProperties);
         ensureDatasetExists(database, datasetName);
         withDatabaseConnection(target, false, () -> {
-            performPreDatasetHooks(database, datasetName, declaredFilters);
+            performPreDatasetHooks(database, datasetName, declaredFilters, false);
             performLoadDataset(database, datasetName);
-            performPostDatasetHooks(database, datasetName, declaredFilters);
+            performPostDatasetHooks(database, datasetName, declaredFilters, false);
         });
     }
 
@@ -306,7 +306,7 @@ public final class RuntimeEngine {
         withDatabaseConnection(target, false, () -> {
             if (null == resumeAt) {
                 for (final var dir : database.preCreateDirs()) {
-                    processDirSet(database, dir, declaredFilters);
+                    processCreationDirSet(database, dir, declaredFilters);
                 }
                 performCreateAction(database, ModuleMode.UP, declaredFilters);
             }
@@ -314,7 +314,7 @@ public final class RuntimeEngine {
                     database, metadata, importConfig, target, source, false, null, resumeAt, declaredFilters);
             performCreateAction(database, ModuleMode.FINALIZE, declaredFilters);
             for (final var dir : database.postCreateDirs()) {
-                processDirSet(database, dir, declaredFilters);
+                processCreationDirSet(database, dir, declaredFilters);
             }
             performPostCreateMigrationsSetup(database, declaredFilters);
         });
@@ -647,7 +647,7 @@ public final class RuntimeEngine {
             final String targetDatabase,
             final String sourceDatabase,
             final Map<String, String> declaredFilters) {
-        var effectiveSql = db.supportsImportAssertFilters() ? SqlServerImportAssertExpander.expand(sql) : sql;
+        var effectiveSql = db.supportsAssertMacros() ? SqlServerAssertExpander.expandImportSql(sql) : sql;
         effectiveSql = applyDeclaredFilterProperties(effectiveSql, declaredFilters);
         if (null != tableName) {
             effectiveSql = effectiveSql.replace("__TABLE__", tableName);
@@ -662,9 +662,13 @@ public final class RuntimeEngine {
             final String label,
             final String file,
             final boolean executeInControlDatabase,
-            final Map<String, String> declaredFilters) {
+            final Map<String, String> declaredFilters,
+            final boolean expandDatabaseVersionAssert) {
         logSqlFile(label, file);
-        final var sql = loadData(database, file);
+        var sql = loadData(database, file);
+        if (expandDatabaseVersionAssert && db.supportsAssertMacros()) {
+            sql = SqlServerAssertExpander.expandCreationSql(sql);
+        }
         runSqlBatch(applyDeclaredFilterProperties(sql, declaredFilters), executeInControlDatabase, file);
     }
 
@@ -815,11 +819,20 @@ public final class RuntimeEngine {
         performMigration(
                 database,
                 database.migrationsAppliedAtCreate() ? MigrationAction.RECORD : MigrationAction.FORCE,
-                declaredFilters);
+                declaredFilters,
+                true);
     }
 
     private void performMigration(
             final RuntimeDatabase database, final MigrationAction action, final Map<String, String> declaredFilters) {
+        performMigration(database, action, declaredFilters, false);
+    }
+
+    private void performMigration(
+            final RuntimeDatabase database,
+            final MigrationAction action,
+            final Map<String, String> declaredFilters,
+            final boolean expandDatabaseVersionAssert) {
         final var files = fileResolver.collectFiles(
                 database.searchDirs(),
                 database.migrationsDirName(),
@@ -836,7 +849,7 @@ public final class RuntimeEngine {
             if (!shouldCheck || db.shouldMigrate(database.key(), migrationName)) {
                 final var shouldRun = action != MigrationAction.RECORD && (null == versionIndex || versionIndex < i);
                 if (shouldRun) {
-                    runSqlFile(database, "Migration: ", filename, false, declaredFilters);
+                    runSqlFile(database, "Migration: ", filename, false, declaredFilters, expandDatabaseVersionAssert);
                 }
                 db.markMigrationAsRun(database.key(), migrationName);
             }
@@ -874,7 +887,7 @@ public final class RuntimeEngine {
     private void performCreateAction(
             final RuntimeDatabase database, final ModuleMode mode, final Map<String, String> declaredFilters) {
         for (final var moduleName : database.repository().modules()) {
-            createModule(database, moduleName, mode, declaredFilters);
+            createModule(database, moduleName, mode, declaredFilters, true);
         }
     }
 
@@ -882,18 +895,20 @@ public final class RuntimeEngine {
             final RuntimeDatabase database,
             final String moduleName,
             final ModuleMode mode,
-            final Map<String, String> declaredFilters) {
+            final Map<String, String> declaredFilters,
+            final boolean expandDatabaseVersionAssert) {
         if (ModuleMode.UP == mode) {
             db.createSchema(database.schemaNameForModule(moduleName));
         }
-        processModule(database, moduleName, mode, declaredFilters);
+        processModule(database, moduleName, mode, declaredFilters, expandDatabaseVersionAssert);
     }
 
     private void processModule(
             final RuntimeDatabase database,
             final String moduleName,
             final ModuleMode mode,
-            final Map<String, String> declaredFilters) {
+            final Map<String, String> declaredFilters,
+            final boolean expandDatabaseVersionAssert) {
         final var dirs =
                 switch (mode) {
                     case UP -> database.upDirs();
@@ -901,7 +916,12 @@ public final class RuntimeEngine {
                     case FINALIZE -> database.finalizeDirs();
                 };
         for (final var dir : dirs) {
-            processDirSet(database, moduleName + '/' + dir, fileLabel(moduleName, dir), declaredFilters);
+            processDirSet(
+                    database,
+                    moduleName + '/' + dir,
+                    fileLabel(moduleName, dir),
+                    declaredFilters,
+                    expandDatabaseVersionAssert);
         }
         if (ModuleMode.UP == mode) {
             loadFixturesFromDir(database, moduleName, database.fixtureDirName());
@@ -910,14 +930,28 @@ public final class RuntimeEngine {
 
     private void processDirSet(
             final RuntimeDatabase database, final String dir, final Map<String, String> declaredFilters) {
-        processDirSet(database, dir, fileLabel("", dir), declaredFilters);
+        processDirSet(database, dir, fileLabel("", dir), declaredFilters, false);
+    }
+
+    private void processCreationDirSet(
+            final RuntimeDatabase database, final String dir, final Map<String, String> declaredFilters) {
+        processDirSet(database, dir, declaredFilters, true);
+    }
+
+    private void processDirSet(
+            final RuntimeDatabase database,
+            final String dir,
+            final Map<String, String> declaredFilters,
+            final boolean expandDatabaseVersionAssert) {
+        processDirSet(database, dir, fileLabel("", dir), declaredFilters, expandDatabaseVersionAssert);
     }
 
     private void processDirSet(
             final RuntimeDatabase database,
             final String dir,
             final String label,
-            final Map<String, String> declaredFilters) {
+            final Map<String, String> declaredFilters,
+            final boolean expandDatabaseVersionAssert) {
         final var files = fileResolver.collectFiles(
                 database.searchDirs(),
                 dir,
@@ -926,21 +960,35 @@ public final class RuntimeEngine {
                 database.postDbArtifacts(),
                 database.preDbArtifacts());
         for (final var file : files) {
-            runSqlFile(database, label, file, false, declaredFilters);
+            runSqlFile(database, label, file, false, declaredFilters, expandDatabaseVersionAssert);
         }
     }
 
     private void performPreDatasetHooks(
-            final RuntimeDatabase database, final String datasetName, final Map<String, String> declaredFilters) {
+            final RuntimeDatabase database,
+            final String datasetName,
+            final Map<String, String> declaredFilters,
+            final boolean expandDatabaseVersionAssert) {
         for (final var preDir : database.preDatasetDirs()) {
-            processDirSet(database, database.datasetsDirName() + '/' + datasetName + '/' + preDir, declaredFilters);
+            processDirSet(
+                    database,
+                    database.datasetsDirName() + '/' + datasetName + '/' + preDir,
+                    declaredFilters,
+                    expandDatabaseVersionAssert);
         }
     }
 
     private void performPostDatasetHooks(
-            final RuntimeDatabase database, final String datasetName, final Map<String, String> declaredFilters) {
+            final RuntimeDatabase database,
+            final String datasetName,
+            final Map<String, String> declaredFilters,
+            final boolean expandDatabaseVersionAssert) {
         for (final var postDir : database.postDatasetDirs()) {
-            processDirSet(database, database.datasetsDirName() + '/' + datasetName + '/' + postDir, declaredFilters);
+            processDirSet(
+                    database,
+                    database.datasetsDirName() + '/' + datasetName + '/' + postDir,
+                    declaredFilters,
+                    expandDatabaseVersionAssert);
         }
     }
 

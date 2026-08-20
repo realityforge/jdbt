@@ -9,6 +9,7 @@ This project keeps parity-first behavior with the Ruby reference while using Jav
 - Supported runtime drivers: SQL Server and PostgreSQL.
 - Supported CLI commands:
   - `status`
+  - `validate-project`
   - `create`
   - `create-with-dataset`
   - `drop`
@@ -47,7 +48,7 @@ bazel build //src/main/java/org/realityforge/jdbt:jdbt_bin_deploy.jar
 
 ## Quick start
 
-1. Create `jdbt.yml` in the working directory.
+1. Create `jdbt.yml` in the working directory, or select its directory with `--project-dir`.
 2. Create `repository.yml` in the same directory as `jdbt.yml`.
 3. Arrange module SQL/YAML files under your database layout.
 4. Run a command, for example:
@@ -110,14 +111,18 @@ modules:
 - Configuration file name is fixed: `jdbt.yml`.
 - `jdbt.yml` defines a single implicit database at top-level keys.
 - Top-level `defaults` and `databases` are not supported in `jdbt.yml`; runtime defaults are hardcoded.
-- `searchDirs` is not configurable; jdbt always searches from the directory containing `jdbt.yml`.
+- `resourceRoot` selects one resource tree relative to the project directory and defaults to `.`; `searchDirs` remains
+  unsupported.
+- `jdbt --project-dir PATH validate-project` validates manifests and selected resources without connecting to a
+  database.
 - `resourcePrefix` is not supported; Java runtime does not load database assets from classpath resources.
 - SQL source filtering is driven by declared `filterProperties` and optional `--property key=value` overrides.
 - Filter properties are strict: only declared keys are accepted; missing `default` means the property is required.
 - Import-only reserved tokens are tool-provided and not overridable: `__SOURCE__`, `__TARGET__`, `__TABLE__`.
 - Fixture export is driven by a Java properties file keyed by clean table/sequence names; empty values use generated default SQL.
-- SQL Server import SQL additionally supports assert macros in import files: `ASSERT_ROW_COUNT(...)`, `ASSERT_DATABASE_VERSION(...)`, and `ASSERT_UNCHANGED_ROW_COUNT()`.
-- Import assert macros are expanded only for SQL Server driver import flows (`import` and `create-by-import`).
+- SQL Server creation and import SQL supports `ASSERT_DATABASE_VERSION(...)`. Creation checks the current database; import checks the source and target databases.
+- SQL Server import SQL additionally supports `ASSERT_ROW_COUNT(...)` and `ASSERT_UNCHANGED_ROW_COUNT()`.
+- Database-version assertions are expanded during `create`, `create-with-dataset`, the creation phases of `create-by-import`, and SQL Server import flows. Row-count assertions remain import-only.
 - Import resume uses `--resume-at` (not environment variables).
 - `emit-standard-imports` is an offline SQL Server command; it requires no database credentials and emits tokenized Standard Import Scripts from Repository Metadata.
 - SQL Server database file placement and maintenance settings are configured in `jdbt.yml` with `dataPath`, `logPath`, `forceDrop`, `deleteBackupHistory`, `reindexOnImport`, and `shrinkOnImport`.

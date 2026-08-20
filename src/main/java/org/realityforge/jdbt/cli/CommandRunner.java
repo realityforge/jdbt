@@ -7,6 +7,8 @@ import org.jspecify.annotations.Nullable;
 import org.realityforge.jdbt.db.DatabaseConnection;
 
 interface CommandRunner {
+    void validateProject(@Nullable String databaseKey);
+
     void status(@Nullable String databaseKey, String driver);
 
     void create(
@@ -97,4 +99,7 @@ interface CommandRunner {
             @Nullable String dataset,
             @Nullable Path outputDirectory,
             Map<String, String> filterProperties);
+
+    void exportDatabaseStatistics(
+            @Nullable String databaseKey, String driver, DatabaseConnection target, Path outputFile);
 }

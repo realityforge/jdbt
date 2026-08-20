@@ -221,6 +221,14 @@ public final class DatabaseDataPackager {
             for (final var column : table.columns()) {
                 yaml.append("          - ").append(toYamlScalar(column)).append('\n');
             }
+            if (table.indexes().isEmpty()) {
+                yaml.append("        indexes: []\n");
+            } else {
+                yaml.append("        indexes:\n");
+                for (final var index : table.indexes()) {
+                    yaml.append("          - ").append(toYamlScalar(index)).append('\n');
+                }
+            }
             if (RowSource.DEPLOYMENT == table.rowSource()) {
                 yaml.append("        rowSource: deployment\n");
             }

@@ -24,7 +24,9 @@ bazel run //src/main/java/org/realityforge/jdbt:jdbt_bin -- --help
 
 ### `jdbt.yml`
 
-`jdbt.yml` is required and must exist in the current working directory when you run `jdbt`.
+`jdbt.yml` is required in the project directory. The project directory defaults to the current working directory and
+can be selected explicitly for every command with `--project-dir PATH`. `repository.yml` and configured database
+artifacts are resolved relative to that project directory.
 
 Top-level keys:
 
@@ -53,6 +55,7 @@ Top-level keys:
 - `filterProperties`
 - `imports`
 - `moduleGroups`
+- `resourceRoot`
 
 `jdbt.yml` no longer supports a top-level `defaults` key.
 
@@ -81,11 +84,34 @@ Runtime defaults are hardcoded and currently match Ruby-compatible defaults for:
 
 Unknown keys are rejected.
 
-Search directory behavior is fixed:
+Resource-root behavior is fixed:
 
 - jdbt uses exactly one search directory
-- that directory is where `jdbt.yml` is located
+- `resourceRoot` selects that directory and defaults to `.`
+- a relative `resourceRoot` is resolved against the project directory
+- module SQL, fixtures, imports, migrations, and configured hook directories resolve beneath `resourceRoot`
 - `searchDirs` is not a supported key in `jdbt.yml`
+
+This permits small generated projects to keep `jdbt.yml` and a closure-only `repository.yml` together while reading
+canonical database resources from a shared tree:
+
+```yaml
+resourceRoot: ../..
+```
+
+Run `validate-project` to load the manifests, resolve and hash the selected resources, and reject invalid projects
+without opening a database connection:
+
+```bash
+jdbt --project-dir database/test-profiles/Mail validate-project
+```
+
+Path categories are deliberately distinct:
+
+- `resourceRoot` and configured artifact paths are project-directory-relative when not absolute
+- logical resource directories in `jdbt.yml` are resource-root-relative
+- CLI path arguments and output paths are caller-working-directory-relative
+- SQL Server `dataPath` and `logPath` refer to the database server filesystem
 
 #### `imports`
 
@@ -133,7 +159,7 @@ These keys mirror Ruby SQL Server runtime behavior and are ignored by non-SQL Se
 
 ### `repository.yml`
 
-The Repository Descriptor, `repository.yml`, defines Database Module ordering, table ordering, ordered SQL columns, Row Sources, sequence ordering, and optional schema overrides.
+The Repository Descriptor, `repository.yml`, defines Database Module ordering, table ordering, ordered SQL columns, physical index identities, Row Sources, sequence ordering, and optional schema overrides.
 
 Supported shapes:
 
@@ -149,11 +175,13 @@ modules:
     tables:
       - name: '[Core].[tblA]'
         columns: ['[ID]', '[Name]']
+        indexes: ['[PK_A]', '[IX_A_Name]']
     sequences: []
   Billing:
     tables:
       - name: '[Billing].[tblInvoice]'
         columns: ['[InvoiceID]', '[Amount]']
+        indexes: ['[PK_Invoice]']
         rowSource: deployment
     sequences: []
 ```
@@ -167,16 +195,18 @@ modules:
       tables:
         - name: '[Core].[tblA]'
           columns: ['[ID]', '[Name]']
+          indexes: ['[PK_A]', '[IX_A_Name]']
       sequences: []
   - Billing:
       tables:
         - name: '[Billing].[tblInvoice]'
           columns: ['[InvoiceID]', '[Amount]']
+          indexes: ['[PK_Invoice]']
           rowSource: deployment
       sequences: []
 ```
 
-Each table requires a qualified `name` and a non-empty ordered list of unique quoted SQL `columns`. Optional `rowSource` is `import` or `deployment` and defaults to `import`. If `schema` is omitted, the Database Module name is used.
+Each table requires a qualified `name`, a non-empty ordered list of unique quoted SQL `columns`, and an ordered list of unique quoted physical SQL `indexes`. The index list may be empty. Optional `rowSource` is `import` or `deployment` and defaults to `import`. If `schema` is omitted, the Database Module name is used.
 
 ## Directory conventions
 
@@ -303,13 +333,15 @@ Import-only reserved SQL tokens:
 
 These values are tool-provided during import/create-by-import and cannot be supplied via `--property`.
 
-Import-only SQL Server assert macros:
+SQL Server expands `ASSERT_DATABASE_VERSION(<expression>)` in SQL executed by `create`, `create-with-dataset`, and the creation phases of `create-by-import`. During creation it requires the current database's `DatabaseSchemaVersion` extended property to equal the expression.
+
+Import SQL supports these SQL Server assert macros:
 
 - `ASSERT_ROW_COUNT(<expression>)`
 - `ASSERT_DATABASE_VERSION(<expression>)`
 - `ASSERT_UNCHANGED_ROW_COUNT()`
 
-These macros are expanded only during `import` and `create-by-import` when the active driver is `sqlserver`.
+During `import` and the import phase of `create-by-import`, the database-version assertion requires the source database not to equal the expression and the target database to equal it. Row-count assertions remain import-only. All assert macros require the active driver to be `sqlserver`.
 
 Database Import processes only Import Row Source tables. It selects an Import Fixture before Explicit Import SQL, then falls back to Standard Import. Deployment Row Source tables are not deleted, imported, or valid `--resume-at` targets. SQL Server determines identity handling from live target metadata and performs the identity toggle and import on the same JDBC session.
 
@@ -425,10 +457,21 @@ Use `--dataset <datasetKey>` to write dataset fixtures instead:
 
 `export-fixtures` accepts repeatable `--property key=value` and applies declared `filterProperties` to custom export SQL.
 
+`export-database-statistics`
+
+```bash
+bazel run //src/main/java/org/realityforge/jdbt:jdbt_bin -- export-database-statistics \
+  --target-host localhost --target-port 1433 \
+  --target-database MyDb --target-username sa --password-env DB_PASS \
+  --output ./database-statistics.csv
+```
+
+This SQL Server-only command writes approximate row counts for every modeled table and physical index. The account needs `VIEW DEFINITION` on the database. Database-only objects are ignored; missing or unusable modeled objects fail the export without replacing an existing file. See the [Database Statistics Export specification](specs/database-statistics.md) for query, validation, CSV, and atomic-output semantics.
+
 ## Artifacts and packaging
 
 - `package-data` creates a deterministic Database Artifact zip.
-- The merged Repository Descriptor is embedded as `data/repository.yml` without losing table columns or Row Sources.
+- The merged Repository Descriptor is embedded as `data/repository.yml` without losing table columns, index identities, or Row Sources.
 - Database Artifacts referenced by `preDbArtifacts` and `postDbArtifacts` must contain `data/repository.yml` and relevant `data/**` entries.
 
 ## Driver-specific behavior notes
@@ -442,5 +485,6 @@ Use `--dataset <datasetKey>` to write dataset fixtures instead:
 
 - `Unable to locate database '<key>' ...`: only `default` is supported as the database key; omit `--database` or pass `--database default`.
 - `Unable to locate import definition by key ...`: pass `--import`, or define an import named `default` in `jdbt.yml`.
-- `Unknown key 'searchDirs'`: remove `searchDirs` from `jdbt.yml`; path resolution is fixed to the `jdbt.yml` directory.
+- `Unknown key 'searchDirs'`: remove `searchDirs` and configure the singular `resourceRoot` instead.
+- `resourceRoot ... is not a directory`: correct the path relative to the selected project directory.
 - Bazel startup or dependency errors: run `tools/update_java_deps.sh`, then `tools/check.sh`.

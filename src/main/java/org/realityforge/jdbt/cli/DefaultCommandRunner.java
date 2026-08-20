@@ -13,6 +13,7 @@ import org.realityforge.jdbt.db.DbDriverFactory;
 import org.realityforge.jdbt.files.FileResolver;
 import org.realityforge.jdbt.packaging.DatabaseDataPackager;
 import org.realityforge.jdbt.packaging.DeterministicZipPackager;
+import org.realityforge.jdbt.runtime.DatabaseStatisticsExporter;
 import org.realityforge.jdbt.runtime.RuntimeEngine;
 import org.realityforge.jdbt.runtime.RuntimeExecutionException;
 import org.realityforge.jdbt.runtime.StandardImportEmitter;
@@ -33,6 +34,11 @@ final class DefaultCommandRunner implements CommandRunner {
         this.projectRuntimeLoader = projectRuntimeLoader;
         this.dbDriverFactory = dbDriverFactory;
         this.fileResolver = fileResolver;
+    }
+
+    @Override
+    public void validateProject(final @Nullable String databaseKey) {
+        projectRuntimeLoader.validate(databaseKey);
     }
 
     @Override
@@ -201,11 +207,27 @@ final class DefaultCommandRunner implements CommandRunner {
             final @Nullable Path outputDirectory,
             final Map<String, String> filterProperties) {
         final var runtime = projectRuntimeLoader.load(databaseKey);
-        final var resolvedOutputDirectory =
-                null == outputDirectory ? runtime.database().searchDirs().get(0) : outputDirectory;
+        final var resolvedOutputDirectory = null == outputDirectory ? runtime.projectDirectory() : outputDirectory;
         runtimeEngine(driver)
                 .exportFixtures(
                         runtime.database(), target, propertiesFile, dataset, resolvedOutputDirectory, filterProperties);
+    }
+
+    @Override
+    public void exportDatabaseStatistics(
+            final @Nullable String databaseKey,
+            final String driver,
+            final DatabaseConnection target,
+            final Path outputFile) {
+        if (!"sqlserver".equalsIgnoreCase(driver)) {
+            throw new RuntimeExecutionException(
+                    "Database statistics export only supports the sqlserver driver, not '" + driver + "'");
+        }
+        final var runtime = projectRuntimeLoader.load(databaseKey);
+        final var count = new DatabaseStatisticsExporter(dbDriverFactory.create("sqlserver"))
+                .export(runtime.database().repository(), target, outputFile);
+        System.out.println("Exported " + count + " database statistics to "
+                + outputFile.toAbsolutePath().normalize());
     }
 
     private static String resolveImportKey(

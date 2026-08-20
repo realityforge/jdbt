@@ -20,6 +20,8 @@ final class RepositoryConfigLoaderTest {
                     - name: '[Core].[tblA]'
                       columns:
                         - '[ID]'
+                      indexes:
+                        - '[PK_A]'
                   sequences:
                     - '[Core].[tblASeq]'
               - Geo:
@@ -28,6 +30,7 @@ final class RepositoryConfigLoaderTest {
                     - name: '[G].[tblB]'
                       columns:
                         - '[ID]'
+                      indexes: []
                       rowSource: deployment
                   sequences: []
             """, "repository.yml");
@@ -35,7 +38,7 @@ final class RepositoryConfigLoaderTest {
         assertThat(config.modules()).containsExactly("Core", "Geo");
         assertThat(config.schemaOverrides()).containsEntry("Geo", "G");
         assertThat(config.tablesForModule("Core"))
-                .containsExactly(new RepositoryTable("[Core].[tblA]", List.of("[ID]")));
+                .containsExactly(new RepositoryTable("[Core].[tblA]", List.of("[ID]"), List.of("[PK_A]")));
         assertThat(config.tablesForModule("Geo"))
                 .containsExactly(new RepositoryTable("[G].[tblB]", List.of("[ID]"), RowSource.DEPLOYMENT));
         assertThat(config.sequenceMap().get("Core")).containsExactly("[Core].[tblASeq]");
@@ -53,9 +56,11 @@ final class RepositoryConfigLoaderTest {
                 - name: '[CodeMetrics].[tblCollection]'
                   columns:
                   - '[ID]'
+                  indexes: []
                 - name: '[CodeMetrics].[tblMethodMetric]'
                   columns:
                   - '[ID]'
+                  indexes: []
                 sequences:
                 - '[CodeMetrics].[tblCollection_IDSeq]'
             - Geo:
@@ -64,6 +69,7 @@ final class RepositoryConfigLoaderTest {
                 - name: '[Geo].[tblMobilePOI]'
                   columns:
                   - '[ID]'
+                  indexes: []
                 sequences: []
             """, "repository.yml");
 
@@ -87,6 +93,7 @@ final class RepositoryConfigLoaderTest {
                   - name: '[Billing].[tblInvoice]'
                     columns:
                       - '[ID]'
+                    indexes: []
             """, "repository.yml");
 
         assertThat(config.modules()).containsExactly("Core", "Billing");
@@ -174,6 +181,7 @@ final class RepositoryConfigLoaderTest {
                 tables:
                   - name: ''
                     columns: ['[ID]']
+                    indexes: []
             """, "repository.yml"))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("name must not be blank");
@@ -184,6 +192,7 @@ final class RepositoryConfigLoaderTest {
                 tables:
                   - name: 'tblA'
                     columns: ['[ID]']
+                    indexes: []
             """, "repository.yml"))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("must be a qualified SQL name");
@@ -194,6 +203,7 @@ final class RepositoryConfigLoaderTest {
                 tables:
                   - name: '[Core].[tblA]'
                     columns: ['ID']
+                    indexes: []
             """, "repository.yml"))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("must be a quoted SQL identifier");
@@ -204,6 +214,7 @@ final class RepositoryConfigLoaderTest {
                 tables:
                   - name: '[Core].[tblA]'
                     columns: []
+                    indexes: []
             """, "repository.yml"))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("columns must not be empty");
@@ -214,6 +225,7 @@ final class RepositoryConfigLoaderTest {
                 tables:
                   - name: '[Core].[tblA]'
                     columns: ['[ID]', '[ID]']
+                    indexes: []
             """, "repository.yml"))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("duplicate column '[ID]'");
@@ -224,6 +236,7 @@ final class RepositoryConfigLoaderTest {
                 tables:
                   - name: '[Core].[tblA]'
                     columns: [1]
+                    indexes: []
             """, "repository.yml"))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("Expected string list entry");
@@ -234,6 +247,7 @@ final class RepositoryConfigLoaderTest {
                 tables:
                   - name: '[Core].[tblA]'
                     columns: ['[ID]']
+                    indexes: []
                     rowSource: external
             """, "repository.yml"))
                 .isInstanceOf(ConfigException.class)
@@ -245,9 +259,53 @@ final class RepositoryConfigLoaderTest {
                 tables:
                   - name: '[Core].[tblA]'
                     columns: ['[ID]']
+                    indexes: []
                     unknown: true
             """, "repository.yml"))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("Unknown key 'unknown'");
+
+        assertThatThrownBy(() -> loader.load("""
+            modules:
+              Core:
+                tables:
+                  - name: '[Core].[tblA]'
+                    columns: ['[ID]']
+            """, "repository.yml"))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("indexes");
+
+        assertThatThrownBy(() -> loader.load("""
+            modules:
+              Core:
+                tables:
+                  - name: '[Core].[tblA]'
+                    columns: ['[ID]']
+                    indexes: ['IX_A']
+            """, "repository.yml"))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("index 'IX_A' must be a quoted SQL identifier");
+
+        assertThatThrownBy(() -> loader.load("""
+            modules:
+              Core:
+                tables:
+                  - name: '[Core].[tblA]'
+                    columns: ['[ID]']
+                    indexes: ['[IX_A]', '[IX_A]']
+            """, "repository.yml"))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("duplicate index '[IX_A]'");
+
+        assertThatThrownBy(() -> loader.load("""
+            modules:
+              Core:
+                tables:
+                  - name: '[Core].[tblA]'
+                    columns: ['[ID]']
+                    indexes: ['[IX_A]', '"IX_A"']
+            """, "repository.yml"))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("duplicate index '\"IX_A\"'");
     }
 }

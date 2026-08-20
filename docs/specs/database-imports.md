@@ -8,6 +8,7 @@ Each table in a [Repository Descriptor](../glossary/README.md#repository-descrip
 
 - a qualified `name`;
 - a non-empty, ordered list of unique quoted SQL `columns`; and
+- a mandatory ordered list of unique quoted physical SQL `indexes`; and
 - an optional `rowSource`, whose values are `import` and `deployment` and whose default is `import`.
 
 [Database Module](../glossary/README.md#database-module), table, column, and sequence order are significant. [Repository Metadata](../glossary/README.md#repository-metadata) is composed module-atomically in pre-artifact, local-project, then post-artifact order. [Database Artifact](../glossary/README.md#database-artifact) packaging must preserve the complete merged model.

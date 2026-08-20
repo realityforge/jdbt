@@ -8,11 +8,49 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.realityforge.jdbt.db.DatabaseConnection;
 
 final class JdbtCommandTest {
+    @Test
+    void projectDirectoryDefaultsToCurrentDirectoryAndValidateProjectDispatches() {
+        final var selectedProjectDirectory = new AtomicReference<Path>();
+        final var runner = new RecordingRunner();
+
+        final var exitCode = JdbtCommand.execute(
+                new String[] {"validate-project", "--database", "default"},
+                projectDirectory -> {
+                    selectedProjectDirectory.set(projectDirectory);
+                    return runner;
+                },
+                new PasswordResolver(Map.of(), new ByteArrayInputStream(new byte[0])));
+
+        assertThat(exitCode).isZero();
+        assertThat(selectedProjectDirectory.get())
+                .isEqualTo(Path.of(".").toAbsolutePath().normalize());
+        assertThat(runner.lastCall).isEqualTo("validate-project");
+        assertThat(runner.databaseKey).isEqualTo("default");
+    }
+
+    @Test
+    void projectDirectoryCanBeSelectedExplicitly() {
+        final var selectedProjectDirectory = new AtomicReference<Path>();
+
+        final var exitCode = JdbtCommand.execute(
+                new String[] {"--project-dir", "profiles/Mail", "validate-project"},
+                projectDirectory -> {
+                    selectedProjectDirectory.set(projectDirectory);
+                    return new RecordingRunner();
+                },
+                new PasswordResolver(Map.of(), new ByteArrayInputStream(new byte[0])));
+
+        assertThat(exitCode).isZero();
+        assertThat(selectedProjectDirectory.get())
+                .isEqualTo(Path.of("profiles/Mail").toAbsolutePath().normalize());
+    }
+
     @Test
     void noArgsBehavesLikeHelpAndDoesNotDispatchToRunner() {
         final var runner = new RecordingRunner();
@@ -396,6 +434,63 @@ final class JdbtCommandTest {
     }
 
     @Test
+    void exportDatabaseStatisticsDispatchesTargetAndOutput() {
+        final var runner = new RecordingRunner();
+
+        final var exitCode = JdbtCommand.execute(
+                new String[] {
+                    "export-database-statistics",
+                    "--database",
+                    "default",
+                    "--target-host",
+                    "db.example",
+                    "--target-port",
+                    "1434",
+                    "--target-database",
+                    "rose",
+                    "--target-username",
+                    "admin",
+                    "--password-env",
+                    "DB_PASSWORD",
+                    "--output",
+                    "statistics.csv"
+                },
+                runner,
+                new PasswordResolver(Map.of("DB_PASSWORD", "secret"), new ByteArrayInputStream(new byte[0])));
+
+        assertThat(exitCode).isZero();
+        assertThat(runner.lastCall).isEqualTo("export-database-statistics");
+        assertThat(runner.databaseKey).isEqualTo("default");
+        assertThat(runner.driver).isEqualTo("sqlserver");
+        assertThat(runner.targetConnection)
+                .isEqualTo(new DatabaseConnection("db.example", 1434, "rose", "admin", "secret"));
+        assertThat(runner.outputFile).isEqualTo(Path.of("statistics.csv"));
+    }
+
+    @Test
+    void exportDatabaseStatisticsRequiresOutput() {
+        final var runner = new RecordingRunner();
+
+        final var exitCode = JdbtCommand.execute(
+                new String[] {
+                    "export-database-statistics",
+                    "--target-host",
+                    "localhost",
+                    "--target-database",
+                    "rose",
+                    "--target-username",
+                    "admin",
+                    "--password",
+                    "secret"
+                },
+                runner,
+                new PasswordResolver(Map.of(), new ByteArrayInputStream(new byte[0])));
+
+        assertThat(exitCode).isEqualTo(JdbtCommand.USAGE_EXIT_CODE);
+        assertThat(runner.lastCall).isEmpty();
+    }
+
+    @Test
     void dumpFixturesCommandIsNotExposed() {
         final var runner = new RecordingRunner();
 
@@ -447,6 +542,12 @@ final class JdbtCommandTest {
         private List<String> schemas = List.of();
         private List<String> checkQueries = List.of();
         private Map<String, String> filterProperties = Map.of();
+
+        @Override
+        public void validateProject(final @Nullable String databaseKey) {
+            this.lastCall = "validate-project";
+            this.databaseKey = databaseKey;
+        }
 
         @Override
         public void status(final @Nullable String databaseKey, final String driver) {
@@ -649,6 +750,19 @@ final class JdbtCommandTest {
             this.dataset = dataset;
             this.outputDirectory = outputDirectory;
             this.filterProperties = filterProperties;
+        }
+
+        @Override
+        public void exportDatabaseStatistics(
+                final @Nullable String databaseKey,
+                final String driver,
+                final DatabaseConnection target,
+                final Path outputFile) {
+            this.lastCall = "export-database-statistics";
+            this.databaseKey = databaseKey;
+            this.driver = driver;
+            this.targetConnection = target;
+            this.outputFile = outputFile;
         }
     }
 }

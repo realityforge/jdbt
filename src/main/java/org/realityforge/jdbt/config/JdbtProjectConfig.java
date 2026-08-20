@@ -1,3 +1,3 @@
 package org.realityforge.jdbt.config;
 
-public record JdbtProjectConfig(DefaultsConfig defaults, DatabaseConfig database) {}
+public record JdbtProjectConfig(DefaultsConfig defaults, DatabaseConfig database, String resourceRoot) {}

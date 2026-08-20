@@ -458,7 +458,10 @@ final class RuntimeEngineTest {
     void createWithDatasetRunsDatasetHooksAndFixtureLoad(@TempDir final Path tempDir) throws IOException {
         createFile(tempDir, "db/MyModule/./up.sql", "UP");
         createFile(tempDir, "db/MyModule/finalize/final.sql", "FINAL");
-        createFile(tempDir, "db/datasets/myset/pre/pre.sql", "SELECT 'go up' AS Direction\nGO\nDSPRE");
+        createFile(
+                tempDir,
+                "db/datasets/myset/pre/pre.sql",
+                "ASSERT_DATABASE_VERSION('Version_2')\nSELECT 'go up' AS Direction\nGO\nDSPRE");
         createFile(tempDir, "db/datasets/myset/post/post.sql", "DSPOST");
         createFile(tempDir, "db/MyModule/datasets/myset/MyModule.foo.yml", """
             - r1:
@@ -472,7 +475,7 @@ final class RuntimeEngineTest {
             """);
         createFile(tempDir, "db/MyModule/datasets/myset/MyModule.baz.yml", "[]\n");
 
-        final var driver = new RecordingDriver();
+        final var driver = new RecordingDriver(true);
         final var engine = new RuntimeEngine(driver, new FileResolver());
         final var database = runtimeDatabase(
                 "default",
@@ -521,6 +524,9 @@ final class RuntimeEngineTest {
                         "postFixtureImport([MyModule].[bar])",
                         "preFixtureImport([MyModule].[baz])",
                         "postFixtureImport([MyModule].[baz])");
+        assertThat(String.join("\n", driver.calls))
+                .doesNotContain("ASSERT_DATABASE_VERSION")
+                .contains("Expected DatabaseSchemaVersion in current database");
     }
 
     @Test
@@ -757,8 +763,9 @@ final class RuntimeEngineTest {
     }
 
     @Test
-    void createByImportSkipsCreatePathWhenResuming(@TempDir final Path tempDir) {
-        final var driver = new RecordingDriver();
+    void createByImportSkipsCreatePathWhenResuming(@TempDir final Path tempDir) throws IOException {
+        createFile(tempDir, "db/db-hooks/post/post.sql", "ASSERT_DATABASE_VERSION('Version_2')");
+        final var driver = new RecordingDriver(true);
         final var engine = new RuntimeEngine(driver, new FileResolver());
         final var repository = new RepositoryConfig(
                 List.of("MyModule"),
@@ -777,6 +784,9 @@ final class RuntimeEngineTest {
                         "postDatabaseImport(default)",
                         "close");
         assertThat(driver.calls).doesNotContain("open(true)", "drop(default)", "createSchema(MyModule)");
+        assertThat(String.join("\n", driver.calls))
+                .doesNotContain("ASSERT_DATABASE_VERSION")
+                .contains("Expected DatabaseSchemaVersion in current database");
     }
 
     @Test
@@ -979,6 +989,36 @@ final class RuntimeEngineTest {
     }
 
     @Test
+    void createExpandsOnlyDatabaseVersionAssertForSqlServer(@TempDir final Path tempDir) throws IOException {
+        createFile(
+                tempDir,
+                "db/db-hooks/post/post.sql",
+                "ASSERT_DATABASE_VERSION('Version_2')\nASSERT_ROW_COUNT(1)\nASSERT_UNCHANGED_ROW_COUNT()");
+        final var database =
+                runtimeDatabase("default", RepositoryConfigTestData.singleModule(), List.of(tempDir.resolve("db")));
+
+        final var sqlServerDriver = new RecordingDriver(true);
+        new RuntimeEngine(sqlServerDriver, new FileResolver()).create(database, connection, false, Map.of());
+
+        assertThat(String.join("\n", sqlServerDriver.calls))
+                .doesNotContain("ASSERT_DATABASE_VERSION")
+                .doesNotContain("__SOURCE__")
+                .doesNotContain("__TARGET__")
+                .contains("FROM sys.fn_listextendedproperty")
+                .contains("Expected DatabaseSchemaVersion in current database")
+                .contains("ASSERT_ROW_COUNT(1)")
+                .contains("ASSERT_UNCHANGED_ROW_COUNT()");
+
+        final var nonSqlServerDriver = new RecordingDriver(false);
+        new RuntimeEngine(nonSqlServerDriver, new FileResolver()).create(database, connection, false, Map.of());
+
+        assertThat(String.join("\n", nonSqlServerDriver.calls))
+                .contains("ASSERT_DATABASE_VERSION('Version_2')")
+                .contains("ASSERT_ROW_COUNT(1)")
+                .contains("ASSERT_UNCHANGED_ROW_COUNT()");
+    }
+
+    @Test
     void migrateHonorsShouldMigrateDecisions(@TempDir final Path tempDir) throws IOException {
         createFile(tempDir, "db/migrations/001_a.sql", "M1");
         createFile(tempDir, "db/migrations/002_b.sql", "M2");
@@ -1168,15 +1208,15 @@ final class RuntimeEngineTest {
         private final List<String> calls = new ArrayList<>();
         private final Map<String, Boolean> migrateDecision = new LinkedHashMap<>();
         private final Map<String, QueryResult> queryResults = new LinkedHashMap<>();
-        private final boolean supportsImportAssertFilters;
+        private final boolean supportsAssertMacros;
         private List<String> primaryKeyColumnNames = List.of("[ID]");
 
         private RecordingDriver() {
             this(false);
         }
 
-        private RecordingDriver(final boolean supportsImportAssertFilters) {
-            this.supportsImportAssertFilters = supportsImportAssertFilters;
+        private RecordingDriver(final boolean supportsAssertMacros) {
+            this.supportsAssertMacros = supportsAssertMacros;
         }
 
         @Override
@@ -1261,8 +1301,8 @@ final class RuntimeEngineTest {
         }
 
         @Override
-        public boolean supportsImportAssertFilters() {
-            return supportsImportAssertFilters;
+        public boolean supportsAssertMacros() {
+            return supportsAssertMacros;
         }
 
         @Override

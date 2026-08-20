@@ -1,12 +1,17 @@
 package org.realityforge.jdbt.runtime;
 
-final class SqlServerImportAssertExpander {
-    static String expand(final String sql) {
+final class SqlServerAssertExpander {
+    static String expandImportSql(final String sql) {
         var output = replaceArgumentMacro(
-                sql, "ASSERT_DATABASE_VERSION", SqlServerImportAssertExpander::databaseVersionAssertion);
+                sql, "ASSERT_DATABASE_VERSION", SqlServerAssertExpander::importDatabaseVersionAssertion);
         output = replaceNoArgumentMacro(
-                output, "ASSERT_UNCHANGED_ROW_COUNT", SqlServerImportAssertExpander::unchangedRowCountAssertion);
-        return replaceArgumentMacro(output, "ASSERT_ROW_COUNT", SqlServerImportAssertExpander::rowCountAssertion);
+                output, "ASSERT_UNCHANGED_ROW_COUNT", SqlServerAssertExpander::unchangedRowCountAssertion);
+        return replaceArgumentMacro(output, "ASSERT_ROW_COUNT", SqlServerAssertExpander::rowCountAssertion);
+    }
+
+    static String expandCreationSql(final String sql) {
+        return replaceArgumentMacro(
+                sql, "ASSERT_DATABASE_VERSION", SqlServerAssertExpander::creationDatabaseVersionAssertion);
     }
 
     @SuppressWarnings("SameParameterValue")
@@ -67,10 +72,10 @@ final class SqlServerImportAssertExpander {
                 }
             }
         }
-        throw new RuntimeExecutionException("Unterminated import assert expression in SQL: " + sql);
+        throw new RuntimeExecutionException("Unterminated assert expression in SQL: " + sql);
     }
 
-    private static String databaseVersionAssertion(final String expectedVersionExpression) {
+    private static String importDatabaseVersionAssertion(final String expectedVersionExpression) {
         final var escapedVersionForErrorMessage = expectedVersionExpression.replace("'", "''");
         return """
             GO
@@ -86,25 +91,38 @@ final class SqlServerImportAssertExpander {
                 RAISERROR (@Message, 16, 1) WITH SETERROR
               END
             END
+            """.formatted(expectedVersionExpression, escapedVersionForErrorMessage)
+                + expectedDatabaseVersionAssertion(
+                        expectedVersionExpression, escapedVersionForErrorMessage, "[__TARGET__].", "__TARGET__");
+    }
+
+    private static String creationDatabaseVersionAssertion(final String expectedVersionExpression) {
+        return expectedDatabaseVersionAssertion(
+                expectedVersionExpression, expectedVersionExpression.replace("'", "''"), "", "current");
+    }
+
+    private static String expectedDatabaseVersionAssertion(
+            final String expectedVersionExpression,
+            final String escapedVersionForErrorMessage,
+            final String databaseReference,
+            final String databaseLabel) {
+        return """
             GO
             BEGIN
               DECLARE @DbVersion VARCHAR(MAX)
               SET @DbVersion = ''
               SELECT @DbVersion = COALESCE(CONVERT(VARCHAR(MAX),value),'')
-                FROM [__TARGET__].sys.fn_listextendedproperty('DatabaseSchemaVersion', default, default, default, default, default, default)
+                FROM %ssys.fn_listextendedproperty('DatabaseSchemaVersion', default, default, default, default, default, default)
               IF (@DbVersion IS NULL OR @DbVersion != %s)
               BEGIN
                 DECLARE @Message VARCHAR(MAX)
-                SET @Message = CONCAT('Expected DatabaseSchemaVersion in __TARGET__ database to be %s. Actual Value: ', @DbVersion)
+                SET @Message = CONCAT('Expected DatabaseSchemaVersion in %s database to be %s. Actual Value: ', @DbVersion)
                 RAISERROR (@Message, 16, 1) WITH SETERROR
               END
             END
             GO
             """.formatted(
-                        expectedVersionExpression,
-                        escapedVersionForErrorMessage,
-                        expectedVersionExpression,
-                        escapedVersionForErrorMessage);
+                        databaseReference, expectedVersionExpression, databaseLabel, escapedVersionForErrorMessage);
     }
 
     private static String unchangedRowCountAssertion() {
@@ -135,5 +153,5 @@ final class SqlServerImportAssertExpander {
         String replacementSql();
     }
 
-    private SqlServerImportAssertExpander() {}
+    private SqlServerAssertExpander() {}
 }

@@ -136,6 +136,14 @@ final class JdbtProjectConfigLoaderTest {
     void loadAllowsEmptyConfigWithHardcodedDefaults() {
         final var config = loader.load("{}", "jdbt.yml", repositoryModules);
         assertThat(config.database().key()).isEqualTo("default");
+        assertThat(config.resourceRoot()).isEqualTo(".");
+    }
+
+    @Test
+    void loadParsesSingularResourceRoot() {
+        final var config = loader.load("resourceRoot: ../../database\n", "jdbt.yml", repositoryModules);
+
+        assertThat(config.resourceRoot()).isEqualTo("../../database");
     }
 
     @Test

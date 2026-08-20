@@ -25,6 +25,7 @@ test_suite(
         "//src/test/java/org/realityforge/jdbt/files:files_tests",
         "//src/test/java/org/realityforge/jdbt/packaging:packaging_tests",
         "//src/test/java/org/realityforge/jdbt/repository:repository_tests",
+        "//src/test/java/org/realityforge/jdbt/runtime:database_statistics_exporter_test",
         "//src/test/java/org/realityforge/jdbt/runtime:runtime_tests",
     ],
 )

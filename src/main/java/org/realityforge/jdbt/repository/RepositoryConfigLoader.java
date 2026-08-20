@@ -102,7 +102,7 @@ public final class RepositoryConfigLoader {
                 throw new ConfigException("Expected table map at " + tablePath + '.');
             }
             final var body = YamlMapSupport.toStringMap(map, tablePath);
-            YamlMapSupport.assertKeys(body, Set.of("name", "columns", "rowSource"), tablePath);
+            YamlMapSupport.assertKeys(body, Set.of("name", "columns", "indexes", "rowSource"), tablePath);
             final var name = YamlMapSupport.requireString(body, "name", tablePath);
             if (name.isBlank()) {
                 throw new ConfigException("Repository table name must not be blank at " + tablePath + ".name.");
@@ -111,10 +111,11 @@ public final class RepositoryConfigLoader {
             if (columns.isEmpty()) {
                 throw new ConfigException("Repository table columns must not be empty at " + tablePath + ".columns.");
             }
+            final var indexes = YamlMapSupport.requireStringList(body, "indexes", tablePath);
             final var rowSourceValue = YamlMapSupport.optionalString(body, "rowSource", tablePath);
             final var rowSource = parseRowSource(rowSourceValue, tablePath + ".rowSource");
             try {
-                tables.add(new RepositoryTable(name, columns, rowSource));
+                tables.add(new RepositoryTable(name, columns, indexes, rowSource));
             } catch (final ConfigException e) {
                 throw new ConfigException(e.getMessage() + " Source: " + tablePath + '.');
             }

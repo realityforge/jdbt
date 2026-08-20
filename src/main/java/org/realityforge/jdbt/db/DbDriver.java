@@ -36,7 +36,7 @@ public interface DbDriver {
 
     void postDatabaseImport(DatabaseMetadata database, ImportConfig importConfig);
 
-    default boolean supportsImportAssertFilters() {
+    default boolean supportsAssertMacros() {
         return false;
     }
 

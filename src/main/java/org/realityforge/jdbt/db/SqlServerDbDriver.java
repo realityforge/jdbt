@@ -204,7 +204,7 @@ final class SqlServerDbDriver implements DbDriver {
     }
 
     @Override
-    public boolean supportsImportAssertFilters() {
+    public boolean supportsAssertMacros() {
         return true;
     }
 

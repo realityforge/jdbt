@@ -40,12 +40,14 @@ public final class JdbtProjectConfigLoader {
                         "postDbArtifacts",
                         "filterProperties",
                         "imports",
-                        "moduleGroups"),
+                        "moduleGroups",
+                        "resourceRoot"),
                 sourceName);
 
         final var defaults = DefaultsConfig.rubyCompatibleDefaults();
         final var database = loadDatabase(defaults.defaultDatabase(), root, defaults, repositoryModules, sourceName);
-        return new JdbtProjectConfig(defaults, database);
+        final var resourceRoot = YamlMapSupport.optionalString(root, "resourceRoot", sourceName);
+        return new JdbtProjectConfig(defaults, database, null == resourceRoot ? "." : resourceRoot);
     }
 
     private static DatabaseConfig loadDatabase(
@@ -82,7 +84,8 @@ public final class JdbtProjectConfigLoader {
                         "postDbArtifacts",
                         "filterProperties",
                         "imports",
-                        "moduleGroups"),
+                        "moduleGroups",
+                        "resourceRoot"),
                 path);
 
         final var migrationsValue = YamlMapSupport.optionalBoolean(body, "migrations", path);

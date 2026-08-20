@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Callable;
+import java.util.function.Function;
 import org.jspecify.annotations.Nullable;
 import org.realityforge.jdbt.db.DatabaseConnection;
 import picocli.CommandLine;
@@ -19,6 +20,7 @@ import picocli.CommandLine.Model.CommandSpec;
         description = "Java database tooling runtime",
         subcommands = {
             JdbtCommand.StatusCommand.class,
+            JdbtCommand.ValidateProjectCommand.class,
             JdbtCommand.CreateCommand.class,
             JdbtCommand.CreateWithDatasetCommand.class,
             JdbtCommand.DropCommand.class,
@@ -31,33 +33,67 @@ import picocli.CommandLine.Model.CommandSpec;
             JdbtCommand.PackageDataCommand.class,
             JdbtCommand.EmitStandardImportsCommand.class,
             JdbtCommand.VerifyConstraintsCommand.class,
-            JdbtCommand.ExportFixturesCommand.class
+            JdbtCommand.ExportFixturesCommand.class,
+            JdbtCommand.ExportDatabaseStatisticsCommand.class
         })
 public final class JdbtCommand implements Callable<Integer> {
     static final int USAGE_EXIT_CODE = 2;
-    private final CommandRunner runner;
+    private @Nullable CommandRunner runner;
+    private final @Nullable Function<Path, CommandRunner> runnerFactory;
     private final PasswordResolver passwordResolver;
 
     private JdbtCommand(final CommandRunner runner, final PasswordResolver passwordResolver) {
         this.runner = runner;
+        this.runnerFactory = null;
         this.passwordResolver = passwordResolver;
     }
+
+    private JdbtCommand(final Function<Path, CommandRunner> runnerFactory, final PasswordResolver passwordResolver) {
+        this.runnerFactory = runnerFactory;
+        this.passwordResolver = passwordResolver;
+    }
+
+    @CommandLine.Option(
+            names = "--project-dir",
+            defaultValue = ".",
+            scope = CommandLine.ScopeType.INHERIT,
+            description = "Directory containing jdbt.yml and repository.yml")
+    private Path projectDirectory = Path.of(".");
 
     public static int execute(final String[] args) {
         return execute(
                 args,
-                new DefaultCommandRunner(new ProjectRuntimeLoader(Path.of("."))),
+                path -> new DefaultCommandRunner(new ProjectRuntimeLoader(path)),
                 new PasswordResolver(System.getenv(), System.in));
     }
 
     static int execute(final String[] args, final CommandRunner runner, final PasswordResolver passwordResolver) {
+        return execute(args, new JdbtCommand(runner, passwordResolver));
+    }
+
+    static int execute(
+            final String[] args,
+            final Function<Path, CommandRunner> runnerFactory,
+            final PasswordResolver passwordResolver) {
+        return execute(args, new JdbtCommand(runnerFactory, passwordResolver));
+    }
+
+    private static int execute(final String[] args, final JdbtCommand command) {
         final var effectiveArgs = 0 == args.length ? new String[] {"--help"} : args;
-        return new CommandLine(new JdbtCommand(runner, passwordResolver)).execute(effectiveArgs);
+        return new CommandLine(command).execute(effectiveArgs);
     }
 
     @Override
     public Integer call() {
         return USAGE_EXIT_CODE;
+    }
+
+    private CommandRunner runner() {
+        if (null == runner) {
+            runner = Objects.requireNonNull(runnerFactory)
+                    .apply(projectDirectory.toAbsolutePath().normalize());
+        }
+        return runner;
     }
 
     private abstract static class BaseCommand implements Callable<Integer> {
@@ -68,7 +104,7 @@ public final class JdbtCommand implements Callable<Integer> {
         private @Nullable ExecutionOptions executionOptions;
 
         protected final CommandRunner runner() {
-            return Objects.requireNonNull(parent).runner;
+            return Objects.requireNonNull(parent).runner();
         }
 
         protected final PasswordResolver passwordResolver() {
@@ -227,6 +263,15 @@ public final class JdbtCommand implements Callable<Integer> {
         @Override
         public Integer call() {
             runner().status(databaseKey(), driver());
+            return 0;
+        }
+    }
+
+    @CommandLine.Command(name = "validate-project", description = "Validate project resources without a database")
+    static final class ValidateProjectCommand extends BaseCommand {
+        @Override
+        public Integer call() {
+            runner().validateProject(databaseKey());
             return 0;
         }
     }
@@ -462,7 +507,7 @@ public final class JdbtCommand implements Callable<Integer> {
 
         @Override
         public Integer call() {
-            Objects.requireNonNull(parent).runner.emitStandardImports(importKey, outputDirectory, replace);
+            Objects.requireNonNull(parent).runner().emitStandardImports(importKey, outputDirectory, replace);
             return 0;
         }
     }
@@ -535,6 +580,26 @@ public final class JdbtCommand implements Callable<Integer> {
                             dataset,
                             outputDirectory,
                             filterProperties());
+            return 0;
+        }
+    }
+
+    @CommandLine.Command(
+            name = "export-database-statistics",
+            mixinStandardHelpOptions = true,
+            description = "Export approximate row counts for modeled tables and indexes")
+    @SuppressWarnings("FieldCanBeFinal")
+    static final class ExportDatabaseStatisticsCommand extends BaseCommand {
+        @CommandLine.Option(names = "--output", required = true, description = "Output CSV file")
+        private Path outputFile = Path.of("database-statistics.csv");
+
+        @CommandLine.Mixin
+        private TargetConnectionOptions target = new TargetConnectionOptions();
+
+        @Override
+        public Integer call() {
+            runner().exportDatabaseStatistics(
+                            databaseKey(), driver(), target.toConnection(passwordResolver()), outputFile);
             return 0;
         }
     }

@@ -6,7 +6,7 @@ import java.util.Objects;
 import java.util.regex.Pattern;
 import org.realityforge.jdbt.config.ConfigException;
 
-public record RepositoryTable(String name, List<String> columns, RowSource rowSource) {
+public record RepositoryTable(String name, List<String> columns, List<String> indexes, RowSource rowSource) {
     private static final String BRACKETED_IDENTIFIER = "\\[(?:[^\\]]|\\]\\])+\\]";
     private static final String QUOTED_IDENTIFIER = "\"(?:[^\"]|\"\")+\"";
     private static final String UNQUOTED_IDENTIFIER = "[A-Za-z_][A-Za-z0-9_$]*";
@@ -17,7 +17,15 @@ public record RepositoryTable(String name, List<String> columns, RowSource rowSo
             Pattern.compile("(?:" + BRACKETED_IDENTIFIER + '|' + QUOTED_IDENTIFIER + ')');
 
     public RepositoryTable(final String name, final List<String> columns) {
-        this(name, columns, RowSource.IMPORT);
+        this(name, columns, List.of(), RowSource.IMPORT);
+    }
+
+    public RepositoryTable(final String name, final List<String> columns, final List<String> indexes) {
+        this(name, columns, indexes, RowSource.IMPORT);
+    }
+
+    public RepositoryTable(final String name, final List<String> columns, final RowSource rowSource) {
+        this(name, columns, List.of(), rowSource);
     }
 
     public RepositoryTable {
@@ -45,6 +53,27 @@ public record RepositoryTable(String name, List<String> columns, RowSource rowSo
                         "Repository table '" + name + "' contains duplicate column '" + column + "'.");
             }
         }
+        indexes = List.copyOf(indexes);
+        final var uniqueIndexes = new HashSet<String>();
+        for (final var index : indexes) {
+            if (index.isBlank()) {
+                throw new ConfigException("Repository table '" + name + "' must not contain a blank index.");
+            }
+            if (!QUOTED_COLUMN.matcher(index).matches()) {
+                throw new ConfigException(
+                        "Repository table '" + name + "' index '" + index + "' must be a quoted SQL identifier.");
+            }
+            if (!uniqueIndexes.add(unquote(index))) {
+                throw new ConfigException("Repository table '" + name + "' contains duplicate index '" + index + "'.");
+            }
+        }
         Objects.requireNonNull(rowSource);
+    }
+
+    private static String unquote(final String identifier) {
+        if (identifier.startsWith("[")) {
+            return identifier.substring(1, identifier.length() - 1).replace("]]", "]");
+        }
+        return identifier.substring(1, identifier.length() - 1).replace("\"\"", "\"");
     }
 }
