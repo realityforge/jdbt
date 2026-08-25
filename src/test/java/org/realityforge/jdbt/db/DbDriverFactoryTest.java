@@ -48,7 +48,7 @@ final class DbDriverFactoryTest {
         final var connection = new DatabaseConnection("127.0.0.1", 1433, "db", "sa", "secret");
 
         driver.open(connection, false);
-        final var metadata = new DatabaseMetadata("default", "1", "hash");
+        final var metadata = new DatabaseMetadata("1", "hash");
         driver.drop(metadata, connection);
         driver.createDatabase(metadata, connection);
         driver.createSchema("schema");

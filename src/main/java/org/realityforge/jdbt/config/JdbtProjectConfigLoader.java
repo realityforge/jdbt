@@ -45,13 +45,12 @@ public final class JdbtProjectConfigLoader {
                 sourceName);
 
         final var defaults = DefaultsConfig.rubyCompatibleDefaults();
-        final var database = loadDatabase(defaults.defaultDatabase(), root, defaults, repositoryModules, sourceName);
+        final var database = loadDatabase(root, defaults, repositoryModules, sourceName);
         final var resourceRoot = YamlMapSupport.optionalString(root, "resourceRoot", sourceName);
         return new JdbtProjectConfig(defaults, database, null == resourceRoot ? "." : resourceRoot);
     }
 
     private static DatabaseConfig loadDatabase(
-            final String key,
             final Map<String, Object> body,
             final DefaultsConfig defaults,
             final List<String> repositoryModules,
@@ -93,11 +92,10 @@ public final class JdbtProjectConfigLoader {
         final var migrationsAppliedAtCreate = YamlMapSupport.optionalBoolean(body, "migrationsAppliedAtCreate", path);
 
         final var filterProperties = loadFilterProperties(body, path);
-        final var imports = loadImports(key, body, defaults, repositoryModules, path);
-        final var moduleGroups = loadModuleGroups(key, body, repositoryModules, path);
+        final var imports = loadImports(body, defaults, repositoryModules, path);
+        final var moduleGroups = loadModuleGroups(body, repositoryModules, path);
 
         return new DatabaseConfig(
-                key,
                 YamlMapSupport.optionalStringList(body, "upDirs", path, defaults.upDirs()),
                 YamlMapSupport.optionalStringList(body, "downDirs", path, defaults.downDirs()),
                 YamlMapSupport.optionalStringList(body, "finalizeDirs", path, defaults.finalizeDirs()),
@@ -238,7 +236,6 @@ public final class JdbtProjectConfigLoader {
     }
 
     private static Map<String, ImportConfig> loadImports(
-            final String databaseKey,
             final Map<String, Object> body,
             final DefaultsConfig defaults,
             final List<String> repositoryModules,
@@ -252,15 +249,14 @@ public final class JdbtProjectConfigLoader {
         for (final var entry : importsNode.entrySet()) {
             final var importKey = entry.getKey();
             if (!(entry.getValue() instanceof Map<?, ?> importBody)) {
-                throw new ConfigException(
-                        "Expected map for import '" + importKey + "' in database '" + databaseKey + "'.");
+                throw new ConfigException("Expected map for import '" + importKey + "' in " + databasePath + '.');
             }
             final var path = databasePath + ".imports." + importKey;
             final var importNode = YamlMapSupport.toStringMap(importBody, path);
             YamlMapSupport.assertKeys(importNode, Set.of("modules", "dir", "preImportDirs", "postImportDirs"), path);
 
             final var modules = YamlMapSupport.optionalStringList(importNode, "modules", path, repositoryModules);
-            validateModulesExist(modules, repositoryModules, "import", importKey, databaseKey);
+            validateModulesExist(modules, repositoryModules, "import", importKey, databasePath);
 
             final var dir = YamlMapSupport.optionalString(importNode, "dir", path) == null
                     ? defaults.importDir()
@@ -280,10 +276,7 @@ public final class JdbtProjectConfigLoader {
     }
 
     private static Map<String, ModuleGroupConfig> loadModuleGroups(
-            final String databaseKey,
-            final Map<String, Object> body,
-            final List<String> repositoryModules,
-            final String databasePath) {
+            final Map<String, Object> body, final List<String> repositoryModules, final String databasePath) {
         final var groupsNode = YamlMapSupport.optionalMap(body, "moduleGroups", databasePath);
         if (groupsNode == null) {
             return Map.of();
@@ -293,14 +286,13 @@ public final class JdbtProjectConfigLoader {
         for (final var entry : groupsNode.entrySet()) {
             final var groupKey = entry.getKey();
             if (!(entry.getValue() instanceof Map<?, ?> groupBody)) {
-                throw new ConfigException(
-                        "Expected map for module group '" + groupKey + "' in database '" + databaseKey + "'.");
+                throw new ConfigException("Expected map for module group '" + groupKey + "' in " + databasePath + '.');
             }
             final var path = databasePath + ".moduleGroups." + groupKey;
             final var groupNode = YamlMapSupport.toStringMap(groupBody, path);
             YamlMapSupport.assertKeys(groupNode, Set.of("modules", "importEnabled"), path);
             final var modules = YamlMapSupport.requireStringList(groupNode, "modules", path);
-            validateModulesExist(modules, repositoryModules, "module group", groupKey, databaseKey);
+            validateModulesExist(modules, repositoryModules, "module group", groupKey, databasePath);
             final var importEnabledValue = YamlMapSupport.optionalBoolean(groupNode, "importEnabled", path);
             final var importEnabled = importEnabledValue != null && importEnabledValue;
             groups.put(groupKey, new ModuleGroupConfig(groupKey, modules, importEnabled));
@@ -313,7 +305,7 @@ public final class JdbtProjectConfigLoader {
             final List<String> repositoryModules,
             final String context,
             final String contextKey,
-            final String databaseKey) {
+            final String sourceName) {
         for (final var module : modules) {
             if (!repositoryModules.contains(module)) {
                 throw new ConfigException("Module '"
@@ -322,9 +314,9 @@ public final class JdbtProjectConfigLoader {
                         + context
                         + " '"
                         + contextKey
-                        + "' for database '"
-                        + databaseKey
-                        + "' is not present in repository modules "
+                        + "' in "
+                        + sourceName
+                        + " is not present in repository modules "
                         + repositoryModules
                         + '.');
             }

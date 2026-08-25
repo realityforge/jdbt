@@ -63,7 +63,6 @@ final class RuntimeH2IntegrationTest {
                                 "\"PUBLIC\".\"FOO\"", List.of("\"ID\"", "\"NAME\""), RowSource.DEPLOYMENT))),
                 Map.of("Core", List.of()));
         return new RuntimeDatabase(
-                "default",
                 repository,
                 List.of(searchDir),
                 List.of(),

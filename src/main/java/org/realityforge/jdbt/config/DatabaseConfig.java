@@ -7,7 +7,6 @@ import java.util.Map;
 import org.jspecify.annotations.Nullable;
 
 public record DatabaseConfig(
-        String key,
         List<String> upDirs,
         List<String> downDirs,
         List<String> finalizeDirs,
@@ -51,7 +50,6 @@ public record DatabaseConfig(
     }
 
     public DatabaseConfig(
-            final String key,
             final List<String> upDirs,
             final List<String> downDirs,
             final List<String> finalizeDirs,
@@ -71,7 +69,6 @@ public record DatabaseConfig(
             final Map<String, ImportConfig> imports,
             final Map<String, ModuleGroupConfig> moduleGroups) {
         this(
-                key,
                 upDirs,
                 downDirs,
                 finalizeDirs,
@@ -100,7 +97,6 @@ public record DatabaseConfig(
     }
 
     public DatabaseConfig(
-            final String key,
             final List<String> upDirs,
             final List<String> downDirs,
             final List<String> finalizeDirs,
@@ -121,7 +117,6 @@ public record DatabaseConfig(
             final Map<String, ImportConfig> imports,
             final Map<String, ModuleGroupConfig> moduleGroups) {
         this(
-                key,
                 upDirs,
                 downDirs,
                 finalizeDirs,

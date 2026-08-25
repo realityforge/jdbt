@@ -202,7 +202,6 @@ final class ProjectRuntimeLoaderTest {
             """);
 
         final var runtime = new ProjectRuntimeLoader(tempDir).load();
-        assertThat(runtime.database().key()).isEqualTo("default");
         assertThat(runtime.database().searchDirs()).containsExactly(tempDir);
     }
 

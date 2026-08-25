@@ -18,7 +18,6 @@ public final class RuntimeDatabaseFactory {
             final @Nullable String schemaHash,
             final Path searchDirectory) {
         return new RuntimeDatabase(
-                database.key(),
                 repository,
                 List.of(searchDirectory),
                 preDbArtifacts,

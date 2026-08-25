@@ -135,7 +135,6 @@ final class JdbtProjectConfigLoaderTest {
     @Test
     void loadAllowsEmptyConfigWithHardcodedDefaults() {
         final var config = loader.load("{}", "jdbt.yml", repositoryModules);
-        assertThat(config.database().key()).isEqualTo("default");
         assertThat(config.resourceRoot()).isEqualTo(".");
     }
 

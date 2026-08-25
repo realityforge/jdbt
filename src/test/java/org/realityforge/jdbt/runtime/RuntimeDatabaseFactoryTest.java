@@ -24,7 +24,6 @@ final class RuntimeDatabaseFactoryTest {
                 Map.of("Core", List.of(new RepositoryTable("[Core].[tblA]", List.of("[ID]")))),
                 Map.of("Core", List.of()));
         final var database = new DatabaseConfig(
-                "default",
                 List.of("."),
                 List.of("down"),
                 List.of("finalize"),
@@ -54,7 +53,6 @@ final class RuntimeDatabaseFactoryTest {
                 "hash",
                 Path.of("dbRoot"));
 
-        assertThat(runtimeDatabase.key()).isEqualTo("default");
         assertThat(runtimeDatabase.searchDirs()).containsExactly(Path.of("dbRoot"));
         assertThat(runtimeDatabase.indexFileName()).isEqualTo("index.txt");
         assertThat(runtimeDatabase.schemaHash()).isEqualTo("hash");

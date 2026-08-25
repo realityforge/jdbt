@@ -388,7 +388,7 @@ final class SqlServerDbDriverTest {
         when(target.getCatalog()).thenReturn("DB");
         when(target.createStatement()).thenReturn(statement);
         final var driver = new SqlServerDbDriver((connection, controlDatabase) -> controlDatabase ? control : target);
-        final var metadata = new DatabaseMetadata("default", "1", "hash", null, null, false, true, false, false);
+        final var metadata = new DatabaseMetadata("1", "hash", null, null, false, true, false, false);
         final var importConfig = new ImportConfig("default", List.of("Core"), "import", List.of(), List.of());
         driver.open(config, false);
 
@@ -420,8 +420,7 @@ final class SqlServerDbDriverTest {
 
         final var driver = new SqlServerDbDriver((connection, controlDatabase) -> controlDatabase ? control : target);
         driver.open(config, true);
-        final var metadata =
-                new DatabaseMetadata("default", "Version.1", "hash", "C:\\data", "C:\\log", false, true, true, false);
+        final var metadata = new DatabaseMetadata("Version.1", "hash", "C:\\data", "C:\\log", false, true, true, false);
 
         driver.createDatabase(metadata, config);
 
@@ -441,7 +440,7 @@ final class SqlServerDbDriverTest {
         final var driver = new SqlServerDbDriver((connection, controlDatabase) -> control);
         driver.open(config, true);
 
-        driver.drop(new DatabaseMetadata("default", "1", "hash"), config);
+        driver.drop(new DatabaseMetadata("1", "hash"), config);
 
         verify(statement).execute("SET DEADLOCK_PRIORITY HIGH");
         verify(statement).execute("EXEC msdb.dbo.sp_delete_database_backuphistory @database_name = N'DB'");
@@ -458,7 +457,7 @@ final class SqlServerDbDriverTest {
         when(control.createStatement()).thenReturn(statement);
         final var driver = new SqlServerDbDriver((connection, controlDatabase) -> control);
         driver.open(config, true);
-        final var metadata = new DatabaseMetadata("default", "1", "hash", null, null, true, false, true, false);
+        final var metadata = new DatabaseMetadata("1", "hash", null, null, true, false, true, false);
 
         driver.drop(metadata, config);
 
@@ -578,7 +577,7 @@ final class SqlServerDbDriverTest {
         driver.open(config, false);
         driver.preFixtureImport("[dbo].[tbl]");
         driver.postFixtureImport("[dbo].[tbl]");
-        final var metadata = new DatabaseMetadata("default", "1", "hash");
+        final var metadata = new DatabaseMetadata("1", "hash");
         driver.preTableImport(
                 metadata, new ImportConfig("default", List.of(), "import", List.of(), List.of()), "[dbo].[tbl]");
         driver.postTableImport(
@@ -617,7 +616,7 @@ final class SqlServerDbDriverTest {
         final var driver = new SqlServerDbDriver((connection, controlDatabase) -> target);
         driver.open(config, false);
         final var importConfig = new ImportConfig("default", List.of("Core"), "import", List.of(), List.of());
-        final var noMaintenance = new DatabaseMetadata("default", "1", "hash", null, null, false, true, false, false);
+        final var noMaintenance = new DatabaseMetadata("1", "hash", null, null, false, true, false, false);
 
         driver.postDatabaseImport(noMaintenance, importConfig);
         driver.postDataModuleImport(noMaintenance, importConfig, "Core", List.of("[Core].[foo]"));
@@ -626,7 +625,7 @@ final class SqlServerDbDriverTest {
         verify(statement, never()).execute(contains("SHRINKDATABASE"));
         verify(statement, never()).execute(contains("DBREINDEX"));
 
-        final var shrinkAndReindex = new DatabaseMetadata("default", "1", "hash", null, null, false, true, true, true);
+        final var shrinkAndReindex = new DatabaseMetadata("1", "hash", null, null, false, true, true, true);
         driver.postDataModuleImport(shrinkAndReindex, importConfig, "Core", List.of("[Core].[foo]", "[Core].[bar]"));
         driver.postDatabaseImport(shrinkAndReindex, importConfig);
 
@@ -658,7 +657,7 @@ final class SqlServerDbDriverTest {
         final var driver = new SqlServerDbDriver((connection, controlDatabase) -> target);
         driver.open(config, false);
         final var importConfig = new ImportConfig("default", List.of("Core"), "import", List.of(), List.of());
-        final var metadata = new DatabaseMetadata("default", "1", "hash", null, null, false, true, true, true);
+        final var metadata = new DatabaseMetadata("1", "hash", null, null, false, true, true, true);
         final var observed = new ArrayList<String>();
         final ImportMaintenanceObserver observer = (operation, subject, action) -> {
             observed.add(operation + (null == subject ? "" : ':' + subject));

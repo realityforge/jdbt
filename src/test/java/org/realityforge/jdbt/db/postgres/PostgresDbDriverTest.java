@@ -32,7 +32,7 @@ final class PostgresDbDriverTest {
 
         final var driver = new PostgresDbDriver((connection, controlDatabase) -> control);
         driver.open(config, true);
-        final var metadata = new DatabaseMetadata("default", "1", "hash");
+        final var metadata = new DatabaseMetadata("1", "hash");
         driver.createDatabase(metadata, config);
         driver.drop(metadata, config);
 

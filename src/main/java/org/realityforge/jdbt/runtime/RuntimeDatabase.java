@@ -14,7 +14,6 @@ import org.realityforge.jdbt.repository.RepositoryConfig;
 import org.realityforge.jdbt.repository.RepositoryTable;
 
 public record RuntimeDatabase(
-        String key,
         RepositoryConfig repository,
         List<Path> searchDirs,
         List<ArtifactContent> preDbArtifacts,
@@ -63,7 +62,6 @@ public record RuntimeDatabase(
     }
 
     public RuntimeDatabase(
-            final String key,
             final RepositoryConfig repository,
             final List<Path> searchDirs,
             final List<ArtifactContent> preDbArtifacts,
@@ -87,7 +85,6 @@ public record RuntimeDatabase(
             final Map<String, ImportConfig> imports,
             final Map<String, ModuleGroupConfig> moduleGroups) {
         this(
-                key,
                 repository,
                 searchDirs,
                 preDbArtifacts,
@@ -120,7 +117,6 @@ public record RuntimeDatabase(
     }
 
     public RuntimeDatabase(
-            final String key,
             final RepositoryConfig repository,
             final List<Path> searchDirs,
             final List<ArtifactContent> preDbArtifacts,
@@ -145,7 +141,6 @@ public record RuntimeDatabase(
             final Map<String, ImportConfig> imports,
             final Map<String, ModuleGroupConfig> moduleGroups) {
         this(
-                key,
                 repository,
                 searchDirs,
                 preDbArtifacts,

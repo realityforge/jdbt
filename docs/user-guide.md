@@ -77,10 +77,9 @@ Runtime defaults are hardcoded and currently match Ruby-compatible defaults for:
 - `fixtureDirName`
 - `migrationsDirName`
 - `indexFileName`
-- default database key (`default`)
 - default import key (`default`)
 
-`jdbt.yml` defines configuration for a single implicit database keyed as `default`.
+`jdbt.yml` defines configuration for one database.
 
 Unknown keys are rejected.
 

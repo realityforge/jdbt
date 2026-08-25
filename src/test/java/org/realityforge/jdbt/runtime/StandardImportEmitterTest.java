@@ -216,7 +216,6 @@ final class StandardImportEmitterTest {
     private static RuntimeDatabase database(
             final Path project, final RepositoryConfig repository, final Map<String, ImportConfig> imports) {
         return new RuntimeDatabase(
-                "default",
                 repository,
                 List.of(project),
                 List.of(),
