@@ -93,7 +93,8 @@ final class SqlServerDatabaseStatisticsExporterTest {
         final var output = tempDir.resolve("statistics.csv");
         Files.writeString(output, "old\n", StandardCharsets.UTF_8);
 
-        assertThatThrownBy(() -> new SqlServerDatabaseStatisticsExporter(driver).export(repository(), CONNECTION, output))
+        assertThatThrownBy(
+                        () -> new SqlServerDatabaseStatisticsExporter(driver).export(repository(), CONNECTION, output))
                 .isInstanceOf(DatabaseException.class)
                 .hasMessageContaining("VIEW DEFINITION")
                 .hasMessageContaining("table A,Schema.A\"Table is disabled")
@@ -114,7 +115,8 @@ final class SqlServerDatabaseStatisticsExporterTest {
         final var output = tempDir.resolve("statistics.csv");
         Files.writeString(output, "old\n", StandardCharsets.UTF_8);
 
-        assertThatThrownBy(() -> new SqlServerDatabaseStatisticsExporter(driver).export(repository(), CONNECTION, output))
+        assertThatThrownBy(
+                        () -> new SqlServerDatabaseStatisticsExporter(driver).export(repository(), CONNECTION, output))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("query failed");
         assertThat(output).content(StandardCharsets.UTF_8).isEqualTo("old\n");
@@ -127,7 +129,8 @@ final class SqlServerDatabaseStatisticsExporterTest {
         final var output = tempDir.resolve("statistics.csv");
         Files.writeString(output, "old\n", StandardCharsets.UTF_8);
 
-        assertThatThrownBy(() -> new SqlServerDatabaseStatisticsExporter(driver).export(repository(), CONNECTION, output))
+        assertThatThrownBy(
+                        () -> new SqlServerDatabaseStatisticsExporter(driver).export(repository(), CONNECTION, output))
                 .isInstanceOf(DatabaseException.class)
                 .hasMessageContaining("Unexpected database statistics columns");
         assertThat(output).content(StandardCharsets.UTF_8).isEqualTo("old\n");
@@ -146,7 +149,8 @@ final class SqlServerDatabaseStatisticsExporterTest {
         final var output = Files.createDirectory(tempDir.resolve("statistics.csv"));
         Files.writeString(output.resolve("sentinel"), "old\n", StandardCharsets.UTF_8);
 
-        assertThatThrownBy(() -> new SqlServerDatabaseStatisticsExporter(driver).export(repository(), CONNECTION, output))
+        assertThatThrownBy(
+                        () -> new SqlServerDatabaseStatisticsExporter(driver).export(repository(), CONNECTION, output))
                 .isInstanceOfAny(DatabaseException.class, UncheckedIOException.class);
         assertThat(output.resolve("sentinel")).content(StandardCharsets.UTF_8).isEqualTo("old\n");
         try (var files = Files.list(tempDir)) {
@@ -276,12 +280,12 @@ final class SqlServerDatabaseStatisticsExporterTest {
         public void setupMigrations() {}
 
         @Override
-        public boolean shouldMigrate(final String namespace, final String migrationName) {
+        public boolean shouldMigrate(final String migrationName) {
             return false;
         }
 
         @Override
-        public void markMigrationAsRun(final String namespace, final String migrationName) {}
+        public void markMigrationAsRun(final String migrationName) {}
 
         @Override
         public String generateStandardImportSql(

@@ -32,7 +32,7 @@ final class PostgresDbDriverTest {
 
         final var driver = new PostgresDbDriver((connection, controlDatabase) -> control);
         driver.open(config, true);
-        final var metadata = new DatabaseMetadata("default", "1", "hash");
+        final var metadata = new DatabaseMetadata("1", "hash");
         driver.createDatabase(metadata, config);
         driver.drop(metadata, config);
 
@@ -134,6 +134,7 @@ final class PostgresDbDriverTest {
         final var shouldMigrate = mock(PreparedStatement.class);
         final var shouldMigrateResult = mock(ResultSet.class);
         final var markMigration = mock(PreparedStatement.class);
+        final var createMigrationTable = mock(Statement.class);
         when(target.prepareStatement(anyString())).thenAnswer(invocation -> {
             final var sql = invocation.<String>getArgument(0);
             if (sql.contains("information_schema.tables")) {
@@ -147,9 +148,10 @@ final class PostgresDbDriverTest {
             }
             throw new IllegalStateException("Unexpected SQL " + sql);
         });
+        when(target.createStatement()).thenReturn(createMigrationTable);
         when(tableExists.executeQuery()).thenReturn(tableExistsResult);
-        when(tableExistsResult.next()).thenReturn(true, true);
-        when(tableExistsResult.getLong(1)).thenReturn(1L, 1L);
+        when(tableExistsResult.next()).thenReturn(true);
+        when(tableExistsResult.getLong(1)).thenReturn(0L);
         when(shouldMigrate.executeQuery()).thenReturn(shouldMigrateResult);
         when(shouldMigrateResult.next()).thenReturn(true);
         when(shouldMigrateResult.getLong(1)).thenReturn(0L);
@@ -157,11 +159,17 @@ final class PostgresDbDriverTest {
         final var driver = new PostgresDbDriver((connection, controlDatabase) -> target);
         driver.open(config, false);
 
-        assertThat(driver.shouldMigrate("default", "001")).isTrue();
-        driver.markMigrationAsRun("default", "001");
+        assertThat(driver.shouldMigrate("001")).isTrue();
+        driver.markMigrationAsRun("001");
 
-        verify(markMigration).setString(1, "default");
-        verify(markMigration).setString(2, "001");
+        verify(createMigrationTable)
+                .execute("CREATE TABLE \"tblMigration\"(\"Migration\" varchar(255),\"AppliedAt\" timestamp)");
+        verify(target).prepareStatement("SELECT COUNT(*) FROM \"tblMigration\" WHERE \"Migration\" = ?");
+        verify(target)
+                .prepareStatement(
+                        "INSERT INTO \"tblMigration\"(\"Migration\",\"AppliedAt\") VALUES (?, current_timestamp)");
+        verify(shouldMigrate).setString(1, "001");
+        verify(markMigration).setString(1, "001");
         verify(markMigration).executeUpdate();
     }
 

@@ -407,20 +407,16 @@ public final class SqlServerDbDriver implements DbDriver {
     @Override
     public void setupMigrations() {
         if (!tableExists("[dbo].[tblMigration]")) {
-            execute(
-                    "CREATE TABLE [dbo].[tblMigration]([Namespace] VARCHAR(50),[Migration] VARCHAR(255),[AppliedAt]"
-                            + " DATETIME)",
-                    false);
+            execute("CREATE TABLE [dbo].[tblMigration]([Migration] VARCHAR(255),[AppliedAt] DATETIME)", false);
         }
     }
 
     @Override
-    public boolean shouldMigrate(final String namespace, final String migrationName) {
+    public boolean shouldMigrate(final String migrationName) {
         setupMigrations();
-        final var sql = "SELECT COUNT(*) FROM [dbo].[tblMigration] WHERE [Namespace] = ? AND [Migration] = ?";
+        final var sql = "SELECT COUNT(*) FROM [dbo].[tblMigration] WHERE [Migration] = ?";
         try (var statement = targetConnection().prepareStatement(sql)) {
-            statement.setString(1, namespace);
-            statement.setString(2, migrationName);
+            statement.setString(1, migrationName);
             try (var resultSet = statement.executeQuery()) {
                 if (!resultSet.next()) {
                     return true;
@@ -433,12 +429,10 @@ public final class SqlServerDbDriver implements DbDriver {
     }
 
     @Override
-    public void markMigrationAsRun(final String namespace, final String migrationName) {
-        final var sql =
-                "INSERT INTO [dbo].[tblMigration]([Namespace],[Migration],[AppliedAt]) VALUES (?, ?, GETDATE())";
+    public void markMigrationAsRun(final String migrationName) {
+        final var sql = "INSERT INTO [dbo].[tblMigration]([Migration],[AppliedAt]) VALUES (?, GETDATE())";
         try (var statement = targetConnection().prepareStatement(sql)) {
-            statement.setString(1, namespace);
-            statement.setString(2, migrationName);
+            statement.setString(1, migrationName);
             statement.executeUpdate();
         } catch (final SQLException sqle) {
             throw new DatabaseException("Failed to record migration", sqle);

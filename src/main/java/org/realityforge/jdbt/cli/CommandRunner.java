@@ -7,39 +7,24 @@ import org.jspecify.annotations.Nullable;
 import org.realityforge.jdbt.db.DatabaseConnection;
 
 interface CommandRunner {
-    void validateProject(@Nullable String databaseKey);
+    void validateProject();
 
-    void status(@Nullable String databaseKey, String driver);
+    void status(String driver);
 
-    void create(
-            @Nullable String databaseKey,
-            String driver,
-            DatabaseConnection target,
-            boolean noCreate,
-            Map<String, String> filterProperties);
+    void create(String driver, DatabaseConnection target, boolean noCreate, Map<String, String> filterProperties);
 
     void createWithDataset(
-            @Nullable String databaseKey,
             String driver,
             DatabaseConnection target,
             boolean noCreate,
             String dataset,
             Map<String, String> filterProperties);
 
-    void drop(
-            @Nullable String databaseKey,
-            String driver,
-            DatabaseConnection target,
-            Map<String, String> filterProperties);
+    void drop(String driver, DatabaseConnection target, Map<String, String> filterProperties);
 
-    void migrate(
-            @Nullable String databaseKey,
-            String driver,
-            DatabaseConnection target,
-            Map<String, String> filterProperties);
+    void migrate(String driver, DatabaseConnection target, Map<String, String> filterProperties);
 
     void databaseImport(
-            @Nullable String databaseKey,
             String driver,
             @Nullable String importKey,
             @Nullable String moduleGroup,
@@ -50,7 +35,6 @@ interface CommandRunner {
             Map<String, String> filterProperties);
 
     void createByImport(
-            @Nullable String databaseKey,
             String driver,
             @Nullable String importKey,
             DatabaseConnection target,
@@ -60,33 +44,19 @@ interface CommandRunner {
             @Nullable Path timingOutput,
             Map<String, String> filterProperties);
 
-    void loadDataset(
-            @Nullable String databaseKey,
-            String driver,
-            String dataset,
-            DatabaseConnection target,
-            Map<String, String> filterProperties);
+    void loadDataset(String driver, String dataset, DatabaseConnection target, Map<String, String> filterProperties);
 
     void upModuleGroup(
-            @Nullable String databaseKey,
-            String driver,
-            String moduleGroup,
-            DatabaseConnection target,
-            Map<String, String> filterProperties);
+            String driver, String moduleGroup, DatabaseConnection target, Map<String, String> filterProperties);
 
     void downModuleGroup(
-            @Nullable String databaseKey,
-            String driver,
-            String moduleGroup,
-            DatabaseConnection target,
-            Map<String, String> filterProperties);
+            String driver, String moduleGroup, DatabaseConnection target, Map<String, String> filterProperties);
 
-    void packageData(@Nullable String databaseKey, Path outputFile);
+    void packageData(Path outputFile);
 
     void emitStandardImports(@Nullable String importKey, @Nullable Path outputDirectory, boolean replace);
 
     void verifyConstraints(
-            @Nullable String databaseKey,
             String driver,
             DatabaseConnection target,
             List<String> schemas,
@@ -94,7 +64,6 @@ interface CommandRunner {
             Map<String, String> filterProperties);
 
     void exportFixtures(
-            @Nullable String databaseKey,
             String driver,
             DatabaseConnection target,
             Path propertiesFile,
@@ -102,6 +71,5 @@ interface CommandRunner {
             @Nullable Path outputDirectory,
             Map<String, String> filterProperties);
 
-    void exportDatabaseStatistics(
-            @Nullable String databaseKey, String driver, DatabaseConnection target, Path outputFile);
+    void exportDatabaseStatistics(String driver, DatabaseConnection target, Path outputFile);
 }

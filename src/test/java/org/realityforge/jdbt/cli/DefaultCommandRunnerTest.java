@@ -39,21 +39,21 @@ final class DefaultCommandRunnerTest {
         final var output = new ByteArrayOutputStream();
         try {
             System.setOut(new PrintStream(output, true, StandardCharsets.UTF_8));
-            runner.status("default", "sqlserver");
+            runner.status("sqlserver");
         } finally {
             System.setOut(originalOut);
         }
 
-        runner.create("default", "noop", target, true, Map.of());
-        runner.createWithDataset("default", "noop", target, true, "seed", Map.of());
-        runner.drop("default", "noop", target, Map.of());
-        runner.migrate("default", "noop", target, Map.of());
-        runner.databaseImport("default", "noop", null, null, target, source, null, null, Map.of());
-        runner.createByImport("default", "noop", null, target, source, null, true, null, Map.of());
-        runner.loadDataset("default", "noop", "seed", target, Map.of());
-        runner.upModuleGroup("default", "noop", "all", target, Map.of());
-        runner.downModuleGroup("default", "noop", "all", target, Map.of());
-        runner.verifyConstraints("default", "noop", target, List.of("MyModule"), List.of(), Map.of());
+        runner.create("noop", target, true, Map.of());
+        runner.createWithDataset("noop", target, true, "seed", Map.of());
+        runner.drop("noop", target, Map.of());
+        runner.migrate("noop", target, Map.of());
+        runner.databaseImport("noop", null, null, target, source, null, null, Map.of());
+        runner.createByImport("noop", null, target, source, null, true, null, Map.of());
+        runner.loadDataset("noop", "seed", target, Map.of());
+        runner.upModuleGroup("noop", "all", target, Map.of());
+        runner.downModuleGroup("noop", "all", target, Map.of());
+        runner.verifyConstraints("noop", target, List.of("MyModule"), List.of(), Map.of());
 
         assertThat(output.toString(StandardCharsets.UTF_8))
                 .contains("Database Version")
@@ -68,7 +68,7 @@ final class DefaultCommandRunnerTest {
 
         final var runner = createRunner(tempDir);
         final var output = tempDir.resolve("out.zip");
-        runner.packageData("default", output);
+        runner.packageData(output);
 
         assertThat(output).exists();
         assertThat(Files.size(output)).isGreaterThan(0L);
@@ -81,7 +81,7 @@ final class DefaultCommandRunnerTest {
         final var consumer = tempDir.resolve("consumer");
         writeFile(consumer, "jdbt.yml", "postDbArtifacts: ['" + output + "']\n");
 
-        final var runtime = new ProjectRuntimeLoader(consumer).load(null);
+        final var runtime = new ProjectRuntimeLoader(consumer).load();
         assertThat(runtime.database().repository().modules()).containsExactly("MyModule");
         assertThat(runtime.database().postDbArtifacts().get(0).files()).contains("MyModule/a.sql");
     }
@@ -95,7 +95,7 @@ final class DefaultCommandRunnerTest {
         writeFile(resourceRoot, "MyModule/a.sql", "SELECT 1");
 
         final var output = tempDir.resolve("out.zip");
-        createRunner(projectDirectory).packageData("default", output);
+        createRunner(projectDirectory).packageData(output);
 
         try (var zip = new ZipFile(output.toFile())) {
             assertThat(zip.getEntry("data/MyModule/a.sql")).isNotNull();
@@ -111,7 +111,7 @@ final class DefaultCommandRunnerTest {
         writeFile(tempDir, "import-hooks/post/002.sql", "artifact post");
 
         final var output = tempDir.resolve("out.zip");
-        createRunner(tempDir).packageData("default", output);
+        createRunner(tempDir).packageData(output);
 
         final var consumer = tempDir.resolve("consumer");
         writeFile(
@@ -122,7 +122,7 @@ final class DefaultCommandRunnerTest {
         final var runner =
                 new DefaultCommandRunner(new ProjectRuntimeLoader(consumer), driverFactory, new FileResolver());
 
-        runner.databaseImport("default", "recording", "default", null, target, source, null, null, Map.of());
+        runner.databaseImport("recording", "default", null, target, source, null, null, Map.of());
 
         assertThat(driverFactory.driver.transcript()).isEqualTo("""
             open target
@@ -149,13 +149,7 @@ final class DefaultCommandRunnerTest {
                 new DefaultCommandRunner(new ProjectRuntimeLoader(tempDir), driverFactory, new FileResolver());
 
         runner.exportFixtures(
-                "default",
-                "recording",
-                target,
-                tempDir.resolve("fixtures.properties"),
-                null,
-                null,
-                Map.of("tenant", "7"));
+                "recording", target, tempDir.resolve("fixtures.properties"), null, null, Map.of("tenant", "7"));
 
         assertThat(driverFactory.driver.transcript()).isEqualTo("""
             open target
@@ -184,7 +178,7 @@ final class DefaultCommandRunnerTest {
                 new DefaultCommandRunner(new ProjectRuntimeLoader(projectDirectory), driverFactory, new FileResolver());
 
         runner.exportFixtures(
-                "default", "recording", target, projectDirectory.resolve("fixtures.properties"), null, null, Map.of());
+                "recording", target, projectDirectory.resolve("fixtures.properties"), null, null, Map.of());
 
         assertThat(projectDirectory.resolve("MyModule/fixtures/MyModule.foo.yml"))
                 .exists();
@@ -195,7 +189,6 @@ final class DefaultCommandRunnerTest {
     void exportDatabaseStatisticsRejectsUnsupportedDriver(@TempDir final Path tempDir) {
         assertThatThrownBy(() -> createRunner(tempDir)
                         .exportDatabaseStatistics(
-                                null,
                                 "postgres",
                                 new DatabaseConnection("localhost", 5432, "rose", "admin", "secret"),
                                 tempDir.resolve("statistics.csv")))
@@ -210,8 +203,7 @@ final class DefaultCommandRunnerTest {
         writeFile(tempDir, "repository.yml", repositoryConfig());
         final var runner = createRunner(tempDir);
 
-        assertThatThrownBy(() ->
-                        runner.databaseImport("default", "sqlserver", null, null, target, source, null, null, Map.of()))
+        assertThatThrownBy(() -> runner.databaseImport("sqlserver", null, null, target, source, null, null, Map.of()))
                 .isInstanceOf(RuntimeExecutionException.class)
                 .hasMessageContaining("Unable to locate import definition by key");
     }
@@ -226,7 +218,7 @@ final class DefaultCommandRunnerTest {
                 new DefaultCommandRunner(new ProjectRuntimeLoader(tempDir), driverFactory, new FileResolver());
 
         runner.databaseImport(
-                "default", "recording", null, null, target, source, null, Path.of("evidence/import.ndjson"), Map.of());
+                "recording", null, null, target, source, null, Path.of("evidence/import.ndjson"), Map.of());
 
         assertThat(tempDir.resolve("evidence/import.ndjson"))
                 .content(StandardCharsets.UTF_8)
@@ -235,7 +227,7 @@ final class DefaultCommandRunnerTest {
                 .contains("\"parent_operation_id\":null");
 
         final var absoluteOutput = tempDir.resolve("absolute/create.ndjson").toAbsolutePath();
-        runner.createByImport("default", "recording", null, target, source, null, true, absoluteOutput, Map.of());
+        runner.createByImport("recording", null, target, source, null, true, absoluteOutput, Map.of());
 
         assertThat(absoluteOutput)
                 .content(StandardCharsets.UTF_8)
@@ -252,15 +244,7 @@ final class DefaultCommandRunnerTest {
                 new DefaultCommandRunner(new ProjectRuntimeLoader(tempDir), driverFactory, new FileResolver());
 
         assertThatThrownBy(() -> runner.databaseImport(
-                        "default",
-                        "recording",
-                        null,
-                        null,
-                        target,
-                        source,
-                        null,
-                        Path.of("timing-directory"),
-                        Map.of()))
+                        "recording", null, null, target, source, null, Path.of("timing-directory"), Map.of()))
                 .isInstanceOf(RuntimeExecutionException.class)
                 .hasMessage("Unable to open import timing output")
                 .hasNoCause();
@@ -304,7 +288,7 @@ final class DefaultCommandRunnerTest {
                 sequences: []
             """);
         final var artifact = tempDir.resolve("artifact.zip");
-        new DefaultCommandRunner(new ProjectRuntimeLoader(producer)).packageData(null, artifact);
+        new DefaultCommandRunner(new ProjectRuntimeLoader(producer)).packageData(artifact);
 
         final var consumer = tempDir.resolve("consumer");
         writeFile(consumer, "jdbt.yml", """
@@ -482,12 +466,12 @@ final class DefaultCommandRunnerTest {
         public void setupMigrations() {}
 
         @Override
-        public boolean shouldMigrate(final String namespace, final String migrationName) {
+        public boolean shouldMigrate(final String migrationName) {
             return true;
         }
 
         @Override
-        public void markMigrationAsRun(final String namespace, final String migrationName) {}
+        public void markMigrationAsRun(final String migrationName) {}
 
         @Override
         public String generateStandardImportSql(

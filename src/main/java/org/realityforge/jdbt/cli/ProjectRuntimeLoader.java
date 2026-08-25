@@ -11,11 +11,8 @@ import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
-import org.jspecify.annotations.Nullable;
 import org.realityforge.jdbt.config.ConfigException;
-import org.realityforge.jdbt.config.DefaultsConfig;
 import org.realityforge.jdbt.config.JdbtProjectConfigLoader;
 import org.realityforge.jdbt.config.YamlMapSupport;
 import org.realityforge.jdbt.files.ArtifactContent;
@@ -43,7 +40,7 @@ final class ProjectRuntimeLoader {
         this.projectDirectory = projectDirectory.toAbsolutePath().normalize();
     }
 
-    LoadedRuntime load(final @Nullable String selectedDatabaseKey) {
+    LoadedRuntime load() {
         if (!Files.isDirectory(projectDirectory)) {
             throw new ConfigException("Project directory does not exist: " + projectDirectory);
         }
@@ -52,93 +49,40 @@ final class ProjectRuntimeLoader {
             throw new ConfigException(PROJECT_CONFIG_FILE + " not found in project directory " + projectDirectory);
         }
         final var projectYaml = readFile(projectConfigFile);
-        final var bootstrap = loadBootstrap(projectYaml);
-        final var databaseKey = resolveDatabaseKey(selectedDatabaseKey, bootstrap);
-        if (!bootstrap.defaultDatabase().equals(databaseKey)) {
-            throw new ConfigException(
-                    "Unable to locate database '" + databaseKey + "' in " + PROJECT_CONFIG_FILE + '.');
-        }
-        final var bootstrapDatabase = bootstrap.database();
+        final var parsedProjectConfig = projectConfigLoader.parse(projectYaml, PROJECT_CONFIG_FILE);
+        final var bootstrapDatabase = loadBootstrap(parsedProjectConfig.root());
 
         final var preDbArtifacts = loadArtifacts(bootstrapDatabase.preDbArtifacts());
         final var postDbArtifacts = loadArtifacts(bootstrapDatabase.postDbArtifacts());
         final var repository = loadRepository(preDbArtifacts, postDbArtifacts);
-        final var projectConfig = projectConfigLoader.load(projectYaml, PROJECT_CONFIG_FILE, repository.modules());
+        final var projectConfig = projectConfigLoader.load(parsedProjectConfig, repository.modules());
         final var database = projectConfig.database();
         final var resourceRoot = resolveResourceRoot(projectConfig.resourceRoot());
 
-        final var resolvedPreDbArtifacts = loadArtifacts(database.preDbArtifacts());
-        final var resolvedPostDbArtifacts = loadArtifacts(database.postDbArtifacts());
-        final var runtimeDatabaseWithoutHash = runtimeDatabaseFactory.from(
-                database,
-                projectConfig.defaults(),
-                repository,
-                resolvedPreDbArtifacts,
-                resolvedPostDbArtifacts,
-                null,
-                resourceRoot);
+        final var runtimeDatabaseWithoutHash =
+                runtimeDatabaseFactory.from(database, repository, preDbArtifacts, postDbArtifacts, null, resourceRoot);
         validateLogicalResourcePaths(runtimeDatabaseWithoutHash);
         final var runtimeDatabase = runtimeDatabaseFactory.from(
                 database,
-                projectConfig.defaults(),
                 repository,
-                resolvedPreDbArtifacts,
-                resolvedPostDbArtifacts,
+                preDbArtifacts,
+                postDbArtifacts,
                 schemaHash(runtimeDatabaseWithoutHash),
                 resourceRoot);
-        return new LoadedRuntime(runtimeDatabase, projectConfig.defaults(), projectDirectory);
+        return new LoadedRuntime(runtimeDatabase, projectDirectory);
     }
 
-    void validate(final @Nullable String selectedDatabaseKey) {
-        load(selectedDatabaseKey);
+    void validate() {
+        load();
     }
 
-    private static BootstrapProject loadBootstrap(final String yaml) {
-        final var root = YamlMapSupport.parseRoot(yaml, PROJECT_CONFIG_FILE);
-        YamlMapSupport.assertKeys(
-                root,
-                Set.of(
-                        "upDirs",
-                        "downDirs",
-                        "finalizeDirs",
-                        "preCreateDirs",
-                        "postCreateDirs",
-                        "datasets",
-                        "datasetsDirName",
-                        "preDatasetDirs",
-                        "postDatasetDirs",
-                        "fixtureDirName",
-                        "migrations",
-                        "migrationsAppliedAtCreate",
-                        "migrationsDirName",
-                        "version",
-                        "dataPath",
-                        "logPath",
-                        "forceDrop",
-                        "deleteBackupHistory",
-                        "reindexOnImport",
-                        "shrinkOnImport",
-                        "preDbArtifacts",
-                        "postDbArtifacts",
-                        "filterProperties",
-                        "imports",
-                        "moduleGroups",
-                        "resourceRoot"),
-                PROJECT_CONFIG_FILE);
-
-        final var defaults = DefaultsConfig.rubyCompatibleDefaults();
-
+    private static BootstrapDatabase loadBootstrap(final Map<String, Object> root) {
         final var preDbArtifacts =
                 YamlMapSupport.optionalStringList(root, "preDbArtifacts", PROJECT_CONFIG_FILE, List.of());
         final var postDbArtifacts =
                 YamlMapSupport.optionalStringList(root, "postDbArtifacts", PROJECT_CONFIG_FILE, List.of());
 
-        return new BootstrapProject(defaults.defaultDatabase(), new BootstrapDatabase(preDbArtifacts, postDbArtifacts));
-    }
-
-    private static String resolveDatabaseKey(
-            final @Nullable String selectedDatabaseKey, final BootstrapProject bootstrap) {
-        return null != selectedDatabaseKey ? selectedDatabaseKey : bootstrap.defaultDatabase();
+        return new BootstrapDatabase(preDbArtifacts, postDbArtifacts);
     }
 
     private RepositoryConfig loadRepository(
@@ -424,8 +368,6 @@ final class ProjectRuntimeLoader {
         }
     }
 
-    private record BootstrapProject(String defaultDatabase, BootstrapDatabase database) {}
-
     private record BootstrapDatabase(List<String> preDbArtifacts, List<String> postDbArtifacts) {
         private BootstrapDatabase {
             preDbArtifacts = List.copyOf(preDbArtifacts);
@@ -433,5 +375,5 @@ final class ProjectRuntimeLoader {
         }
     }
 
-    record LoadedRuntime(RuntimeDatabase database, DefaultsConfig defaults, Path projectDirectory) {}
+    record LoadedRuntime(RuntimeDatabase database, Path projectDirectory) {}
 }

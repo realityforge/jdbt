@@ -8,7 +8,9 @@ Every table in a [Repository Descriptor](../glossary/README.md#repository-descri
 
 ## Command contract
 
-`export-database-statistics` accepts the standard database key, driver, target connection, and target password-source options plus a required `--output` file. SQL Server is supported; other drivers fail before connecting. The target principal needs database-level `VIEW DEFINITION`.
+`export-database-statistics` accepts the driver, target connection, and target password-source options plus a required
+`--output` file. SQL Server is supported; other drivers fail before connecting. The target principal needs
+database-level `VIEW DEFINITION`.
 
 The `approximate_row_count` metric counts rows in the selected table or index. The `used_page_count` metric includes
 active in-row, LOB, and row-overflow allocation pages and excludes dropped allocation units.

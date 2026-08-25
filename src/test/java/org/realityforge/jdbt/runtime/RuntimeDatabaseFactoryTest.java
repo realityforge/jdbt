@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.realityforge.jdbt.config.DatabaseConfig;
-import org.realityforge.jdbt.config.DefaultsConfig;
 import org.realityforge.jdbt.config.FilterPropertyConfig;
 import org.realityforge.jdbt.config.ImportConfig;
 import org.realityforge.jdbt.config.ModuleGroupConfig;
@@ -24,7 +23,6 @@ final class RuntimeDatabaseFactoryTest {
                 Map.of("Core", List.of(new RepositoryTable("[Core].[tblA]", List.of("[ID]")))),
                 Map.of("Core", List.of()));
         final var database = new DatabaseConfig(
-                "default",
                 List.of("."),
                 List.of("down"),
                 List.of("finalize"),
@@ -39,22 +37,12 @@ final class RuntimeDatabaseFactoryTest {
                 true,
                 "migrations",
                 "v1",
-                List.of(),
-                List.of(),
                 Map.of("mode", new FilterPropertyConfig("__MODE__", "bulk", List.of("bulk", "delta"))),
                 Map.of("default", new ImportConfig("default", List.of("Core"), "import", List.of(), List.of())),
                 Map.of("g", new ModuleGroupConfig("g", List.of("Core"), false)));
 
-        final var runtimeDatabase = factory.from(
-                database,
-                DefaultsConfig.rubyCompatibleDefaults(),
-                repository,
-                List.of(),
-                List.of(),
-                "hash",
-                Path.of("dbRoot"));
+        final var runtimeDatabase = factory.from(database, repository, List.of(), List.of(), "hash", Path.of("dbRoot"));
 
-        assertThat(runtimeDatabase.key()).isEqualTo("default");
         assertThat(runtimeDatabase.searchDirs()).containsExactly(Path.of("dbRoot"));
         assertThat(runtimeDatabase.indexFileName()).isEqualTo("index.txt");
         assertThat(runtimeDatabase.schemaHash()).isEqualTo("hash");

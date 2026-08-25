@@ -936,7 +936,6 @@ public final class RuntimeEngine {
 
     private static DatabaseMetadata databaseMetadata(final RuntimeDatabase database) {
         return new DatabaseMetadata(
-                database.key(),
                 database.version(),
                 database.schemaHash(),
                 database.dataPath(),
@@ -985,14 +984,14 @@ public final class RuntimeEngine {
                 final var filename = files.get(i);
                 final var migrationName = basenameWithoutExtension(filename, ".sql");
                 final var shouldCheck = action == MigrationAction.PERFORM;
-                if (!shouldCheck || db.shouldMigrate(database.key(), migrationName)) {
+                if (!shouldCheck || db.shouldMigrate(migrationName)) {
                     final var shouldRun =
                             action != MigrationAction.RECORD && (null == versionIndex || versionIndex < i);
                     if (shouldRun) {
                         runSqlFile(
                                 database, "Migration: ", filename, false, declaredFilters, expandDatabaseVersionAssert);
                     }
-                    db.markMigrationAsRun(database.key(), migrationName);
+                    db.markMigrationAsRun(migrationName);
                 }
             }
         });

@@ -7,7 +7,6 @@ import java.util.Map;
 import org.jspecify.annotations.Nullable;
 
 public record DatabaseConfig(
-        String key,
         List<String> upDirs,
         List<String> downDirs,
         List<String> finalizeDirs,
@@ -28,8 +27,6 @@ public record DatabaseConfig(
         boolean deleteBackupHistory,
         boolean reindexOnImport,
         boolean shrinkOnImport,
-        List<String> preDbArtifacts,
-        List<String> postDbArtifacts,
         Map<String, FilterPropertyConfig> filterProperties,
         Map<String, ImportConfig> imports,
         Map<String, ModuleGroupConfig> moduleGroups) {
@@ -43,15 +40,12 @@ public record DatabaseConfig(
         datasets = List.copyOf(datasets);
         preDatasetDirs = List.copyOf(preDatasetDirs);
         postDatasetDirs = List.copyOf(postDatasetDirs);
-        preDbArtifacts = List.copyOf(preDbArtifacts);
-        postDbArtifacts = List.copyOf(postDbArtifacts);
         filterProperties = Collections.unmodifiableMap(new LinkedHashMap<>(filterProperties));
         imports = Collections.unmodifiableMap(new LinkedHashMap<>(imports));
         moduleGroups = Collections.unmodifiableMap(new LinkedHashMap<>(moduleGroups));
     }
 
     public DatabaseConfig(
-            final String key,
             final List<String> upDirs,
             final List<String> downDirs,
             final List<String> finalizeDirs,
@@ -66,12 +60,9 @@ public record DatabaseConfig(
             final boolean migrationsAppliedAtCreate,
             final String migrationsDirName,
             final @Nullable String version,
-            final List<String> preDbArtifacts,
-            final List<String> postDbArtifacts,
             final Map<String, ImportConfig> imports,
             final Map<String, ModuleGroupConfig> moduleGroups) {
         this(
-                key,
                 upDirs,
                 downDirs,
                 finalizeDirs,
@@ -92,15 +83,12 @@ public record DatabaseConfig(
                 true,
                 true,
                 false,
-                preDbArtifacts,
-                postDbArtifacts,
                 Map.of(),
                 imports,
                 moduleGroups);
     }
 
     public DatabaseConfig(
-            final String key,
             final List<String> upDirs,
             final List<String> downDirs,
             final List<String> finalizeDirs,
@@ -115,13 +103,10 @@ public record DatabaseConfig(
             final boolean migrationsAppliedAtCreate,
             final String migrationsDirName,
             final @Nullable String version,
-            final List<String> preDbArtifacts,
-            final List<String> postDbArtifacts,
             final Map<String, FilterPropertyConfig> filterProperties,
             final Map<String, ImportConfig> imports,
             final Map<String, ModuleGroupConfig> moduleGroups) {
         this(
-                key,
                 upDirs,
                 downDirs,
                 finalizeDirs,
@@ -142,8 +127,6 @@ public record DatabaseConfig(
                 true,
                 true,
                 false,
-                preDbArtifacts,
-                postDbArtifacts,
                 filterProperties,
                 imports,
                 moduleGroups);

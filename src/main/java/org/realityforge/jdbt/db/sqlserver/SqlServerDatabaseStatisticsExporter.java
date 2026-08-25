@@ -183,8 +183,7 @@ public final class SqlServerDatabaseStatisticsExporter {
         }
 
         if (!errors.isEmpty()) {
-            throw new DatabaseException(
-                    "Database statistics validation failed:\n - " + String.join("\n - ", errors));
+            throw new DatabaseException("Database statistics validation failed:\n - " + String.join("\n - ", errors));
         }
         return List.copyOf(statistics);
     }
@@ -309,8 +308,7 @@ public final class SqlServerDatabaseStatisticsExporter {
                         StandardCopyOption.ATOMIC_MOVE,
                         StandardCopyOption.REPLACE_EXISTING);
             } catch (final AtomicMoveNotSupportedException exception) {
-                throw new DatabaseException(
-                        "Atomic replacement is not supported for " + absoluteOutput, exception);
+                throw new DatabaseException("Atomic replacement is not supported for " + absoluteOutput, exception);
             }
             temporaryFile = null;
         } catch (final IOException exception) {

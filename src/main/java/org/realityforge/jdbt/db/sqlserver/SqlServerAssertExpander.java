@@ -156,5 +156,4 @@ public final class SqlServerAssertExpander {
     private interface MacroWithoutArgumentsReplacement {
         String replacementSql();
     }
-
 }
