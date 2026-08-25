@@ -1,6 +1,8 @@
 # jdbt User Guide
 
-The [jdbt glossary](glossary/README.md) defines the canonical structure, import, Row Source, and fixture terms used here. [Database Imports](specs/database-imports.md) is the durable behavior specification.
+The [jdbt glossary](glossary/README.md) defines the canonical structure, import, Row Source, and fixture terms used here.
+[Database Imports](specs/database-imports.md) and [Database Migrations](specs/database-migrations.md) define durable
+behavior.
 
 ## Prerequisites
 
@@ -77,10 +79,9 @@ Runtime defaults are hardcoded and currently match Ruby-compatible defaults for:
 - `fixtureDirName`
 - `migrationsDirName`
 - `indexFileName`
-- default database key (`default`)
 - default import key (`default`)
 
-`jdbt.yml` defines configuration for a single implicit database keyed as `default`.
+`jdbt.yml` defines configuration for one database.
 
 Unknown keys are rejected.
 
@@ -232,11 +233,8 @@ All module and hook paths are resolved relative to the directory containing `jdb
 
 Options available on database-executing subcommands:
 
-- `--database <databaseKey>` (optional compatibility flag; only `default` is accepted)
 - `--driver <sqlserver|postgres>` (default: `sqlserver`)
 - `--property <key=value>` (repeatable; available on SQL-executing commands)
-
-If `--database` is omitted, `default` is used.
 
 The offline `emit-standard-imports` command has its own credential-free option set documented below.
 
@@ -520,7 +518,6 @@ This SQL Server-only command writes approximate row counts and physical used-pag
 
 ## Troubleshooting
 
-- `Unable to locate database '<key>' ...`: only `default` is supported as the database key; omit `--database` or pass `--database default`.
 - `Unable to locate import definition by key ...`: pass `--import`, or define an import named `default` in `jdbt.yml`.
 - `Unknown key 'searchDirs'`: remove `searchDirs` and configure the singular `resourceRoot` instead.
 - `resourceRoot ... is not a directory`: correct the path relative to the selected project directory.
