@@ -711,6 +711,7 @@ final class SqlServerDbDriverTest {
         final var shouldMigrate = mock(PreparedStatement.class);
         final var shouldMigrateResult = mock(ResultSet.class);
         final var markMigration = mock(PreparedStatement.class);
+        final var createMigrationTable = mock(Statement.class);
         when(target.prepareStatement(anyString())).thenAnswer(invocation -> {
             final var sql = invocation.<String>getArgument(0);
             if (sql.contains("INFORMATION_SCHEMA.TABLES")) {
@@ -724,9 +725,10 @@ final class SqlServerDbDriverTest {
             }
             throw new IllegalStateException("Unexpected sql " + sql);
         });
+        when(target.createStatement()).thenReturn(createMigrationTable);
         when(tableExists.executeQuery()).thenReturn(tableExistsResult);
-        when(tableExistsResult.next()).thenReturn(true, true);
-        when(tableExistsResult.getLong(1)).thenReturn(1L, 1L);
+        when(tableExistsResult.next()).thenReturn(true);
+        when(tableExistsResult.getLong(1)).thenReturn(0L);
         when(shouldMigrate.executeQuery()).thenReturn(shouldMigrateResult);
         when(shouldMigrateResult.next()).thenReturn(true);
         when(shouldMigrateResult.getLong(1)).thenReturn(0L);
@@ -734,11 +736,16 @@ final class SqlServerDbDriverTest {
         final var driver = new SqlServerDbDriver((connection, controlDatabase) -> target);
         driver.open(config, false);
 
-        assertThat(driver.shouldMigrate("default", "001_init")).isTrue();
-        driver.markMigrationAsRun("default", "001_init");
+        assertThat(driver.shouldMigrate("001_init")).isTrue();
+        driver.markMigrationAsRun("001_init");
 
-        verify(markMigration).setString(1, "default");
-        verify(markMigration).setString(2, "001_init");
+        verify(createMigrationTable)
+                .execute("CREATE TABLE [dbo].[tblMigration]([Migration] VARCHAR(255),[AppliedAt] DATETIME)");
+        verify(target).prepareStatement("SELECT COUNT(*) FROM [dbo].[tblMigration] WHERE [Migration] = ?");
+        verify(target)
+                .prepareStatement("INSERT INTO [dbo].[tblMigration]([Migration],[AppliedAt]) VALUES (?, GETDATE())");
+        verify(shouldMigrate).setString(1, "001_init");
+        verify(markMigration).setString(1, "001_init");
         verify(markMigration).executeUpdate();
     }
 }

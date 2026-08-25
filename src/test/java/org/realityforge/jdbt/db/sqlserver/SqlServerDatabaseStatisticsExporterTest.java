@@ -276,12 +276,12 @@ final class SqlServerDatabaseStatisticsExporterTest {
         public void setupMigrations() {}
 
         @Override
-        public boolean shouldMigrate(final String namespace, final String migrationName) {
+        public boolean shouldMigrate(final String migrationName) {
             return false;
         }
 
         @Override
-        public void markMigrationAsRun(final String namespace, final String migrationName) {}
+        public void markMigrationAsRun(final String migrationName) {}
 
         @Override
         public String generateStandardImportSql(

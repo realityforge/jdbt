@@ -1,6 +1,8 @@
 # jdbt User Guide
 
-The [jdbt glossary](glossary/README.md) defines the canonical structure, import, Row Source, and fixture terms used here. [Database Imports](specs/database-imports.md) is the durable behavior specification.
+The [jdbt glossary](glossary/README.md) defines the canonical structure, import, Row Source, and fixture terms used here.
+[Database Imports](specs/database-imports.md) and [Database Migrations](specs/database-migrations.md) define durable
+behavior.
 
 ## Prerequisites
 

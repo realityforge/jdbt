@@ -85,9 +85,9 @@ public interface DbDriver {
 
     void setupMigrations();
 
-    boolean shouldMigrate(String namespace, String migrationName);
+    boolean shouldMigrate(String migrationName);
 
-    void markMigrationAsRun(String namespace, String migrationName);
+    void markMigrationAsRun(String migrationName);
 
     String generateStandardImportSql(
             String tableName, String targetDatabase, String sourceDatabase, List<String> columns);

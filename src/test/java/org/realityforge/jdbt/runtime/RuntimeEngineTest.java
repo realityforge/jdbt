@@ -1278,12 +1278,12 @@ final class RuntimeEngineTest {
         assertThat(driver.calls)
                 .containsSubsequence(
                         "open(false)",
-                        "shouldMigrate(default,001_a)",
-                        "shouldMigrate(default,002_b)",
+                        "shouldMigrate(001_a)",
+                        "shouldMigrate(002_b)",
                         "execute(false):M2",
-                        "markMigrationAsRun(default,002_b)",
+                        "markMigrationAsRun(002_b)",
                         "close");
-        assertThat(driver.calls).doesNotContain("markMigrationAsRun(default,001_a)");
+        assertThat(driver.calls).doesNotContain("markMigrationAsRun(001_a)");
         assertThat(output).containsExactly("Migration: 002_b.sql");
     }
 
@@ -1310,13 +1310,13 @@ final class RuntimeEngineTest {
 
         assertThat(driver.calls)
                 .containsSubsequence(
-                        "shouldMigrate(default,001_x)",
-                        "markMigrationAsRun(default,001_x)",
-                        "shouldMigrate(default,002_Release-Version_1)",
-                        "markMigrationAsRun(default,002_Release-Version_1)",
-                        "shouldMigrate(default,003_z)",
+                        "shouldMigrate(001_x)",
+                        "markMigrationAsRun(001_x)",
+                        "shouldMigrate(002_Release-Version_1)",
+                        "markMigrationAsRun(002_Release-Version_1)",
+                        "shouldMigrate(003_z)",
                         "execute(false):M3",
-                        "markMigrationAsRun(default,003_z)");
+                        "markMigrationAsRun(003_z)");
         assertThat(driver.calls).doesNotContain("execute(false):M1", "execute(false):M2");
     }
 
@@ -1339,8 +1339,8 @@ final class RuntimeEngineTest {
 
         engine.create(database, connection, false, Map.of());
 
-        assertThat(driver.calls).containsSubsequence("setupMigrations", "markMigrationAsRun(default,001_x)");
-        assertThat(driver.calls).doesNotContain("execute(false):M1", "shouldMigrate(default,001_x)");
+        assertThat(driver.calls).containsSubsequence("setupMigrations", "markMigrationAsRun(001_x)");
+        assertThat(driver.calls).doesNotContain("execute(false):M1", "shouldMigrate(001_x)");
     }
 
     private static RuntimeDatabase runtimeDatabase(final RepositoryConfig repository, final List<Path> searchDirs) {
@@ -1682,14 +1682,14 @@ final class RuntimeEngineTest {
         }
 
         @Override
-        public boolean shouldMigrate(final String namespace, final String migrationName) {
-            calls.add("shouldMigrate(" + namespace + ',' + migrationName + ")");
+        public boolean shouldMigrate(final String migrationName) {
+            calls.add("shouldMigrate(" + migrationName + ")");
             return migrateDecision.getOrDefault(migrationName, true);
         }
 
         @Override
-        public void markMigrationAsRun(final String namespace, final String migrationName) {
-            calls.add("markMigrationAsRun(" + namespace + ',' + migrationName + ")");
+        public void markMigrationAsRun(final String migrationName) {
+            calls.add("markMigrationAsRun(" + migrationName + ")");
         }
 
         @Override

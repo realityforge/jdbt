@@ -41,8 +41,6 @@ import org.realityforge.jdbt.files.FileResolver;
 import org.realityforge.jdbt.repository.RowSource;
 
 public final class RuntimeEngine {
-    // Migration records retain the historical namespace after database selection was removed.
-    private static final String MIGRATION_NAMESPACE = "default";
     private static final Pattern ARTIFACT_FILE_PATTERN = Pattern.compile("^zip:([^:]+):(.+)$");
     private static final Pattern GO_SPLIT_PATTERN = Pattern.compile("(?im)^\\s*GO\\s*$");
     private static final DateTimeFormatter FIXTURE_DATE_TIME_FORMAT =
@@ -986,14 +984,14 @@ public final class RuntimeEngine {
                 final var filename = files.get(i);
                 final var migrationName = basenameWithoutExtension(filename, ".sql");
                 final var shouldCheck = action == MigrationAction.PERFORM;
-                if (!shouldCheck || db.shouldMigrate(MIGRATION_NAMESPACE, migrationName)) {
+                if (!shouldCheck || db.shouldMigrate(migrationName)) {
                     final var shouldRun =
                             action != MigrationAction.RECORD && (null == versionIndex || versionIndex < i);
                     if (shouldRun) {
                         runSqlFile(
                                 database, "Migration: ", filename, false, declaredFilters, expandDatabaseVersionAssert);
                     }
-                    db.markMigrationAsRun(MIGRATION_NAMESPACE, migrationName);
+                    db.markMigrationAsRun(migrationName);
                 }
             }
         });

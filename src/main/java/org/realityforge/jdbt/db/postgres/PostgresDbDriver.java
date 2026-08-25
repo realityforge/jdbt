@@ -208,20 +208,16 @@ public final class PostgresDbDriver implements DbDriver {
     @Override
     public void setupMigrations() {
         if (!tableExists("public", "tblMigration")) {
-            execute(
-                    "CREATE TABLE \"tblMigration\"(\"Namespace\" varchar(50),\"Migration\" varchar(255),\"AppliedAt\""
-                            + " timestamp)",
-                    false);
+            execute("CREATE TABLE \"tblMigration\"(\"Migration\" varchar(255),\"AppliedAt\" timestamp)", false);
         }
     }
 
     @Override
-    public boolean shouldMigrate(final String namespace, final String migrationName) {
+    public boolean shouldMigrate(final String migrationName) {
         setupMigrations();
-        final var sql = "SELECT COUNT(*) FROM \"tblMigration\" WHERE \"Namespace\" = ? AND \"Migration\" = ?";
+        final var sql = "SELECT COUNT(*) FROM \"tblMigration\" WHERE \"Migration\" = ?";
         try (var statement = targetConnection().prepareStatement(sql)) {
-            statement.setString(1, namespace);
-            statement.setString(2, migrationName);
+            statement.setString(1, migrationName);
             try (var resultSet = statement.executeQuery()) {
                 if (!resultSet.next()) {
                     return true;
@@ -234,12 +230,10 @@ public final class PostgresDbDriver implements DbDriver {
     }
 
     @Override
-    public void markMigrationAsRun(final String namespace, final String migrationName) {
-        final var sql = "INSERT INTO \"tblMigration\"(\"Namespace\",\"Migration\",\"AppliedAt\") VALUES (?, ?,"
-                + " current_timestamp)";
+    public void markMigrationAsRun(final String migrationName) {
+        final var sql = "INSERT INTO \"tblMigration\"(\"Migration\",\"AppliedAt\") VALUES (?, current_timestamp)";
         try (var statement = targetConnection().prepareStatement(sql)) {
-            statement.setString(1, namespace);
-            statement.setString(2, migrationName);
+            statement.setString(1, migrationName);
             statement.executeUpdate();
         } catch (final SQLException sqle) {
             throw new DatabaseException("Failed to record migration", sqle);

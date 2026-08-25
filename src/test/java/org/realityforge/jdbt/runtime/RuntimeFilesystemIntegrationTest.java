@@ -287,14 +287,14 @@ final class RuntimeFilesystemIntegrationTest {
         }
 
         @Override
-        public boolean shouldMigrate(final String namespace, final String migrationName) {
-            events.add("should-migrate:" + namespace + ':' + migrationName);
+        public boolean shouldMigrate(final String migrationName) {
+            events.add("should-migrate:" + migrationName);
             return true;
         }
 
         @Override
-        public void markMigrationAsRun(final String namespace, final String migrationName) {
-            events.add("mark-migration:" + namespace + ':' + migrationName);
+        public void markMigrationAsRun(final String migrationName) {
+            events.add("mark-migration:" + migrationName);
         }
 
         @Override

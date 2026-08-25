@@ -71,8 +71,8 @@ final class DbDriverFactoryTest {
                 metadata, new ImportConfig("default", List.of("MyModule"), "import", List.of(), List.of()));
         assertThat(driver.columnNamesForTable("t")).isEmpty();
         driver.setupMigrations();
-        assertThat(driver.shouldMigrate("ns", "m")).isTrue();
-        driver.markMigrationAsRun("ns", "m");
+        assertThat(driver.shouldMigrate("m")).isTrue();
+        driver.markMigrationAsRun("m");
         driver.close();
     }
 }

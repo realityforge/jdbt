@@ -225,12 +225,12 @@ final class RuntimeH2IntegrationTest {
         public void setupMigrations() {}
 
         @Override
-        public boolean shouldMigrate(final String namespace, final String migrationName) {
+        public boolean shouldMigrate(final String migrationName) {
             return true;
         }
 
         @Override
-        public void markMigrationAsRun(final String namespace, final String migrationName) {}
+        public void markMigrationAsRun(final String migrationName) {}
 
         @Override
         public String generateStandardImportSql(
