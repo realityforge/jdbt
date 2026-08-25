@@ -5,6 +5,7 @@ package(default_visibility = ["//visibility:public"])
 java_library(
     name = "runtime",
     srcs = [
+        "ImportPlan.java",
         "ImportTimingRecorder.java",
         "RuntimeDatabase.java",
         "RuntimeDatabaseFactory.java",

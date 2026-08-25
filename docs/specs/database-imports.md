@@ -38,7 +38,9 @@ Before a create or import flow mutates a database, jdbt rejects selected-project
 - both an Import Fixture and Explicit Import SQL targeting the same table; or
 - `--resume-at` naming a Deployment Row Source table.
 
-Diagnostics identify the Import Definition or asset and the affected table.
+Diagnostics identify the Import Definition or asset and the affected database object.
+
+Before opening the target connection, jdbt resolves the selected modules, tables, sequences, and override resources once into an immutable import plan. Validation and execution consume that same plan. An unknown `--resume-at` value and conflicting fixture/SQL overrides for either a table or sequence therefore fail before database mutation.
 
 ## SQL Server identity behavior
 

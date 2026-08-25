@@ -283,7 +283,7 @@ public final class RuntimeEngine {
             final var importConfig = importByKey(database, importKey);
             final var moduleGroup = null == moduleGroupKey ? null : moduleGroup(database, moduleGroupKey);
             validateInitialFixtures(database);
-            validateImportInputs(database, importConfig, moduleGroup, resumeAt);
+            final var importPlan = createImportPlan(database, importConfig, moduleGroup, resumeAt);
             final var metadata = databaseMetadata(database);
             withDatabaseConnection(
                     target,
@@ -292,15 +292,7 @@ public final class RuntimeEngine {
                             "phase/data-import",
                             "phase",
                             () -> performImportAction(
-                                    database,
-                                    metadata,
-                                    importConfig,
-                                    target,
-                                    source,
-                                    true,
-                                    moduleGroup,
-                                    resumeAt,
-                                    declaredFilters)));
+                                    database, metadata, importPlan, target, source, true, resumeAt, declaredFilters)));
         });
     }
 
@@ -316,7 +308,7 @@ public final class RuntimeEngine {
             final var declaredFilters = resolveDeclaredFilterValues(database, filterProperties);
             final var importConfig = importByKey(database, importKey);
             validateInitialFixtures(database);
-            validateImportInputs(database, importConfig, null, resumeAt);
+            final var importPlan = createImportPlan(database, importConfig, null, resumeAt);
             if (null == resumeAt && !noCreate) {
                 timing.run("phase/target-prepare", "phase", () -> createDatabaseIfRequired(database, target, false));
             }
@@ -337,15 +329,7 @@ public final class RuntimeEngine {
                         "phase/data-import",
                         "phase",
                         () -> performImportAction(
-                                database,
-                                metadata,
-                                importConfig,
-                                target,
-                                source,
-                                false,
-                                null,
-                                resumeAt,
-                                declaredFilters));
+                                database, metadata, importPlan, target, source, false, resumeAt, declaredFilters));
                 timing.run(
                         "phase/module-finalize",
                         "phase",
@@ -368,26 +352,26 @@ public final class RuntimeEngine {
     private void performImportAction(
             final RuntimeDatabase database,
             final DatabaseMetadata metadata,
-            final ImportConfig importConfig,
+            final ImportPlan importPlan,
             final DatabaseConnection target,
             final DatabaseConnection source,
             final boolean shouldPerformDelete,
-            final @Nullable ModuleGroupConfig moduleGroup,
             final @Nullable String resumeAtInput,
             final Map<String, String> declaredFilters) {
         final var resumeAt = new ResumeState(resumeAtInput);
-        final var selectedModules = selectedImportModules(database, importConfig, moduleGroup);
+        final var importConfig = importPlan.config();
 
-        if (null == moduleGroup && null == resumeAt.value) {
+        if (importPlan.fullImport() && null == resumeAt.value) {
             for (final var dir : importConfig.preImportDirs()) {
                 processImportDirSet(database, dir, target, source, declaredFilters);
             }
         }
 
-        if (shouldPerformDelete && null != moduleGroup && null == resumeAt.value) {
+        if (shouldPerformDelete && !importPlan.fullImport() && null == resumeAt.value) {
             final var deleteOrder = new ArrayList<String>();
-            for (final var moduleName : selectedModules) {
-                final var tables = new ArrayList<>(importTableOrdering(database, moduleName));
+            for (final var module : importPlan.modules()) {
+                final var tables = new ArrayList<>(
+                        module.tables().stream().map(ImportPlan.Element::name).toList());
                 Collections.reverse(tables);
                 deleteOrder.addAll(tables);
             }
@@ -399,29 +383,23 @@ public final class RuntimeEngine {
             }
         }
 
-        final var deleteWithinModule = shouldPerformDelete && null == moduleGroup;
-        for (final var moduleName : selectedModules) {
+        final var deleteWithinModule = shouldPerformDelete && importPlan.fullImport();
+        for (final var module : importPlan.modules()) {
             timing.run(
-                    "module/import/" + ImportTimingRecorder.component(moduleName),
+                    "module/import/" + ImportTimingRecorder.component(module.name()),
                     "module",
                     () -> importModule(
-                            database,
                             metadata,
                             importConfig,
                             target,
                             source,
-                            moduleName,
+                            module,
                             deleteWithinModule,
                             resumeAt,
                             declaredFilters));
         }
 
-        if (null != resumeAt.value) {
-            throw new RuntimeExecutionException(
-                    "Partial import unable to be completed as bad table name supplied " + resumeAt.value);
-        }
-
-        if (null == moduleGroup) {
+        if (importPlan.fullImport()) {
             for (final var dir : importConfig.postImportDirs()) {
                 processImportDirSet(database, dir, target, source, declaredFilters);
             }
@@ -447,20 +425,20 @@ public final class RuntimeEngine {
     }
 
     private void importModule(
-            final RuntimeDatabase database,
             final DatabaseMetadata metadata,
             final ImportConfig importConfig,
             final DatabaseConnection target,
             final DatabaseConnection source,
-            final String moduleName,
+            final ImportPlan.Module module,
             final boolean shouldPerformDelete,
             final ResumeState resumeAt,
             final Map<String, String> declaredFilters) {
-        final var orderedTables = new ArrayList<>(importTableOrdering(database, moduleName));
-        final var orderedSequences = new ArrayList<>(database.sequenceOrdering(moduleName));
+        final var orderedTables = module.tables();
+        final var orderedSequences = module.sequences();
 
         if (shouldPerformDelete && null == resumeAt.value) {
-            final var deleteOrder = new ArrayList<>(orderedTables);
+            final var deleteOrder = new ArrayList<>(
+                    orderedTables.stream().map(ImportPlan.Element::name).toList());
             Collections.reverse(deleteOrder);
             for (final var table : deleteOrder) {
                 timing.run(
@@ -471,41 +449,40 @@ public final class RuntimeEngine {
         }
 
         for (final var table : orderedTables) {
-            final var cleanName = cleanObjectName(table);
+            final var cleanName = cleanObjectName(table.name());
             if (cleanName.equals(resumeAt.value)) {
                 timing.run(
-                        "table-clear/" + ImportTimingRecorder.component(timingDatabaseObject(table)),
+                        "table-clear/" + ImportTimingRecorder.component(timingDatabaseObject(table.name())),
                         "table_clear",
-                        () -> db.execute("DELETE FROM " + table, false, SqlTimingObserver.NONE));
+                        () -> db.execute("DELETE FROM " + table.name(), false, SqlTimingObserver.NONE));
                 resumeAt.value = null;
             }
             if (null == resumeAt.value) {
-                db.preTableImport(metadata, importConfig, table);
+                db.preTableImport(metadata, importConfig, table.name());
                 try {
                     timing.run(
-                            "table-transfer/" + ImportTimingRecorder.component(timingDatabaseObject(table)),
+                            "table-transfer/" + ImportTimingRecorder.component(timingDatabaseObject(table.name())),
                             "table_transfer",
-                            () -> performImport(
-                                    database, importConfig, target, source, moduleName, table, declaredFilters));
+                            () -> performImport(target, source, module.name(), table, declaredFilters));
                 } catch (final RuntimeException e) {
                     throw importFailure(cleanName, e);
                 }
-                db.postTableImport(metadata, importConfig, table, this::timeMaintenance);
+                db.postTableImport(metadata, importConfig, table.name(), this::timeMaintenance);
             }
         }
 
         for (final var sequence : orderedSequences) {
-            if (cleanObjectName(sequence).equals(resumeAt.value)) {
+            if (cleanObjectName(sequence.name()).equals(resumeAt.value)) {
                 resumeAt.value = null;
             }
             if (null == resumeAt.value) {
-                final var cleanName = cleanObjectName(sequence);
+                final var cleanName = cleanObjectName(sequence.name());
                 try {
                     timing.run(
-                            "sequence-transfer/" + ImportTimingRecorder.component(timingDatabaseObject(sequence)),
+                            "sequence-transfer/"
+                                    + ImportTimingRecorder.component(timingDatabaseObject(sequence.name())),
                             "sequence_transfer",
-                            () -> performSequenceImport(
-                                    database, importConfig, target, source, moduleName, sequence, declaredFilters));
+                            () -> performSequenceImport(target, source, module.name(), sequence, declaredFilters));
                 } catch (final RuntimeException e) {
                     throw importFailure(cleanName, e);
                 }
@@ -513,7 +490,12 @@ public final class RuntimeEngine {
         }
 
         if (null == resumeAt.value) {
-            db.postDataModuleImport(metadata, importConfig, moduleName, orderedTables, this::timeMaintenance);
+            db.postDataModuleImport(
+                    metadata,
+                    importConfig,
+                    module.name(),
+                    orderedTables.stream().map(ImportPlan.Element::name).toList(),
+                    this::timeMaintenance);
         }
     }
 
@@ -525,13 +507,6 @@ public final class RuntimeEngine {
                 + operation
                 + (null == canonicalSubject ? "" : "/" + ImportTimingRecorder.component(canonicalSubject));
         timing.run(operationId, "maintenance", action);
-    }
-
-    private static List<String> importTableOrdering(final RuntimeDatabase database, final String moduleName) {
-        return database.tablesForModule(moduleName).stream()
-                .filter(table -> RowSource.IMPORT == table.rowSource())
-                .map(table -> table.name())
-                .toList();
     }
 
     private void validateInitialFixtures(final RuntimeDatabase database) {
@@ -556,33 +531,21 @@ public final class RuntimeEngine {
         }
     }
 
-    private void validateImportInputs(
+    private ImportPlan createImportPlan(
             final RuntimeDatabase database,
             final ImportConfig importConfig,
             final @Nullable ModuleGroupConfig moduleGroup,
             final @Nullable String resumeAt) {
+        final var modules = new ArrayList<ImportPlan.Module>();
+        var resumeFound = null == resumeAt;
         for (final var moduleName : selectedImportModules(database, importConfig, moduleGroup)) {
             verifyNoUnexpectedImportFiles(database, moduleName, importConfig.dir());
+            final var tables = new ArrayList<ImportPlan.Element>();
             for (final var table : database.tablesForModule(moduleName)) {
-                final var fixture = fileResolver.findFileInModule(
-                        database.resourceRoot(),
-                        moduleName,
-                        importConfig.dir(),
-                        table.name(),
-                        "yml",
-                        database.postDbArtifacts(),
-                        database.preDbArtifacts());
-                final var sql = fileResolver.findFileInModule(
-                        database.resourceRoot(),
-                        moduleName,
-                        importConfig.dir(),
-                        table.name(),
-                        "sql",
-                        database.postDbArtifacts(),
-                        database.preDbArtifacts());
+                final var element = resolveImportElement(database, importConfig, moduleName, table.name());
                 if (RowSource.DEPLOYMENT == table.rowSource()) {
-                    if (null != fixture || null != sql) {
-                        final var asset = null != fixture ? fixture : sql;
+                    if (null != element.fixture() || null != element.sql()) {
+                        final var asset = null != element.fixture() ? element.fixture() : element.sql();
                         throw new RuntimeExecutionException("Import Definition '" + importConfig.key() + "' asset '"
                                 + Objects.requireNonNull(asset).sourceName()
                                 + "' targets Deployment Row Source table '"
@@ -592,13 +555,60 @@ public final class RuntimeEngine {
                         throw new RuntimeExecutionException("Import Definition '" + importConfig.key()
                                 + "' can not resume at Deployment Row Source table '" + resumeAt + "'.");
                     }
-                } else if (null != fixture && null != sql) {
-                    throw new RuntimeExecutionException("Import Definition '" + importConfig.key()
-                            + "' unexpectedly defines both Import Fixture '" + fixture.sourceName()
-                            + "' and Explicit Import SQL '" + sql.sourceName() + "' for table '"
-                            + cleanObjectName(table.name()) + "'.");
+                    continue;
                 }
+                validateSingleImportAsset(importConfig, element);
+                tables.add(element);
+                resumeFound |= cleanObjectName(table.name()).equals(resumeAt);
             }
+
+            final var sequences = new ArrayList<ImportPlan.Element>();
+            for (final var sequence : database.sequenceOrdering(moduleName)) {
+                final var element = resolveImportElement(database, importConfig, moduleName, sequence);
+                validateSingleImportAsset(importConfig, element);
+                sequences.add(element);
+                resumeFound |= cleanObjectName(sequence).equals(resumeAt);
+            }
+            modules.add(new ImportPlan.Module(moduleName, tables, sequences));
+        }
+        if (!resumeFound) {
+            throw new RuntimeExecutionException(
+                    "Partial import unable to be completed as bad table name supplied " + resumeAt);
+        }
+        return new ImportPlan(importConfig, null == moduleGroup, modules);
+    }
+
+    private ImportPlan.Element resolveImportElement(
+            final RuntimeDatabase database,
+            final ImportConfig importConfig,
+            final String moduleName,
+            final String elementName) {
+        final var fixture = fileResolver.findFileInModule(
+                database.resourceRoot(),
+                moduleName,
+                importConfig.dir(),
+                elementName,
+                "yml",
+                database.postDbArtifacts(),
+                database.preDbArtifacts());
+        final var sql = fileResolver.findFileInModule(
+                database.resourceRoot(),
+                moduleName,
+                importConfig.dir(),
+                elementName,
+                "sql",
+                database.postDbArtifacts(),
+                database.preDbArtifacts());
+        return new ImportPlan.Element(elementName, fixture, sql);
+    }
+
+    private static void validateSingleImportAsset(final ImportConfig importConfig, final ImportPlan.Element element) {
+        if (null != element.fixture() && null != element.sql()) {
+            throw new RuntimeExecutionException("Import Definition '" + importConfig.key()
+                    + "' unexpectedly defines both Import Fixture '"
+                    + element.fixture().sourceName()
+                    + "' and Explicit Import SQL '" + element.sql().sourceName() + "' for object '"
+                    + cleanObjectName(element.name()) + "'.");
         }
     }
 
@@ -613,34 +623,14 @@ public final class RuntimeEngine {
     }
 
     private void performImport(
-            final RuntimeDatabase database,
-            final ImportConfig importConfig,
             final DatabaseConnection target,
             final DatabaseConnection source,
             final String moduleName,
-            final String tableName,
+            final ImportPlan.Element element,
             final Map<String, String> declaredFilters) {
-        final var fixtureFile = fileResolver.findFileInModule(
-                database.resourceRoot(),
-                moduleName,
-                importConfig.dir(),
-                tableName,
-                "yml",
-                database.postDbArtifacts(),
-                database.preDbArtifacts());
-        final var sqlFile = fileResolver.findFileInModule(
-                database.resourceRoot(),
-                moduleName,
-                importConfig.dir(),
-                tableName,
-                "sql",
-                database.postDbArtifacts(),
-                database.preDbArtifacts());
-
-        if (null != fixtureFile && null != sqlFile) {
-            throw new RuntimeExecutionException("Unexpectedly found both import fixture (" + fixtureFile.sourceName()
-                    + ") and import sql (" + sqlFile.sourceName() + ") files.");
-        }
+        final var tableName = element.name();
+        final var fixtureFile = element.fixture();
+        final var sqlFile = element.sql();
 
         logImport(moduleName, tableName, fixtureFile, sqlFile);
         if (null != fixtureFile) {
@@ -664,39 +654,14 @@ public final class RuntimeEngine {
     }
 
     private void performSequenceImport(
-            final RuntimeDatabase database,
-            final ImportConfig importConfig,
             final DatabaseConnection target,
             final DatabaseConnection source,
             final String moduleName,
-            final String sequenceName,
+            final ImportPlan.Element element,
             final Map<String, String> declaredFilters) {
-        final var fixtureFile = fileResolver.findFileInModule(
-                database.resourceRoot(),
-                moduleName,
-                importConfig.dir(),
-                sequenceName,
-                "yml",
-                database.postDbArtifacts(),
-                database.preDbArtifacts());
-        final var sqlFile = fileResolver.findFileInModule(
-                database.resourceRoot(),
-                moduleName,
-                importConfig.dir(),
-                sequenceName,
-                "sql",
-                database.postDbArtifacts(),
-                database.preDbArtifacts());
-
-        if (null != fixtureFile && null != sqlFile) {
-            throw new RuntimeExecutionException("Unexpectedly found both fixture ("
-                    + fixtureFile.sourceName()
-                    + ") and sql ("
-                    + sqlFile.sourceName()
-                    + ") files for "
-                    + cleanObjectName(sequenceName)
-                    + '.');
-        }
+        final var sequenceName = element.name();
+        final var fixtureFile = element.fixture();
+        final var sqlFile = element.sql();
 
         logImport(moduleName, sequenceName, fixtureFile, sqlFile);
         if (null != fixtureFile) {

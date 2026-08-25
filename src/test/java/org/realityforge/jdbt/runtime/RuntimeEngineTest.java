@@ -650,6 +650,28 @@ final class RuntimeEngineTest {
                         database, "default", null, connection, sourceConnection, "Missing.Table", Map.of()))
                 .isInstanceOf(RuntimeExecutionException.class)
                 .hasMessageContaining("Partial import unable to be completed");
+        assertThat(driver.calls).isEmpty();
+    }
+
+    @Test
+    void importPlanRejectsConflictingSequenceAssetsBeforeDatabaseMutation(@TempDir final Path tempDir)
+            throws IOException {
+        createFile(tempDir, "db/MyModule/import/MyModule.seq.yml", "1");
+        createFile(tempDir, "db/MyModule/import/MyModule.seq.sql", "SELECT 1");
+        final var repository = new RepositoryConfig(
+                List.of("MyModule"),
+                Map.of(),
+                Map.of("MyModule", List.of()),
+                Map.of("MyModule", List.of("[MyModule].[seq]")));
+        final var driver = new RecordingDriver();
+        final var database = runtimeDatabase(repository, tempDir.resolve("db"));
+
+        assertThatThrownBy(() -> new RuntimeEngine(driver, new FileResolver())
+                        .databaseImport(database, "default", null, connection, sourceConnection, null, Map.of()))
+                .isInstanceOf(RuntimeExecutionException.class)
+                .hasMessageContaining("both Import Fixture")
+                .hasMessageContaining("MyModule.seq");
+        assertThat(driver.calls).isEmpty();
     }
 
     @Test
