@@ -59,16 +59,14 @@ final class ProjectRuntimeLoader {
         final var database = projectConfig.database();
         final var resourceRoot = resolveResourceRoot(projectConfig.resourceRoot());
 
-        final var resolvedPreDbArtifacts = loadArtifacts(database.preDbArtifacts());
-        final var resolvedPostDbArtifacts = loadArtifacts(database.postDbArtifacts());
-        final var runtimeDatabaseWithoutHash = runtimeDatabaseFactory.from(
-                database, repository, resolvedPreDbArtifacts, resolvedPostDbArtifacts, null, resourceRoot);
+        final var runtimeDatabaseWithoutHash =
+                runtimeDatabaseFactory.from(database, repository, preDbArtifacts, postDbArtifacts, null, resourceRoot);
         validateLogicalResourcePaths(runtimeDatabaseWithoutHash);
         final var runtimeDatabase = runtimeDatabaseFactory.from(
                 database,
                 repository,
-                resolvedPreDbArtifacts,
-                resolvedPostDbArtifacts,
+                preDbArtifacts,
+                postDbArtifacts,
                 schemaHash(runtimeDatabaseWithoutHash),
                 resourceRoot);
         return new LoadedRuntime(runtimeDatabase, projectDirectory);

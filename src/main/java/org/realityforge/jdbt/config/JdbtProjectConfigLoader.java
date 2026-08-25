@@ -104,8 +104,6 @@ public final class JdbtProjectConfigLoader {
                 booleanDefault(body, "deleteBackupHistory", path, true),
                 booleanDefault(body, "reindexOnImport", path, true),
                 booleanDefault(body, "shrinkOnImport", path, false),
-                YamlMapSupport.optionalStringList(body, "preDbArtifacts", path, List.of()),
-                YamlMapSupport.optionalStringList(body, "postDbArtifacts", path, List.of()),
                 filterProperties,
                 imports,
                 moduleGroups);

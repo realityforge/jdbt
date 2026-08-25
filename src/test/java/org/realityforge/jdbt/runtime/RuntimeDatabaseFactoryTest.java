@@ -37,8 +37,6 @@ final class RuntimeDatabaseFactoryTest {
                 true,
                 "migrations",
                 "v1",
-                List.of(),
-                List.of(),
                 Map.of("mode", new FilterPropertyConfig("__MODE__", "bulk", List.of("bulk", "delta"))),
                 Map.of("default", new ImportConfig("default", List.of("Core"), "import", List.of(), List.of())),
                 Map.of("g", new ModuleGroupConfig("g", List.of("Core"), false)));
