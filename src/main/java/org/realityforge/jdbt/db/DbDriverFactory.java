@@ -1,7 +1,6 @@
 package org.realityforge.jdbt.db;
 
 import org.realityforge.jdbt.config.ConfigException;
-import org.realityforge.jdbt.db.postgres.PostgresDbDriver;
 import org.realityforge.jdbt.db.sqlserver.SqlServerDbDriver;
 
 public class DbDriverFactory {
@@ -9,12 +8,9 @@ public class DbDriverFactory {
         if ("sqlserver".equalsIgnoreCase(driver)) {
             return new SqlServerDbDriver();
         }
-        if ("postgres".equalsIgnoreCase(driver)) {
-            return new PostgresDbDriver();
-        }
         if ("noop".equalsIgnoreCase(driver)) {
             return new NoOpDbDriver();
         }
-        throw new ConfigException("Unsupported database driver '" + driver + "'. Supported: sqlserver, postgres, noop");
+        throw new ConfigException("Unsupported database driver '" + driver + "'. Supported: sqlserver, noop");
     }
 }

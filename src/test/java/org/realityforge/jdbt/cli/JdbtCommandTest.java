@@ -331,7 +331,7 @@ final class JdbtCommandTest {
         final var runner = new RecordingRunner();
 
         final var exitCode = JdbtCommand.execute(
-                new String[] {"emit-standard-imports", "--driver", "postgres"},
+                new String[] {"emit-standard-imports", "--driver", "sqlserver"},
                 runner,
                 new PasswordResolver(Map.of(), new ByteArrayInputStream(new byte[0])));
 
@@ -346,16 +346,14 @@ final class JdbtCommandTest {
         final var exitCode = JdbtCommand.execute(
                 new String[] {
                     "export-fixtures",
-                    "--driver",
-                    "postgres",
                     "--target-host",
                     "localhost",
                     "--target-port",
-                    "5432",
+                    "1433",
                     "--target-database",
                     "db",
                     "--target-username",
-                    "postgres",
+                    "sa",
                     "--password",
                     "secret",
                     "--output-dir",
@@ -371,9 +369,8 @@ final class JdbtCommandTest {
 
         assertThat(exitCode).isZero();
         assertThat(runner.lastCall).isEqualTo("export-fixtures");
-        assertThat(runner.driver).isEqualTo("postgres");
-        assertThat(runner.targetConnection)
-                .isEqualTo(new DatabaseConnection("localhost", 5432, "db", "postgres", "secret"));
+        assertThat(runner.driver).isEqualTo("sqlserver");
+        assertThat(runner.targetConnection).isEqualTo(new DatabaseConnection("localhost", 1433, "db", "sa", "secret"));
         assertThat(runner.propertiesFile).isEqualTo(Path.of("fixtures.properties"));
         assertThat(runner.dataset).isEqualTo("sample");
         assertThat(runner.outputDirectory).isEqualTo(Path.of("tmp/fixtures"));

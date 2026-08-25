@@ -8,7 +8,7 @@ behavior.
 
 - Java 17+
 - A checked-out repository containing your `jdbt.yml` and SQL/YAML resources
-- Database access for the driver you choose (`sqlserver` or `postgres`)
+- SQL Server database access
 
 Build the runnable jar:
 
@@ -233,7 +233,7 @@ All module and hook paths are resolved relative to the directory containing `jdb
 
 Options available on database-executing subcommands:
 
-- `--driver <sqlserver|postgres>` (default: `sqlserver`)
+- `--driver sqlserver` (default: `sqlserver`)
 - `--property <key=value>` (repeatable; available on SQL-executing commands)
 
 The offline `emit-standard-imports` command has its own credential-free option set documented below.
@@ -261,8 +261,6 @@ Import commands also require source connection options:
   - `--source-password <value>`
   - `--source-password-env <ENV_VAR>`
   - `--source-password-stdin`
-
-Note: when using PostgreSQL, provide `--target-port 5432` and `--source-port 5432` as needed.
 
 ### Commands
 
@@ -514,7 +512,6 @@ This SQL Server-only command writes approximate row counts and physical used-pag
 - SQL Server supports Standard Import across source and target databases and offline Standard Import Script emission.
 - SQL Server drop always sets deadlock priority high and deletes backup history by default; `forceDrop` controls whether it forces `SINGLE_USER`.
 - SQL Server create uses `dataPath`/`logPath` when supplied and writes `DatabaseSchemaVersion` extended metadata when `version` is configured.
-- PostgreSQL Standard Import across databases and Standard Import Script emission are intentionally unsupported; use Explicit Import SQL when source and target differ.
 
 ## Troubleshooting
 

@@ -104,12 +104,10 @@ final class StandardImportEmitterTest {
         Files.createDirectories(output);
         Files.writeString(output.resolve("keep.txt"), "keep", StandardCharsets.UTF_8);
 
-        for (final var driver : List.of("postgres", "noop")) {
-            assertThatThrownBy(() -> new StandardImportEmitter(new DbDriverFactory().create(driver))
-                            .emit(database(project, repository(), imports()), "default", output, true))
-                    .isInstanceOf(RuntimeExecutionException.class)
-                    .hasMessageContaining("does not support");
-        }
+        assertThatThrownBy(() -> new StandardImportEmitter(new DbDriverFactory().create("noop"))
+                        .emit(database(project, repository(), imports()), "default", output, true))
+                .isInstanceOf(RuntimeExecutionException.class)
+                .hasMessageContaining("does not support");
         assertThat(output.resolve("keep.txt")).content().isEqualTo("keep");
     }
 

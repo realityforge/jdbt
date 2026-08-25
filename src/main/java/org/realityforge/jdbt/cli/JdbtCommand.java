@@ -145,7 +145,7 @@ public final class JdbtCommand implements Callable<Integer> {
         @CommandLine.Option(
                 names = "--driver",
                 defaultValue = "sqlserver",
-                description = "Database driver. Supported values: sqlserver, postgres")
+                description = "Database driver. Supported values: sqlserver")
         private String driver = "sqlserver";
     }
 

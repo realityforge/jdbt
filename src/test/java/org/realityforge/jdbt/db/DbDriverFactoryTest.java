@@ -8,7 +8,6 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.realityforge.jdbt.config.ConfigException;
 import org.realityforge.jdbt.config.ImportConfig;
-import org.realityforge.jdbt.db.postgres.PostgresDbDriver;
 import org.realityforge.jdbt.db.sqlserver.SqlServerDbDriver;
 
 final class DbDriverFactoryTest {
@@ -25,14 +24,6 @@ final class DbDriverFactoryTest {
     @Test
     void createsNoOpDriverForInternalTesting() {
         assertThat(new DbDriverFactory().create("noop")).isInstanceOf(NoOpDbDriver.class);
-    }
-
-    @Test
-    void createsPostgresDriver() {
-        assertThat(new DbDriverFactory().create("postgres")).isInstanceOf(PostgresDbDriver.class);
-        assertThat(new DbDriverFactory().create("postgres").supportsAssertMacros())
-                .isFalse();
-        assertThat(new DbDriverFactory().create("POSTGRES")).isInstanceOf(PostgresDbDriver.class);
     }
 
     @Test

@@ -189,12 +189,12 @@ final class DefaultCommandRunnerTest {
     void exportDatabaseStatisticsRejectsUnsupportedDriver(@TempDir final Path tempDir) {
         assertThatThrownBy(() -> createRunner(tempDir)
                         .exportDatabaseStatistics(
-                                "postgres",
+                                "noop",
                                 new DatabaseConnection("localhost", 5432, "rose", "admin", "secret"),
                                 tempDir.resolve("statistics.csv")))
                 .isInstanceOf(RuntimeExecutionException.class)
                 .hasMessageContaining("only supports the sqlserver driver")
-                .hasMessageContaining("postgres");
+                .hasMessageContaining("noop");
     }
 
     @Test

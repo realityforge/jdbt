@@ -9,7 +9,6 @@ java_library(
     deps = [
         ":db_core",
         "//src/main/java/org/realityforge/jdbt/config",
-        "//src/main/java/org/realityforge/jdbt/db/postgres",
         "//src/main/java/org/realityforge/jdbt/db/sqlserver",
     ],
 )

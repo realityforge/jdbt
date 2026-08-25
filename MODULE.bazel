@@ -53,20 +53,6 @@ _http_file(
 )
 
 _http_file(
-    name = "waffle_jna",
-    downloaded_file_path = "com/github/waffle/waffle-jna/1.9.1/waffle-jna-1.9.1.jar",
-    sha256 = "5dfeb0acbe917b90af65705c614243b84d4b1b9d92858eeaeafa8885fca0f88e",
-    urls = ["https://repo.maven.apache.org/maven2/com/github/waffle/waffle-jna/1.9.1/waffle-jna-1.9.1.jar"],
-)
-
-_http_file(
-    name = "waffle_jna__sources",
-    downloaded_file_path = "com/github/waffle/waffle-jna/1.9.1/waffle-jna-1.9.1-sources.jar",
-    sha256 = "3c04b6e2acf9ccb7bd77a6f4fcf68de4c8a33a8aa2b589d690d7e4693bed1789",
-    urls = ["https://repo.maven.apache.org/maven2/com/github/waffle/waffle-jna/1.9.1/waffle-jna-1.9.1-sources.jar"],
-)
-
-_http_file(
     name = "jsr305",
     downloaded_file_path = "com/google/code/findbugs/jsr305/3.0.2/jsr305-3.0.2.jar",
     sha256 = "766ad2a0783f2687962c8ad74ceecc38a28b9f72a2d085ee438b7813e928d0c7",
@@ -278,16 +264,16 @@ _http_file(
 
 _http_file(
     name = "checker_qual",
-    downloaded_file_path = "org/checkerframework/checker-qual/3.49.5/checker-qual-3.49.5.jar",
-    sha256 = "508c83c62c344f6f7ee28f47b88a8797d6116d043bfd1ca0576c828dd1df2880",
-    urls = ["https://repo.maven.apache.org/maven2/org/checkerframework/checker-qual/3.49.5/checker-qual-3.49.5.jar"],
+    downloaded_file_path = "org/checkerframework/checker-qual/4.0.0/checker-qual-4.0.0.jar",
+    sha256 = "a06f08bc5dfa51d751cc5bd2453443a99a14825d57bd3c576de2648d2c99fcb8",
+    urls = ["https://repo.maven.apache.org/maven2/org/checkerframework/checker-qual/4.0.0/checker-qual-4.0.0.jar"],
 )
 
 _http_file(
     name = "checker_qual__sources",
-    downloaded_file_path = "org/checkerframework/checker-qual/3.49.5/checker-qual-3.49.5-sources.jar",
-    sha256 = "7a5b44b1fcad095b5677ab31819cbd82aa3579a7bec9ddf4f21a3571a117b5ff",
-    urls = ["https://repo.maven.apache.org/maven2/org/checkerframework/checker-qual/3.49.5/checker-qual-3.49.5-sources.jar"],
+    downloaded_file_path = "org/checkerframework/checker-qual/4.0.0/checker-qual-4.0.0-sources.jar",
+    sha256 = "2c205702e5ee27b2f45f06fd9dfa5a05c6d3b7192e0c280cd6869d756601d70e",
+    urls = ["https://repo.maven.apache.org/maven2/org/checkerframework/checker-qual/4.0.0/checker-qual-4.0.0-sources.jar"],
 )
 
 _http_file(
@@ -337,13 +323,6 @@ _http_file(
     downloaded_file_path = "org/objenesis/objenesis/3.3/objenesis-3.3-sources.jar",
     sha256 = "d06164f8ca002c8ef193cef2d682822014dd330505616af93a3fb64226fc131d",
     urls = ["https://repo.maven.apache.org/maven2/org/objenesis/objenesis/3.3/objenesis-3.3-sources.jar"],
-)
-
-_http_file(
-    name = "postgresql",
-    downloaded_file_path = "org/postgresql/postgresql/42.7.8/postgresql-42.7.8.jar",
-    sha256 = "2a32a9dcbc42d67a50ad3a0de5efd102c8d2be46720045f2cbd6689f160ab7c7",
-    urls = ["https://repo.maven.apache.org/maven2/org/postgresql/postgresql/42.7.8/postgresql-42.7.8.jar"],
 )
 
 _http_file(

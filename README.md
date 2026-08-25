@@ -6,7 +6,7 @@ This project keeps parity-first behavior with the Ruby reference while using Jav
 
 ## Current status
 
-- Supported runtime drivers: SQL Server and PostgreSQL.
+- Supported runtime driver: SQL Server.
 - Supported CLI commands:
   - `status`
   - `validate-project`

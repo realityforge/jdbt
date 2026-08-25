@@ -22,7 +22,6 @@ test_suite(
         "//src/test/java/org/realityforge/jdbt/cli:cli_tests",
         "//src/test/java/org/realityforge/jdbt/config:config_tests",
         "//src/test/java/org/realityforge/jdbt/db:db_tests",
-        "//src/test/java/org/realityforge/jdbt/db/postgres:postgres_tests",
         "//src/test/java/org/realityforge/jdbt/db/sqlserver:sqlserver_tests",
         "//src/test/java/org/realityforge/jdbt/files:files_tests",
         "//src/test/java/org/realityforge/jdbt/packaging:packaging_tests",

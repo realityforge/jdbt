@@ -24,8 +24,6 @@ artifacts:
       - '*:*'
   - coord: com.microsoft.sqlserver:mssql-jdbc:12.8.1.jre11
     includeSource: false
-  - coord: org.postgresql:postgresql:42.7.8
-    includeSource: false
   - coord: org.junit.platform:junit-platform-console-standalone:1.13.4
     includeSource: false
   - coord: org.assertj:assertj-core:3.27.3
