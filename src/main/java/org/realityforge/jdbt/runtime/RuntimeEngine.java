@@ -6,6 +6,8 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -19,6 +21,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -101,7 +104,7 @@ public final class RuntimeEngine {
             for (final var dir : database.postCreateDirs()) {
                 processCreationDirSet(database, dir, declaredFilters);
             }
-            performPostCreateMigrationsSetup(database, declaredFilters);
+            performPostCreateMigrationsSetup(database);
         });
     }
 
@@ -127,7 +130,7 @@ public final class RuntimeEngine {
             for (final var dir : database.postCreateDirs()) {
                 processCreationDirSet(database, dir, declaredFilters);
             }
-            performPostCreateMigrationsSetup(database, declaredFilters);
+            performPostCreateMigrationsSetup(database);
         });
     }
 
@@ -144,8 +147,11 @@ public final class RuntimeEngine {
             final DatabaseConnection target,
             final Map<String, String> filterProperties) {
         final var declaredFilters = resolveDeclaredFilterValues(database, filterProperties);
-        withDatabaseConnection(
-                target, false, () -> performMigration(database, MigrationAction.PERFORM, declaredFilters));
+        final var files = collectMigrationFiles(database);
+        if (files.isEmpty()) {
+            throw new RuntimeExecutionException("No migration SQL files found beneath " + database.migrationDir());
+        }
+        withDatabaseConnection(target, false, () -> performMigration(database, files, declaredFilters));
     }
 
     public void loadDataset(
@@ -295,10 +301,7 @@ public final class RuntimeEngine {
                         processCreationDirSet(database, dir, declaredFilters);
                     }
                 });
-                timing.run(
-                        "phase/migration-setup",
-                        "phase",
-                        () -> performPostCreateMigrationsSetup(database, declaredFilters));
+                timing.run("phase/migration-setup", "phase", () -> performPostCreateMigrationsSetup(database));
             });
         });
     }
@@ -852,50 +855,54 @@ public final class RuntimeEngine {
                 database.shrinkOnImport());
     }
 
-    private void performPostCreateMigrationsSetup(
-            final RuntimeDatabase database, final Map<String, String> declaredFilters) {
+    private void performPostCreateMigrationsSetup(final RuntimeDatabase database) {
         final var files = collectMigrationFiles(database);
         if (files.isEmpty()) {
             return;
         }
-        db.setupMigrations();
-        performMigration(database, files, MigrationAction.RECORD, declaredFilters, true);
+        final var status = db.prepareMigrations();
+        final var migrations = migrationChecksums(files);
+        if (!status.initialized()) {
+            db.initializeMigrationState(migrations);
+            return;
+        }
+        migrations.forEach((migrationName, checksum) -> {
+            if (db.shouldMigrate(migrationName, checksum)) {
+                db.recordMigration(migrationName, checksum);
+            }
+        });
     }
 
     private void performMigration(
-            final RuntimeDatabase database, final MigrationAction action, final Map<String, String> declaredFilters) {
-        performMigration(database, action, declaredFilters, false);
-    }
-
-    private void performMigration(
-            final RuntimeDatabase database,
-            final MigrationAction action,
-            final Map<String, String> declaredFilters,
-            final boolean expandDatabaseVersionAssert) {
-        performMigration(
-                database, collectMigrationFiles(database), action, declaredFilters, expandDatabaseVersionAssert);
-    }
-
-    private void performMigration(
-            final RuntimeDatabase database,
-            final List<ResourceFile> files,
-            final MigrationAction action,
-            final Map<String, String> declaredFilters,
-            final boolean expandDatabaseVersionAssert) {
+            final RuntimeDatabase database, final List<ResourceFile> files, final Map<String, String> declaredFilters) {
         final var directory = database.migrationDir();
         timing.run("sql-directory/" + ImportTimingRecorder.component(directory), "sql_directory", () -> {
-            final var versionIndex = releaseVersionIndex(database, files);
-            for (int i = 0; i < files.size(); i++) {
+            final var status = db.prepareMigrations();
+            int firstMigration = 0;
+            if (!status.initialized()) {
+                final var databaseVersion = status.databaseVersion();
+                if (null == databaseVersion || databaseVersion.isBlank()) {
+                    throw new RuntimeExecutionException(
+                            "Cannot initialize migration state: target database has no DatabaseSchemaVersion");
+                }
+                final var releaseVersionIndex = releaseVersionIndex(databaseVersion, files);
+                if (null == releaseVersionIndex) {
+                    throw new RuntimeExecutionException(
+                            "Cannot initialize migration state: no Release-" + databaseVersion + " migration exists");
+                }
+                db.initializeMigrationState(migrationChecksums(files.subList(0, releaseVersionIndex + 1)));
+                firstMigration = releaseVersionIndex + 1;
+            }
+
+            for (int i = firstMigration; i < files.size(); i++) {
                 final var filename = files.get(i);
                 final var migrationName = basenameWithoutExtension(filename, ".sql");
-                final var shouldCheck = action == MigrationAction.PERFORM;
-                if (!shouldCheck || db.shouldMigrate(migrationName)) {
-                    final var shouldRun =
-                            action != MigrationAction.RECORD && (null == versionIndex || versionIndex < i);
-                    if (shouldRun) {
-                        runSqlFile("Migration: ", filename, false, declaredFilters, expandDatabaseVersionAssert);
-                    }
-                    db.markMigrationAsRun(migrationName);
+                final var checksum = migrationChecksum(filename);
+                if (!status.initialized() || db.shouldMigrate(migrationName, checksum)) {
+                    db.applyMigration(
+                            migrationName,
+                            checksum,
+                            () -> runSqlFile("Migration: ", filename, false, declaredFilters, false));
                 }
             }
         });
@@ -911,12 +918,26 @@ public final class RuntimeEngine {
                 database.preDbArtifacts());
     }
 
-    private static @Nullable Integer releaseVersionIndex(
-            final RuntimeDatabase database, final List<ResourceFile> files) {
-        if (null == database.version()) {
-            return null;
+    private static Map<String, String> migrationChecksums(final List<ResourceFile> files) {
+        final var migrations = new LinkedHashMap<String, String>();
+        for (final var file : files) {
+            migrations.put(basenameWithoutExtension(file, ".sql"), migrationChecksum(file));
         }
-        final var targetRelease = "Release-" + database.version();
+        return Collections.unmodifiableMap(migrations);
+    }
+
+    private static String migrationChecksum(final ResourceFile file) {
+        try {
+            return HexFormat.of()
+                    .formatHex(MessageDigest.getInstance("SHA-256")
+                            .digest(file.readText().getBytes(StandardCharsets.UTF_8)));
+        } catch (final NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 is unavailable", e);
+        }
+    }
+
+    private static @Nullable Integer releaseVersionIndex(final String databaseVersion, final List<ResourceFile> files) {
+        final var targetRelease = "Release-" + databaseVersion;
         for (int i = 0; i < files.size(); i++) {
             final var migrationName = basenameWithoutExtension(files.get(i), ".sql");
             final var separator = migrationName.indexOf('_');
@@ -1550,11 +1571,6 @@ public final class RuntimeEngine {
         UP,
         DOWN,
         FINALIZE
-    }
-
-    private enum MigrationAction {
-        PERFORM,
-        RECORD
     }
 
     private record ExportObject(String moduleName, String objectName, boolean sequence, String cleanName) {}

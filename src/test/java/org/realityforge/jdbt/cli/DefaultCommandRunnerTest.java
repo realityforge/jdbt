@@ -20,6 +20,7 @@ import org.realityforge.jdbt.db.DatabaseConnection;
 import org.realityforge.jdbt.db.DatabaseMetadata;
 import org.realityforge.jdbt.db.DbDriver;
 import org.realityforge.jdbt.db.ImportMaintenanceObserver;
+import org.realityforge.jdbt.db.MigrationStatus;
 import org.realityforge.jdbt.db.QueryResult;
 import org.realityforge.jdbt.db.SqlTimingObserver;
 import org.realityforge.jdbt.files.FileResolver;
@@ -33,6 +34,7 @@ final class DefaultCommandRunnerTest {
     void statusCreateDropMigrateAndImportCommandsExecute(@TempDir final Path tempDir) throws IOException {
         writeFile(tempDir, "jdbt.yml", projectConfig());
         writeFile(tempDir, "repository.yml", repositoryConfig());
+        writeFile(tempDir, "migrations/001_test.sql", "SELECT 1");
 
         final var runner = createRunner(tempDir);
 
@@ -428,15 +430,25 @@ final class DefaultCommandRunnerTest {
         }
 
         @Override
-        public void setupMigrations() {}
+        public MigrationStatus prepareMigrations() {
+            return new MigrationStatus(true, null);
+        }
 
         @Override
-        public boolean shouldMigrate(final String migrationName) {
+        public void initializeMigrationState(final Map<String, String> migrations) {}
+
+        @Override
+        public boolean shouldMigrate(final String migrationName, final String checksum) {
             return true;
         }
 
         @Override
-        public void markMigrationAsRun(final String migrationName) {}
+        public void recordMigration(final String migrationName, final String checksum) {}
+
+        @Override
+        public void applyMigration(final String migrationName, final String checksum, final Runnable action) {
+            action.run();
+        }
 
         @Override
         public String generateStandardImportSql(

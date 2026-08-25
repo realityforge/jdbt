@@ -23,6 +23,7 @@ import java.sql.Types;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.realityforge.jdbt.config.ImportConfig;
 import org.realityforge.jdbt.db.DatabaseConnection;
@@ -714,48 +715,152 @@ final class SqlServerDbDriverTest {
     }
 
     @Test
-    void migrationMethodsCreateAndQueryMigrationTable() throws Exception {
+    void prepareMigrationsLocksSessionAndReadsUninitializedDatabaseVersion() throws Exception {
         final var target = mock(Connection.class);
         final var tableExists = mock(PreparedStatement.class);
         final var tableExistsResult = mock(ResultSet.class);
-        final var shouldMigrate = mock(PreparedStatement.class);
-        final var shouldMigrateResult = mock(ResultSet.class);
-        final var markMigration = mock(PreparedStatement.class);
-        final var createMigrationTable = mock(Statement.class);
+        final var version = mock(PreparedStatement.class);
+        final var versionResult = mock(ResultSet.class);
+        final var lock = mock(Statement.class);
         when(target.prepareStatement(anyString())).thenAnswer(invocation -> {
             final var sql = invocation.<String>getArgument(0);
             if (sql.contains("INFORMATION_SCHEMA.TABLES")) {
                 return tableExists;
             }
-            if (sql.contains("FROM [dbo].[tblMigration] WHERE")) {
-                return shouldMigrate;
-            }
-            if (sql.startsWith("INSERT INTO [dbo].[tblMigration]")) {
-                return markMigration;
+            if (sql.contains("sys.extended_properties")) {
+                return version;
             }
             throw new IllegalStateException("Unexpected sql " + sql);
         });
-        when(target.createStatement()).thenReturn(createMigrationTable);
+        when(target.createStatement()).thenReturn(lock);
         when(tableExists.executeQuery()).thenReturn(tableExistsResult);
         when(tableExistsResult.next()).thenReturn(true);
         when(tableExistsResult.getLong(1)).thenReturn(0L);
-        when(shouldMigrate.executeQuery()).thenReturn(shouldMigrateResult);
-        when(shouldMigrateResult.next()).thenReturn(true);
-        when(shouldMigrateResult.getLong(1)).thenReturn(0L);
+        when(version.executeQuery()).thenReturn(versionResult);
+        when(versionResult.next()).thenReturn(true);
+        when(versionResult.getString(1)).thenReturn("17");
 
         final var driver = new SqlServerDbDriver((connection, controlDatabase) -> target);
         driver.open(config, false);
 
-        assertThat(driver.shouldMigrate("001_init")).isTrue();
-        driver.markMigrationAsRun("001_init");
+        final var status = driver.prepareMigrations();
+        assertThat(status.initialized()).isFalse();
+        assertThat(status.databaseVersion()).isEqualTo("17");
 
-        verify(createMigrationTable)
-                .execute("CREATE TABLE [dbo].[tblMigration]([Migration] VARCHAR(255),[AppliedAt] DATETIME)");
-        verify(target).prepareStatement("SELECT COUNT(*) FROM [dbo].[tblMigration] WHERE [Migration] = ?");
-        verify(target)
-                .prepareStatement("INSERT INTO [dbo].[tblMigration]([Migration],[AppliedAt]) VALUES (?, GETDATE())");
-        verify(shouldMigrate).setString(1, "001_init");
-        verify(markMigration).setString(1, "001_init");
-        verify(markMigration).executeUpdate();
+        verify(lock).execute(contains("sp_getapplock"));
+    }
+
+    @Test
+    void prepareMigrationsRejectsLegacyStateWithoutChecksum() throws Exception {
+        final var target = mock(Connection.class);
+        final var tableExists = mock(PreparedStatement.class);
+        final var tableExistsResult = mock(ResultSet.class);
+        final var columnExists = mock(PreparedStatement.class);
+        final var columnExistsResult = mock(ResultSet.class);
+        when(target.prepareStatement(anyString())).thenAnswer(invocation -> {
+            final var sql = invocation.<String>getArgument(0);
+            return sql.contains("INFORMATION_SCHEMA.TABLES") ? tableExists : columnExists;
+        });
+        when(target.createStatement()).thenReturn(mock(Statement.class));
+        when(tableExists.executeQuery()).thenReturn(tableExistsResult);
+        when(tableExistsResult.next()).thenReturn(true);
+        when(tableExistsResult.getLong(1)).thenReturn(1L);
+        when(columnExists.executeQuery()).thenReturn(columnExistsResult);
+        when(columnExistsResult.next()).thenReturn(true);
+        when(columnExistsResult.getLong(1)).thenReturn(0L);
+        final var driver = new SqlServerDbDriver((connection, controlDatabase) -> target);
+        driver.open(config, false);
+
+        assertThatThrownBy(driver::prepareMigrations)
+                .isInstanceOf(DatabaseException.class)
+                .hasMessageContaining("must contain a Checksum column");
+    }
+
+    @Test
+    void initializeMigrationStateCreatesChecksummedTableAtomically() throws Exception {
+        final var target = mock(Connection.class);
+        final var createTable = mock(Statement.class);
+        final var insert = mock(PreparedStatement.class);
+        when(target.getAutoCommit()).thenReturn(true);
+        when(target.createStatement()).thenReturn(createTable);
+        when(target.prepareStatement("INSERT INTO [dbo].[tblMigration]([Migration],[Checksum]) VALUES (?, ?)"))
+                .thenReturn(insert);
+        final var driver = new SqlServerDbDriver((connection, controlDatabase) -> target);
+        driver.open(config, false);
+
+        driver.initializeMigrationState(Map.of("001_init", "abc"));
+
+        final var ordered = inOrder(target, createTable, insert);
+        ordered.verify(target).setAutoCommit(false);
+        ordered.verify(createTable).execute(contains("[Checksum] CHAR(64) NOT NULL"));
+        ordered.verify(insert).setString(1, "001_init");
+        ordered.verify(insert).setString(2, "abc");
+        ordered.verify(insert).executeUpdate();
+        ordered.verify(target).commit();
+        ordered.verify(target).setAutoCommit(true);
+    }
+
+    @Test
+    void shouldMigrateVerifiesRecordedChecksum() throws Exception {
+        final var target = mock(Connection.class);
+        final var statement = mock(PreparedStatement.class);
+        final var result = mock(ResultSet.class);
+        when(target.prepareStatement("SELECT [Checksum] FROM [dbo].[tblMigration] WHERE [Migration] = ?"))
+                .thenReturn(statement);
+        when(statement.executeQuery()).thenReturn(result);
+        when(result.next()).thenReturn(true, true);
+        when(result.getString(1)).thenReturn("abc");
+        final var driver = new SqlServerDbDriver((connection, controlDatabase) -> target);
+        driver.open(config, false);
+
+        assertThat(driver.shouldMigrate("001_init", "abc")).isFalse();
+        assertThatThrownBy(() -> driver.shouldMigrate("001_init", "changed"))
+                .isInstanceOf(DatabaseException.class)
+                .hasMessage("Migration checksum mismatch for 001_init");
+    }
+
+    @Test
+    void applyMigrationRollsBackSqlAndTrackingTogether() throws Exception {
+        final var target = mock(Connection.class);
+        when(target.getAutoCommit()).thenReturn(true);
+        final var driver = new SqlServerDbDriver((connection, controlDatabase) -> target);
+        driver.open(config, false);
+        final var failure = new IllegalStateException("migration failed");
+
+        assertThatThrownBy(() -> driver.applyMigration("001_init", "abc", () -> {
+                    throw failure;
+                }))
+                .isSameAs(failure);
+
+        final var ordered = inOrder(target);
+        ordered.verify(target).setAutoCommit(false);
+        ordered.verify(target).rollback();
+        ordered.verify(target).setAutoCommit(true);
+        verify(target, never()).prepareStatement(contains("INSERT INTO [dbo].[tblMigration]"));
+    }
+
+    @Test
+    void applyMigrationCommitsSqlAndTrackingTogether() throws Exception {
+        final var target = mock(Connection.class);
+        final var sql = mock(Statement.class);
+        final var insert = mock(PreparedStatement.class);
+        when(target.getAutoCommit()).thenReturn(true);
+        when(target.createStatement()).thenReturn(sql);
+        when(target.prepareStatement("INSERT INTO [dbo].[tblMigration]([Migration],[Checksum]) VALUES (?, ?)"))
+                .thenReturn(insert);
+        final var driver = new SqlServerDbDriver((connection, controlDatabase) -> target);
+        driver.open(config, false);
+
+        driver.applyMigration(
+                "001_init",
+                "abc",
+                () -> driver.execute("ALTER TABLE test ADD value INT", false, SqlTimingObserver.NONE));
+
+        final var ordered = inOrder(target, sql, insert);
+        ordered.verify(target).setAutoCommit(false);
+        ordered.verify(sql).execute("ALTER TABLE test ADD value INT");
+        ordered.verify(insert).executeUpdate();
+        ordered.verify(target).commit();
+        ordered.verify(target).setAutoCommit(true);
     }
 }

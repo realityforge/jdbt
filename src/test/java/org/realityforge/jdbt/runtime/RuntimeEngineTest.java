@@ -29,6 +29,7 @@ import org.realityforge.jdbt.db.DatabaseException;
 import org.realityforge.jdbt.db.DatabaseMetadata;
 import org.realityforge.jdbt.db.DbDriver;
 import org.realityforge.jdbt.db.ImportMaintenanceObserver;
+import org.realityforge.jdbt.db.MigrationStatus;
 import org.realityforge.jdbt.db.QueryResult;
 import org.realityforge.jdbt.db.SqlTimingObservation;
 import org.realityforge.jdbt.db.SqlTimingObserver;
@@ -1188,22 +1189,26 @@ final class RuntimeEngineTest {
         assertThat(driver.calls)
                 .containsSubsequence(
                         "open(false)",
+                        "prepareMigrations",
                         "shouldMigrate(001_a)",
                         "shouldMigrate(002_b)",
+                        "applyMigration(002_b)",
                         "execute(false):M2",
-                        "markMigrationAsRun(002_b)",
+                        "recordMigration(002_b)",
                         "close");
-        assertThat(driver.calls).doesNotContain("markMigrationAsRun(001_a)");
+        assertThat(driver.calls).doesNotContain("applyMigration(001_a)", "recordMigration(001_a)");
+        assertThat(driver.migrationChecksums.get("002_b")).hasSize(64);
         assertThat(output).containsExactly("Migration: 002_b.sql");
     }
 
     @Test
-    void migrateSkipsExecutionBeforeReleaseVersionBoundary(@TempDir final Path tempDir) throws IOException {
+    void migrateBootstrapsThroughReleaseMarkerForLiveDatabaseVersion(@TempDir final Path tempDir) throws IOException {
         createFile(tempDir, "db/migrations/001_x.sql", "M1");
         createFile(tempDir, "db/migrations/002_Release-Version_1.sql", "M2");
         createFile(tempDir, "db/migrations/003_z.sql", "M3");
 
         final var driver = new RecordingDriver();
+        driver.migrationStatus = new MigrationStatus(false, "Version_1");
         final var engine = new RuntimeEngine(driver, new FileResolver());
         final var database = runtimeDatabase(
                 RepositoryConfigTestData.singleModule(),
@@ -1211,27 +1216,49 @@ final class RuntimeEngineTest {
                 List.of("defaultDataset"),
                 Map.of("default", new ImportConfig("default", List.of("MyModule"), "import", List.of(), List.of())),
                 Map.of(),
-                "Version_1");
+                "Configured_Version_2");
 
         engine.migrate(database, connection, Map.of());
 
         assertThat(driver.calls)
                 .containsSubsequence(
-                        "shouldMigrate(001_x)",
-                        "markMigrationAsRun(001_x)",
-                        "shouldMigrate(002_Release-Version_1)",
-                        "markMigrationAsRun(002_Release-Version_1)",
-                        "shouldMigrate(003_z)",
+                        "prepareMigrations",
+                        "initializeMigrationState([001_x, 002_Release-Version_1])",
+                        "applyMigration(003_z)",
                         "execute(false):M3",
-                        "markMigrationAsRun(003_z)");
+                        "recordMigration(003_z)");
         assertThat(driver.calls).doesNotContain("execute(false):M1", "execute(false):M2");
     }
 
     @Test
-    void createUsesMigrationRecordModeWhenConfigured(@TempDir final Path tempDir) throws IOException {
+    void migrateExistingStateRunsEveryUnrecordedMigrationRegardlessOfReleaseMarkers(@TempDir final Path tempDir)
+            throws IOException {
+        createFile(tempDir, "db/migrations/001_x.sql", "M1");
+        createFile(tempDir, "db/migrations/002_Release-1.sql", "M2");
+        createFile(tempDir, "db/migrations/003_z.sql", "M3");
+
+        final var driver = new RecordingDriver();
+        final var engine = new RuntimeEngine(driver, new FileResolver());
+        final var database = runtimeDatabase(RepositoryConfigTestData.singleModule(), tempDir.resolve("db"));
+
+        engine.migrate(database, connection, Map.of());
+
+        assertThat(driver.calls)
+                .containsSubsequence(
+                        "execute(false):M1",
+                        "recordMigration(001_x)",
+                        "execute(false):M2",
+                        "recordMigration(002_Release-1)",
+                        "execute(false):M3",
+                        "recordMigration(003_z)");
+    }
+
+    @Test
+    void createInitializesMigrationStateWithoutExecutingFiles(@TempDir final Path tempDir) throws IOException {
         createFile(tempDir, "db/migrations/001_x.sql", "M1");
 
         final var driver = new RecordingDriver();
+        driver.migrationStatus = new MigrationStatus(false, "1");
         final var engine = new RuntimeEngine(driver, new FileResolver());
         final var database = runtimeDatabase(
                 RepositoryConfigTestData.singleModule(),
@@ -1243,8 +1270,35 @@ final class RuntimeEngineTest {
 
         engine.create(database, connection, false, Map.of());
 
-        assertThat(driver.calls).containsSubsequence("setupMigrations", "markMigrationAsRun(001_x)");
-        assertThat(driver.calls).doesNotContain("execute(false):M1", "shouldMigrate(001_x)");
+        assertThat(driver.calls).containsSubsequence("prepareMigrations", "initializeMigrationState([001_x])");
+        assertThat(driver.calls).doesNotContain("execute(false):M1", "shouldMigrate(001_x)", "applyMigration(001_x)");
+    }
+
+    @Test
+    void migrateRejectsMissingLiveVersionReleaseMarkerWithoutInitializingState(@TempDir final Path tempDir)
+            throws IOException {
+        createFile(tempDir, "db/migrations/001_x.sql", "M1");
+        final var driver = new RecordingDriver();
+        driver.migrationStatus = new MigrationStatus(false, "17");
+        final var database = runtimeDatabase(RepositoryConfigTestData.singleModule(), tempDir.resolve("db"));
+
+        assertThatThrownBy(() -> new RuntimeEngine(driver, new FileResolver()).migrate(database, connection, Map.of()))
+                .isInstanceOf(RuntimeExecutionException.class)
+                .hasMessageContaining("no Release-17 migration exists");
+
+        assertThat(driver.calls).doesNotContain("initializeMigrationState([001_x])", "execute(false):M1");
+    }
+
+    @Test
+    void migrateRejectsProjectWithoutMigrationFilesBeforeOpeningDatabase(@TempDir final Path tempDir) {
+        final var driver = new RecordingDriver();
+        final var database = runtimeDatabase(RepositoryConfigTestData.singleModule(), tempDir.resolve("db"));
+
+        assertThatThrownBy(() -> new RuntimeEngine(driver, new FileResolver()).migrate(database, connection, Map.of()))
+                .isInstanceOf(RuntimeExecutionException.class)
+                .hasMessageContaining("No migration SQL files found");
+
+        assertThat(driver.calls).isEmpty();
     }
 
     private static RuntimeDatabase runtimeDatabase(final RepositoryConfig repository, final Path resourceRoot) {
@@ -1397,8 +1451,10 @@ final class RuntimeEngineTest {
     private static class RecordingDriver implements DbDriver {
         private final List<String> calls = new ArrayList<>();
         private final Map<String, Boolean> migrateDecision = new LinkedHashMap<>();
+        private final Map<String, String> migrationChecksums = new LinkedHashMap<>();
         private final Map<String, QueryResult> queryResults = new LinkedHashMap<>();
         private final boolean observeMaintenance;
+        private MigrationStatus migrationStatus = new MigrationStatus(true, "1");
         private List<String> primaryKeyColumnNames = List.of("[ID]");
 
         private RecordingDriver() {
@@ -1541,19 +1597,35 @@ final class RuntimeEngineTest {
         }
 
         @Override
-        public void setupMigrations() {
-            calls.add("setupMigrations");
+        public MigrationStatus prepareMigrations() {
+            calls.add("prepareMigrations");
+            return migrationStatus;
         }
 
         @Override
-        public boolean shouldMigrate(final String migrationName) {
+        public void initializeMigrationState(final Map<String, String> migrations) {
+            migrationChecksums.putAll(migrations);
+            calls.add("initializeMigrationState(" + migrations.keySet() + ")");
+        }
+
+        @Override
+        public boolean shouldMigrate(final String migrationName, final String checksum) {
+            migrationChecksums.put(migrationName, checksum);
             calls.add("shouldMigrate(" + migrationName + ")");
             return migrateDecision.getOrDefault(migrationName, true);
         }
 
         @Override
-        public void markMigrationAsRun(final String migrationName) {
-            calls.add("markMigrationAsRun(" + migrationName + ")");
+        public void recordMigration(final String migrationName, final String checksum) {
+            migrationChecksums.put(migrationName, checksum);
+            calls.add("recordMigration(" + migrationName + ")");
+        }
+
+        @Override
+        public void applyMigration(final String migrationName, final String checksum, final Runnable action) {
+            calls.add("applyMigration(" + migrationName + ")");
+            action.run();
+            recordMigration(migrationName, checksum);
         }
 
         @Override

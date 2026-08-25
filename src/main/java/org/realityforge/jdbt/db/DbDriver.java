@@ -51,11 +51,15 @@ public interface DbDriver {
 
     QueryResult verifySchemaConstraints(String schemaName);
 
-    void setupMigrations();
+    MigrationStatus prepareMigrations();
 
-    boolean shouldMigrate(String migrationName);
+    void initializeMigrationState(Map<String, String> migrations);
 
-    void markMigrationAsRun(String migrationName);
+    boolean shouldMigrate(String migrationName, String checksum);
+
+    void recordMigration(String migrationName, String checksum);
+
+    void applyMigration(String migrationName, String checksum, Runnable action);
 
     String generateStandardImportSql(
             String tableName, String targetDatabase, String sourceDatabase, List<String> columns);

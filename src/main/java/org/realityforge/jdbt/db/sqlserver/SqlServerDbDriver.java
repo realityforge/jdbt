@@ -19,6 +19,7 @@ import org.realityforge.jdbt.db.DatabaseException;
 import org.realityforge.jdbt.db.DatabaseMetadata;
 import org.realityforge.jdbt.db.DbDriver;
 import org.realityforge.jdbt.db.ImportMaintenanceObserver;
+import org.realityforge.jdbt.db.MigrationStatus;
 import org.realityforge.jdbt.db.QueryResult;
 import org.realityforge.jdbt.db.SqlTimingObservation;
 import org.realityforge.jdbt.db.SqlTimingObserver;
@@ -377,23 +378,57 @@ public final class SqlServerDbDriver implements DbDriver {
     }
 
     @Override
-    public void setupMigrations() {
-        if (!tableExists("[dbo].[tblMigration]")) {
-            execute("CREATE TABLE [dbo].[tblMigration]([Migration] VARCHAR(255),[AppliedAt] DATETIME)", false);
+    public MigrationStatus prepareMigrations() {
+        execute("""
+            DECLARE @LockResult INT
+            EXEC @LockResult = [sys].[sp_getapplock]
+              @Resource = N'jdbt.migrations',
+              @LockMode = 'Exclusive',
+              @LockOwner = 'Session',
+              @LockTimeout = 0,
+              @DbPrincipal = 'public'
+            IF @LockResult < 0
+              THROW 51000, 'Another JDBT migration operation is active in this database', 1
+            """, false);
+        final var initialized = tableExists("[dbo].[tblMigration]");
+        if (initialized && !columnExists("dbo", "tblMigration", "Checksum")) {
+            throw new DatabaseException("Existing migration state is incompatible: [dbo].[tblMigration] must contain"
+                    + " a Checksum column");
         }
+        return new MigrationStatus(initialized, initialized ? null : databaseVersion());
     }
 
     @Override
-    public boolean shouldMigrate(final String migrationName) {
-        setupMigrations();
-        final var sql = "SELECT COUNT(*) FROM [dbo].[tblMigration] WHERE [Migration] = ?";
+    public void initializeMigrationState(final Map<String, String> migrations) {
+        inMigrationTransaction(() -> {
+            execute("""
+                CREATE TABLE [dbo].[tblMigration]
+                (
+                  [Migration] VARCHAR(255) NOT NULL,
+                  [Checksum] CHAR(64) NOT NULL,
+                  [AppliedAt] DATETIME2(7) NOT NULL
+                    CONSTRAINT [DF_tblMigration_AppliedAt] DEFAULT SYSUTCDATETIME(),
+                  CONSTRAINT [PK_tblMigration] PRIMARY KEY ([Migration])
+                )
+                """, false);
+            migrations.forEach(this::recordMigration);
+        });
+    }
+
+    @Override
+    public boolean shouldMigrate(final String migrationName, final String checksum) {
+        final var sql = "SELECT [Checksum] FROM [dbo].[tblMigration] WHERE [Migration] = ?";
         try (var statement = targetConnection().prepareStatement(sql)) {
             statement.setString(1, migrationName);
             try (var resultSet = statement.executeQuery()) {
                 if (!resultSet.next()) {
                     return true;
                 }
-                return 0 == resultSet.getLong(1);
+                final var recordedChecksum = resultSet.getString(1);
+                if (!checksum.equals(recordedChecksum)) {
+                    throw new DatabaseException("Migration checksum mismatch for " + migrationName);
+                }
+                return false;
             }
         } catch (final SQLException sqle) {
             throw new DatabaseException("Failed to query migration state", sqle);
@@ -401,14 +436,23 @@ public final class SqlServerDbDriver implements DbDriver {
     }
 
     @Override
-    public void markMigrationAsRun(final String migrationName) {
-        final var sql = "INSERT INTO [dbo].[tblMigration]([Migration],[AppliedAt]) VALUES (?, GETDATE())";
+    public void recordMigration(final String migrationName, final String checksum) {
+        final var sql = "INSERT INTO [dbo].[tblMigration]([Migration],[Checksum]) VALUES (?, ?)";
         try (var statement = targetConnection().prepareStatement(sql)) {
             statement.setString(1, migrationName);
+            statement.setString(2, checksum);
             statement.executeUpdate();
         } catch (final SQLException sqle) {
             throw new DatabaseException("Failed to record migration", sqle);
         }
+    }
+
+    @Override
+    public void applyMigration(final String migrationName, final String checksum, final Runnable action) {
+        inMigrationTransaction(() -> {
+            action.run();
+            recordMigration(migrationName, checksum);
+        });
     }
 
     @Override
@@ -496,6 +540,32 @@ public final class SqlServerDbDriver implements DbDriver {
         }
     }
 
+    private boolean columnExists(final String schemaName, final String tableName, final String columnName) {
+        final var sql = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?"
+                + " AND COLUMN_NAME = ?";
+        try (var statement = targetConnection().prepareStatement(sql)) {
+            statement.setString(1, schemaName);
+            statement.setString(2, tableName);
+            statement.setString(3, columnName);
+            try (var resultSet = statement.executeQuery()) {
+                return resultSet.next() && resultSet.getLong(1) > 0;
+            }
+        } catch (final SQLException sqle) {
+            throw new DatabaseException("Failed to query column metadata", sqle);
+        }
+    }
+
+    private @Nullable String databaseVersion() {
+        final var sql = "SELECT CAST([value] AS NVARCHAR(4000)) FROM sys.extended_properties"
+                + " WHERE [class] = 0 AND [name] = N'DatabaseSchemaVersion'";
+        try (var statement = targetConnection().prepareStatement(sql);
+                var resultSet = statement.executeQuery()) {
+            return resultSet.next() ? resultSet.getString(1) : null;
+        } catch (final SQLException sqle) {
+            throw new DatabaseException("Failed to query database schema version", sqle);
+        }
+    }
+
     private boolean hasIdentityColumn(final String tableName) {
         final var sql =
                 "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMNPROPERTY(OBJECT_ID(?), COLUMN_NAME,"
@@ -540,6 +610,52 @@ public final class SqlServerDbDriver implements DbDriver {
             targetConnection = connect(false);
         }
         return targetConnection;
+    }
+
+    private void inMigrationTransaction(final Runnable action) {
+        final var connection = targetConnection();
+        try {
+            if (!connection.getAutoCommit()) {
+                throw new DatabaseException("Migration operation requires an auto-commit connection");
+            }
+            connection.setAutoCommit(false);
+        } catch (final SQLException sqle) {
+            throw new DatabaseException("Failed to begin migration transaction", sqle);
+        }
+
+        @Nullable Throwable failure = null;
+        try {
+            action.run();
+            connection.commit();
+        } catch (final SQLException sqle) {
+            final var commitFailure = new DatabaseException("Failed to commit migration transaction", sqle);
+            failure = commitFailure;
+            rollbackMigration(connection, commitFailure);
+            throw commitFailure;
+        } catch (final RuntimeException | Error e) {
+            failure = e;
+            rollbackMigration(connection, failure);
+            throw e;
+        } finally {
+            try {
+                connection.setAutoCommit(true);
+            } catch (final SQLException sqle) {
+                final var restoreFailure = new DatabaseException("Failed to restore auto-commit after migration", sqle);
+                if (null != failure) {
+                    failure.addSuppressed(restoreFailure);
+                } else {
+                    throw restoreFailure;
+                }
+            }
+        }
+    }
+
+    private static void rollbackMigration(final Connection connection, final Throwable failure) {
+        try {
+            connection.rollback();
+        } catch (final SQLException sqle) {
+            failure.addSuppressed(new DatabaseException("Failed to roll back migration transaction", sqle));
+        }
     }
 
     private Connection controlConnection() {

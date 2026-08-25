@@ -36,6 +36,23 @@ A resolved database asset backed either by a file beneath the [Resource Root](#r
 
 A deterministic CSV observation of approximate row counts and physical used-page counts for every table and physical index declared by [Repository Metadata](#repository-metadata). It validates the live database against the modeled identities and excludes database-only objects.
 
+## Database evolution
+
+### Migration
+
+An ordered `.sql` [Database Resource](#database-resource) beneath the configured `migrationDir`. Its base filename is
+its durable identity and its exact UTF-8 content determines its checksum.
+
+### Release Migration
+
+A [Migration](#migration) named with a `Release-<version>` suffix after its ordering prefix. It identifies the point
+represented by a live database's `DatabaseSchemaVersion` when migration state is first initialized.
+
+### Migration State
+
+The target database's unique record of applied [Migrations](#migration), including each Migration's identity,
+checksum, and application time.
+
 ## Import behavior
 
 ### Import Definition
@@ -88,4 +105,5 @@ A table or sequence YAML file under a named dataset. It is loaded only by an exp
 
 The durable behavior behind these terms is specified in [Database Imports](../specs/database-imports.md),
 [Database Import Timing](../specs/database-import-timing.md), and
-[Database Statistics Export](../specs/database-statistics.md).
+[Database Statistics Export](../specs/database-statistics.md). Migration behavior is specified in
+[Database Migrations](../specs/database-migrations.md).

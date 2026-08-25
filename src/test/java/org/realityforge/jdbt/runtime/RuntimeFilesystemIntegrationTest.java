@@ -18,6 +18,7 @@ import org.realityforge.jdbt.db.DatabaseConnection;
 import org.realityforge.jdbt.db.DatabaseMetadata;
 import org.realityforge.jdbt.db.DbDriver;
 import org.realityforge.jdbt.db.ImportMaintenanceObserver;
+import org.realityforge.jdbt.db.MigrationStatus;
 import org.realityforge.jdbt.db.QueryResult;
 import org.realityforge.jdbt.db.SqlTimingObserver;
 import org.realityforge.jdbt.files.FileResolver;
@@ -295,19 +296,31 @@ final class RuntimeFilesystemIntegrationTest {
         }
 
         @Override
-        public void setupMigrations() {
-            events.add("setup-migrations");
+        public MigrationStatus prepareMigrations() {
+            events.add("prepare-migrations");
+            return new MigrationStatus(true, null);
         }
 
         @Override
-        public boolean shouldMigrate(final String migrationName) {
+        public void initializeMigrationState(final Map<String, String> migrations) {
+            events.add("initialize-migrations:" + migrations.keySet());
+        }
+
+        @Override
+        public boolean shouldMigrate(final String migrationName, final String checksum) {
             events.add("should-migrate:" + migrationName);
             return true;
         }
 
         @Override
-        public void markMigrationAsRun(final String migrationName) {
-            events.add("mark-migration:" + migrationName);
+        public void recordMigration(final String migrationName, final String checksum) {
+            events.add("record-migration:" + migrationName);
+        }
+
+        @Override
+        public void applyMigration(final String migrationName, final String checksum, final Runnable action) {
+            action.run();
+            recordMigration(migrationName, checksum);
         }
 
         @Override

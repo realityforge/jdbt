@@ -21,6 +21,7 @@ import org.realityforge.jdbt.db.DatabaseException;
 import org.realityforge.jdbt.db.DatabaseMetadata;
 import org.realityforge.jdbt.db.DbDriver;
 import org.realityforge.jdbt.db.ImportMaintenanceObserver;
+import org.realityforge.jdbt.db.MigrationStatus;
 import org.realityforge.jdbt.db.QueryResult;
 import org.realityforge.jdbt.db.SqlTimingObserver;
 import org.realityforge.jdbt.repository.RepositoryConfig;
@@ -292,15 +293,25 @@ final class SqlServerDatabaseStatisticsExporterTest {
         }
 
         @Override
-        public void setupMigrations() {}
+        public MigrationStatus prepareMigrations() {
+            return new MigrationStatus(true, null);
+        }
 
         @Override
-        public boolean shouldMigrate(final String migrationName) {
+        public void initializeMigrationState(final Map<String, String> migrations) {}
+
+        @Override
+        public boolean shouldMigrate(final String migrationName, final String checksum) {
             return false;
         }
 
         @Override
-        public void markMigrationAsRun(final String migrationName) {}
+        public void recordMigration(final String migrationName, final String checksum) {}
+
+        @Override
+        public void applyMigration(final String migrationName, final String checksum, final Runnable action) {
+            action.run();
+        }
 
         @Override
         public String generateStandardImportSql(

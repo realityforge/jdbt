@@ -15,6 +15,7 @@ java_library(
         "DatabaseMetadata.java",
         "DbDriver.java",
         "ImportMaintenanceObserver.java",
+        "MigrationStatus.java",
         "QueryResult.java",
         "SqlTimingObservation.java",
         "SqlTimingObserver.java",
