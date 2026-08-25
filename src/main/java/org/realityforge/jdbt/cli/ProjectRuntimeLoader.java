@@ -11,7 +11,6 @@ import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 import org.realityforge.jdbt.config.ConfigException;
 import org.realityforge.jdbt.config.JdbtProjectConfigLoader;
@@ -50,12 +49,13 @@ final class ProjectRuntimeLoader {
             throw new ConfigException(PROJECT_CONFIG_FILE + " not found in project directory " + projectDirectory);
         }
         final var projectYaml = readFile(projectConfigFile);
-        final var bootstrapDatabase = loadBootstrap(projectYaml);
+        final var parsedProjectConfig = projectConfigLoader.parse(projectYaml, PROJECT_CONFIG_FILE);
+        final var bootstrapDatabase = loadBootstrap(parsedProjectConfig.root());
 
         final var preDbArtifacts = loadArtifacts(bootstrapDatabase.preDbArtifacts());
         final var postDbArtifacts = loadArtifacts(bootstrapDatabase.postDbArtifacts());
         final var repository = loadRepository(preDbArtifacts, postDbArtifacts);
-        final var projectConfig = projectConfigLoader.load(projectYaml, PROJECT_CONFIG_FILE, repository.modules());
+        final var projectConfig = projectConfigLoader.load(parsedProjectConfig, repository.modules());
         final var database = projectConfig.database();
         final var resourceRoot = resolveResourceRoot(projectConfig.resourceRoot());
 
@@ -78,39 +78,7 @@ final class ProjectRuntimeLoader {
         load();
     }
 
-    private static BootstrapDatabase loadBootstrap(final String yaml) {
-        final var root = YamlMapSupport.parseRoot(yaml, PROJECT_CONFIG_FILE);
-        YamlMapSupport.assertKeys(
-                root,
-                Set.of(
-                        "upDirs",
-                        "downDirs",
-                        "finalizeDirs",
-                        "preCreateDirs",
-                        "postCreateDirs",
-                        "datasets",
-                        "datasetsDirName",
-                        "preDatasetDirs",
-                        "postDatasetDirs",
-                        "fixtureDirName",
-                        "migrations",
-                        "migrationsAppliedAtCreate",
-                        "migrationsDirName",
-                        "version",
-                        "dataPath",
-                        "logPath",
-                        "forceDrop",
-                        "deleteBackupHistory",
-                        "reindexOnImport",
-                        "shrinkOnImport",
-                        "preDbArtifacts",
-                        "postDbArtifacts",
-                        "filterProperties",
-                        "imports",
-                        "moduleGroups",
-                        "resourceRoot"),
-                PROJECT_CONFIG_FILE);
-
+    private static BootstrapDatabase loadBootstrap(final Map<String, Object> root) {
         final var preDbArtifacts =
                 YamlMapSupport.optionalStringList(root, "preDbArtifacts", PROJECT_CONFIG_FILE, List.of());
         final var postDbArtifacts =

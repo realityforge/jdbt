@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Objects;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import org.junit.jupiter.api.Test;
@@ -129,6 +130,8 @@ final class ProjectRuntimeLoaderTest {
         writeFile(tempDir, "jdbt.yml", """
             preDbArtifacts: [pre.zip]
             postDbArtifacts: [post.zip]
+            imports:
+              default: {}
             """);
         writeFile(tempDir, "repository.yml", """
             modules:
@@ -152,6 +155,9 @@ final class ProjectRuntimeLoaderTest {
         final var runtime = new ProjectRuntimeLoader(tempDir).load();
 
         assertThat(runtime.database().repository().modules()).containsExactly("Pre", "Local", "Post");
+        assertThat(Objects.requireNonNull(runtime.database().imports().get("default"))
+                        .modules())
+                .containsExactly("Pre", "Local", "Post");
         assertThat(runtime.database().preDbArtifacts()).hasSize(1);
         assertThat(runtime.database().postDbArtifacts()).hasSize(1);
         assertThat(runtime.database().schemaHash()).isNotBlank();

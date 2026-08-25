@@ -7,6 +7,33 @@ import java.util.Map;
 import java.util.Set;
 
 public final class JdbtProjectConfigLoader {
+    private static final Set<String> SUPPORTED_KEYS = Set.of(
+            "upDirs",
+            "downDirs",
+            "finalizeDirs",
+            "preCreateDirs",
+            "postCreateDirs",
+            "datasets",
+            "datasetsDirName",
+            "preDatasetDirs",
+            "postDatasetDirs",
+            "fixtureDirName",
+            "migrations",
+            "migrationsAppliedAtCreate",
+            "migrationsDirName",
+            "version",
+            "dataPath",
+            "logPath",
+            "forceDrop",
+            "deleteBackupHistory",
+            "reindexOnImport",
+            "shrinkOnImport",
+            "preDbArtifacts",
+            "postDbArtifacts",
+            "filterProperties",
+            "imports",
+            "moduleGroups",
+            "resourceRoot");
     private static final List<String> DEFAULT_UP_DIRS =
             List.of(".", "types", "views", "functions", "stored-procedures", "misc");
     private static final List<String> DEFAULT_DOWN_DIRS = List.of("down");
@@ -25,39 +52,15 @@ public final class JdbtProjectConfigLoader {
             Set.of("sourceDatabase", "targetDatabase", "table");
     private static final Set<String> RESERVED_FILTER_PATTERNS = Set.of("__SOURCE__", "__TARGET__", "__TABLE__");
 
-    public JdbtProjectConfig load(final String yaml, final String sourceName, final List<String> repositoryModules) {
+    public ParsedProjectConfig parse(final String yaml, final String sourceName) {
         final var root = YamlMapSupport.parseRoot(yaml, sourceName);
-        YamlMapSupport.assertKeys(
-                root,
-                Set.of(
-                        "upDirs",
-                        "downDirs",
-                        "finalizeDirs",
-                        "preCreateDirs",
-                        "postCreateDirs",
-                        "datasets",
-                        "datasetsDirName",
-                        "preDatasetDirs",
-                        "postDatasetDirs",
-                        "fixtureDirName",
-                        "migrations",
-                        "migrationsAppliedAtCreate",
-                        "migrationsDirName",
-                        "version",
-                        "dataPath",
-                        "logPath",
-                        "forceDrop",
-                        "deleteBackupHistory",
-                        "reindexOnImport",
-                        "shrinkOnImport",
-                        "preDbArtifacts",
-                        "postDbArtifacts",
-                        "filterProperties",
-                        "imports",
-                        "moduleGroups",
-                        "resourceRoot"),
-                sourceName);
+        YamlMapSupport.assertKeys(root, SUPPORTED_KEYS, sourceName);
+        return new ParsedProjectConfig(root, sourceName);
+    }
 
+    public JdbtProjectConfig load(final ParsedProjectConfig parsed, final List<String> repositoryModules) {
+        final var root = parsed.root();
+        final var sourceName = parsed.sourceName();
         final var database = loadDatabase(root, repositoryModules, sourceName);
         final var resourceRoot = YamlMapSupport.optionalString(root, "resourceRoot", sourceName);
         return new JdbtProjectConfig(database, null == resourceRoot ? "." : resourceRoot);
@@ -66,37 +69,6 @@ public final class JdbtProjectConfigLoader {
     private static DatabaseConfig loadDatabase(
             final Map<String, Object> body, final List<String> repositoryModules, final String sourceName) {
         final var path = sourceName;
-        YamlMapSupport.assertKeys(
-                body,
-                Set.of(
-                        "upDirs",
-                        "downDirs",
-                        "finalizeDirs",
-                        "preCreateDirs",
-                        "postCreateDirs",
-                        "datasets",
-                        "datasetsDirName",
-                        "preDatasetDirs",
-                        "postDatasetDirs",
-                        "fixtureDirName",
-                        "migrations",
-                        "migrationsAppliedAtCreate",
-                        "migrationsDirName",
-                        "version",
-                        "dataPath",
-                        "logPath",
-                        "forceDrop",
-                        "deleteBackupHistory",
-                        "reindexOnImport",
-                        "shrinkOnImport",
-                        "preDbArtifacts",
-                        "postDbArtifacts",
-                        "filterProperties",
-                        "imports",
-                        "moduleGroups",
-                        "resourceRoot"),
-                path);
-
         final var migrationsValue = YamlMapSupport.optionalBoolean(body, "migrations", path);
         final var migrations = migrationsValue != null && migrationsValue;
         final var migrationsAppliedAtCreate = YamlMapSupport.optionalBoolean(body, "migrationsAppliedAtCreate", path);
@@ -327,6 +299,12 @@ public final class JdbtProjectConfigLoader {
                         + repositoryModules
                         + '.');
             }
+        }
+    }
+
+    public record ParsedProjectConfig(Map<String, Object> root, String sourceName) {
+        public ParsedProjectConfig {
+            root = Collections.unmodifiableMap(new LinkedHashMap<>(root));
         }
     }
 }
