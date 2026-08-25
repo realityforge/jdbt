@@ -4,22 +4,20 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import org.jspecify.annotations.Nullable;
 import org.snakeyaml.engine.v2.api.ConstructNode;
 import org.snakeyaml.engine.v2.api.Load;
 import org.snakeyaml.engine.v2.api.LoadSettings;
-import org.snakeyaml.engine.v2.constructor.StandardConstructor;
-import org.snakeyaml.engine.v2.nodes.MappingNode;
-import org.snakeyaml.engine.v2.nodes.Node;
-import org.snakeyaml.engine.v2.nodes.ScalarNode;
-import org.snakeyaml.engine.v2.nodes.SequenceNode;
+import org.snakeyaml.engine.v2.exceptions.YamlEngineException;
 import org.snakeyaml.engine.v2.nodes.Tag;
 
 public final class YamlMapSupport {
     private static final Tag LOCAL_OMAP_TAG = new Tag("!omap");
     private static final Tag YAML_OMAP_TAG = new Tag("tag:yaml.org,2002:omap");
+    private static final ConstructNode REJECT_ORDERED_MAP = ignored -> {
+        throw new ConfigException("Ordered-map YAML tags are not supported; use a plain map.");
+    };
 
     private YamlMapSupport() {}
 
@@ -32,15 +30,20 @@ public final class YamlMapSupport {
     }
 
     public static @Nullable Object parseDocument(final String yaml, final String sourceName) {
-        final var omapConstructor = new OmapConstructNode();
         final var settings = LoadSettings.builder()
                 .setAllowDuplicateKeys(false)
                 .setDefaultMap(LinkedHashMap::new)
-                .setTagConstructors(Map.of(LOCAL_OMAP_TAG, omapConstructor, YAML_OMAP_TAG, omapConstructor))
+                .setTagConstructors(Map.of(LOCAL_OMAP_TAG, REJECT_ORDERED_MAP, YAML_OMAP_TAG, REJECT_ORDERED_MAP))
                 .setLabel(sourceName)
                 .build();
-        omapConstructor.setSettings(settings);
-        return new Load(settings).loadFromString(yaml);
+        try {
+            return new Load(settings).loadFromString(yaml);
+        } catch (final YamlEngineException e) {
+            if (e.getCause() instanceof ConfigException configException) {
+                throw configException;
+            }
+            throw new ConfigException("Invalid YAML in " + sourceName + ": " + e.getMessage());
+        }
     }
 
     public static void assertKeys(final Map<String, Object> map, final Set<String> allowedKeys, final String path) {
@@ -147,57 +150,5 @@ public final class YamlMapSupport {
             result.add(text);
         }
         return List.copyOf(result);
-    }
-
-    private static final class OmapConstructNode implements ConstructNode {
-        private @Nullable LoadSettings settings;
-
-        @Override
-        public Object construct(final Node node) {
-            if (node instanceof SequenceNode sequenceNode) {
-                final var actualSettings = Objects.requireNonNull(settings);
-                return new SequenceConstructor(actualSettings).constructSequenceNode(sequenceNode);
-            }
-            if (node instanceof MappingNode mappingNode
-                    && mappingNode.getValue().isEmpty()) {
-                return new LinkedHashMap<>();
-            }
-            if (node instanceof ScalarNode scalarNode
-                    && ("[]".equals(scalarNode.getValue())
-                            || scalarNode.getValue().isBlank())) {
-                return new LinkedHashMap<>();
-            }
-            throw new ConfigException("Expected !omap value to be a YAML sequence but got "
-                    + node.getClass().getSimpleName() + '.');
-        }
-
-        private void setSettings(final LoadSettings settings) {
-            this.settings = settings;
-        }
-    }
-
-    private static final class SequenceConstructor extends StandardConstructor {
-        private SequenceConstructor(final LoadSettings settings) {
-            super(settings);
-        }
-
-        private Map<Object, Object> constructSequenceNode(final SequenceNode node) {
-            final var entries = constructSequence(node);
-            final var result = new LinkedHashMap<Object, Object>();
-            for (final var entry : entries) {
-                if (!(entry instanceof Map<?, ?> map)) {
-                    throw new ConfigException("Expected !omap entry to be a map.");
-                }
-                if (map.size() != 1) {
-                    throw new ConfigException("Expected !omap entry to contain exactly one key.");
-                }
-                final var mapEntry = map.entrySet().iterator().next();
-                if (result.containsKey(mapEntry.getKey())) {
-                    throw new ConfigException("Duplicate !omap key '" + mapEntry.getKey() + "'.");
-                }
-                result.put(mapEntry.getKey(), mapEntry.getValue());
-            }
-            return result;
-        }
     }
 }

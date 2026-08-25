@@ -163,12 +163,9 @@ These keys mirror Ruby SQL Server runtime behavior and are ignored by non-SQL Se
 
 The Repository Descriptor, `repository.yml`, defines Database Module ordering, table ordering, ordered SQL columns, physical index identities, Row Sources, sequence ordering, and optional schema overrides.
 
-Supported shapes:
+`modules` must be a plain YAML map. Ordered-map tags and list-shaped module maps are not supported.
 
-- map style
-- list/omap style
-
-Map style example:
+Example:
 
 ```yaml
 modules:
@@ -186,26 +183,6 @@ modules:
         indexes: ['[PK_Invoice]']
         rowSource: deployment
     sequences: []
-```
-
-List style example:
-
-```yaml
-modules:
-  - Core:
-      schema: Core
-      tables:
-        - name: '[Core].[tblA]'
-          columns: ['[ID]', '[Name]']
-          indexes: ['[PK_A]', '[IX_A_Name]']
-      sequences: []
-  - Billing:
-      tables:
-        - name: '[Billing].[tblInvoice]'
-          columns: ['[InvoiceID]', '[Amount]']
-          indexes: ['[PK_Invoice]']
-          rowSource: deployment
-      sequences: []
 ```
 
 Each table requires a qualified `name`, a non-empty ordered list of unique quoted SQL `columns`, and an ordered list of unique quoted physical SQL `indexes`. The index list may be empty. Optional `rowSource` is `import` or `deployment` and defaults to `import`. If `schema` is omitted, the Database Module name is used.

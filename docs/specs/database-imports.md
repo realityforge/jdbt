@@ -11,6 +11,8 @@ Each table in a [Repository Descriptor](../glossary/README.md#repository-descrip
 - a mandatory ordered list of unique quoted physical SQL `indexes`; and
 - an optional `rowSource`, whose values are `import` and `deployment` and whose default is `import`.
 
+The descriptor's `modules` value is a plain YAML map. Ordered-map tags and list-shaped module maps are invalid. YAML row-data files also reject ordered-map tags; ordinary mappings retain insertion order.
+
 [Database Module](../glossary/README.md#database-module), table, column, and sequence order are significant. [Repository Metadata](../glossary/README.md#repository-metadata) is composed module-atomically in pre-artifact, local-project, then post-artifact order. [Database Artifact](../glossary/README.md#database-artifact) packaging must preserve the complete merged model.
 
 ## Resource resolution

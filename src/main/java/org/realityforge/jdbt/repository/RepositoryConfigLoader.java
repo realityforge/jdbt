@@ -26,9 +26,6 @@ public final class RepositoryConfigLoader {
         final var sequenceMap = new LinkedHashMap<String, List<String>>();
 
         for (final var entry : entries) {
-            if (tableMap.containsKey(entry.name)) {
-                throw new ConfigException("Duplicate repository module '" + entry.name + "' in " + sourceName + '.');
-            }
             modules.add(entry.name);
             tableMap.put(entry.name, entry.tables);
             sequenceMap.put(entry.name, entry.sequences);
@@ -41,34 +38,15 @@ public final class RepositoryConfigLoader {
     }
 
     private static List<ModuleEntry> parseModuleEntries(final Object modulesValue, final String path) {
-        if (modulesValue instanceof List<?> list) {
-            final var entries = new ArrayList<ModuleEntry>(list.size());
-            for (int i = 0; i < list.size(); i++) {
-                final var element = list.get(i);
-                if (!(element instanceof Map<?, ?> map)) {
-                    throw new ConfigException("Expected module map at " + path + '[' + i + "].");
-                }
-                final var asStringMap = YamlMapSupport.toStringMap(map, path + '[' + i + ']');
-                if (asStringMap.size() != 1) {
-                    throw new ConfigException("Expected single module entry at " + path + '[' + i + "].");
-                }
-                final var moduleName = asStringMap.keySet().iterator().next();
-                final var moduleBody = asStringMap.values().iterator().next();
-                entries.add(parseModule(moduleName, moduleBody, path + '[' + i + ']'));
-            }
-            return entries;
+        if (!(modulesValue instanceof Map<?, ?> map)) {
+            throw new ConfigException("Expected map for " + path + '.');
         }
-
-        if (modulesValue instanceof Map<?, ?> map) {
-            final var moduleMap = YamlMapSupport.toStringMap(map, path);
-            final var entries = new ArrayList<ModuleEntry>(moduleMap.size());
-            for (final var entry : moduleMap.entrySet()) {
-                entries.add(parseModule(entry.getKey(), entry.getValue(), path + '.' + entry.getKey()));
-            }
-            return entries;
+        final var moduleMap = YamlMapSupport.toStringMap(map, path);
+        final var entries = new ArrayList<ModuleEntry>(moduleMap.size());
+        for (final var entry : moduleMap.entrySet()) {
+            entries.add(parseModule(entry.getKey(), entry.getValue(), path + '.' + entry.getKey()));
         }
-
-        throw new ConfigException("Expected list or map for " + path + '.');
+        return entries;
     }
 
     private static ModuleEntry parseModule(final String moduleName, final Object moduleBody, final String path) {

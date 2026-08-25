@@ -3,7 +3,6 @@ package org.realityforge.jdbt.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.realityforge.jdbt.config.ConfigException;
 
@@ -11,73 +10,15 @@ final class RepositoryConfigLoaderTest {
     private final RepositoryConfigLoader loader = new RepositoryConfigLoader();
 
     @Test
-    void loadSupportsOmapListStyle() {
-        final var config = loader.load("""
+    void loadRejectsModuleLists() {
+        assertThatThrownBy(() -> loader.load("""
             modules:
               - Core:
-                  schema: Core
-                  tables:
-                    - name: '[Core].[tblA]'
-                      columns:
-                        - '[ID]'
-                      indexes:
-                        - '[PK_A]'
-                  sequences:
-                    - '[Core].[tblASeq]'
-              - Geo:
-                  schema: G
-                  tables:
-                    - name: '[G].[tblB]'
-                      columns:
-                        - '[ID]'
-                      indexes: []
-                      rowSource: deployment
+                  tables: []
                   sequences: []
-            """, "repository.yml");
-
-        assertThat(config.modules()).containsExactly("Core", "Geo");
-        assertThat(config.schemaOverrides()).containsEntry("Geo", "G");
-        assertThat(config.tablesForModule("Core"))
-                .containsExactly(
-                        new RepositoryTable("[Core].[tblA]", List.of("[ID]"), List.of("[PK_A]"), RowSource.IMPORT));
-        assertThat(config.tablesForModule("Geo"))
-                .containsExactly(new RepositoryTable("[G].[tblB]", List.of("[ID]"), List.of(), RowSource.DEPLOYMENT));
-        assertThat(config.sequenceMap().get("Core")).containsExactly("[Core].[tblASeq]");
-        assertThat(config.sequenceMap().get("Geo")).isEmpty();
-    }
-
-    @Test
-    void loadSupportsTaggedOmapStyleFromRubyDbt() {
-        final var config = loader.load("""
-            ---
-            modules: !omap
-            - CodeMetrics:
-                schema: CodeMetrics
-                tables:
-                - name: '[CodeMetrics].[tblCollection]'
-                  columns:
-                  - '[ID]'
-                  indexes: []
-                - name: '[CodeMetrics].[tblMethodMetric]'
-                  columns:
-                  - '[ID]'
-                  indexes: []
-                sequences:
-                - '[CodeMetrics].[tblCollection_IDSeq]'
-            - Geo:
-                schema: Geo
-                tables:
-                - name: '[Geo].[tblMobilePOI]'
-                  columns:
-                  - '[ID]'
-                  indexes: []
-                sequences: []
-            """, "repository.yml");
-
-        assertThat(config.modules()).containsExactly("CodeMetrics", "Geo");
-        assertThat(config.tableOrdering("CodeMetrics"))
-                .containsExactly("[CodeMetrics].[tblCollection]", "[CodeMetrics].[tblMethodMetric]");
-        assertThat(config.sequenceMap().get("CodeMetrics")).containsExactly("[CodeMetrics].[tblCollection_IDSeq]");
+            """, "repository.yml"))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("Expected map for repository.yml.modules");
     }
 
     @Test
@@ -122,24 +63,24 @@ final class RepositoryConfigLoaderTest {
     void loadRejectsDuplicateModules() {
         assertThatThrownBy(() -> loader.load("""
             modules:
-              - Core:
-                  schema: Core
-                  tables: []
-              - Core:
-                  schema: Core
-                  tables: []
+              Core:
+                schema: Core
+                tables: []
+              Core:
+                schema: Core
+                tables: []
             """, "repository.yml"))
                 .isInstanceOf(ConfigException.class)
-                .hasMessageContaining("Duplicate repository module");
+                .hasMessageContaining("duplicate key Core");
     }
 
     @Test
     void loadRejectsUnknownModuleKey() {
         assertThatThrownBy(() -> loader.load("""
             modules:
-              - Core:
-                  schema: Core
-                  unknown: true
+              Core:
+                schema: Core
+                unknown: true
             """, "repository.yml"))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("Unknown key 'unknown'");
@@ -149,14 +90,14 @@ final class RepositoryConfigLoaderTest {
     void loadRejectsUnexpectedModulesNodeType() {
         assertThatThrownBy(() -> loader.load("modules: true", "repository.yml"))
                 .isInstanceOf(ConfigException.class)
-                .hasMessageContaining("Expected list or map");
+                .hasMessageContaining("Expected map");
     }
 
     @Test
     void loadRejectsModuleBodyWhenNotMap() {
         assertThatThrownBy(() -> loader.load("""
             modules:
-              - Core: true
+              Core: true
             """, "repository.yml"))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("Expected map body for module 'Core'");
