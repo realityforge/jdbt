@@ -265,6 +265,13 @@ final class DatabaseDataPackagerTest {
                 "migrations",
                 "1",
                 "hash",
+                null,
+                null,
+                false,
+                true,
+                true,
+                false,
+                Map.of(),
                 imports,
                 Map.of("group", new ModuleGroupConfig("group", List.of("MyModule"), false)));
     }
@@ -273,7 +280,9 @@ final class DatabaseDataPackagerTest {
         return new RepositoryConfig(
                 List.of("MyModule"),
                 Map.of(),
-                Map.of("MyModule", List.of(new RepositoryTable("[MyModule].[foo]", List.of("[ID]")))),
+                Map.of(
+                        "MyModule",
+                        List.of(new RepositoryTable("[MyModule].[foo]", List.of("[ID]"), List.of(), RowSource.IMPORT))),
                 Map.of("MyModule", List.of()));
     }
 

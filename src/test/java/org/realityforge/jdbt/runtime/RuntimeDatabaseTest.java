@@ -11,6 +11,7 @@ import org.realityforge.jdbt.config.ModuleGroupConfig;
 import org.realityforge.jdbt.files.ArtifactContent;
 import org.realityforge.jdbt.repository.RepositoryConfig;
 import org.realityforge.jdbt.repository.RepositoryTable;
+import org.realityforge.jdbt.repository.RowSource;
 
 final class RuntimeDatabaseTest {
     @Test
@@ -18,14 +19,16 @@ final class RuntimeDatabaseTest {
         final var repository = new RepositoryConfig(
                 List.of("Core"),
                 Map.of("Core", "C"),
-                Map.of("Core", List.of(new RepositoryTable("[C].[tblA]", List.of("[ID]")))),
+                Map.of(
+                        "Core",
+                        List.of(new RepositoryTable("[C].[tblA]", List.of("[ID]"), List.of(), RowSource.IMPORT))),
                 Map.of("Core", List.of("[C].[seqA]")));
         final var database = runtimeDatabase(repository, List.of(), List.of());
 
         assertThat(database.schemaNameForModule("Core")).isEqualTo("C");
         assertThat(database.tableOrdering("Core")).containsExactly("[C].[tblA]");
         assertThat(database.tablesForModule("Core"))
-                .containsExactly(new RepositoryTable("[C].[tblA]", List.of("[ID]")));
+                .containsExactly(new RepositoryTable("[C].[tblA]", List.of("[ID]"), List.of(), RowSource.IMPORT));
         assertThat(database.sequenceOrdering("Core")).containsExactly("[C].[seqA]");
         assertThat(database.orderedElementsForModule("Core")).containsExactly("[C].[tblA]", "[C].[seqA]");
         assertThat(database.filterProperties()).isEmpty();
@@ -70,6 +73,13 @@ final class RuntimeDatabaseTest {
                 "migrations",
                 "1",
                 "hash",
+                null,
+                null,
+                false,
+                true,
+                true,
+                false,
+                Map.of(),
                 Map.of("default", new ImportConfig("default", repository.modules(), "import", List.of(), List.of())),
                 Map.of("grp", new ModuleGroupConfig("grp", repository.modules(), false)));
     }

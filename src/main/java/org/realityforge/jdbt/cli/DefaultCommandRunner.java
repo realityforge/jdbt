@@ -10,8 +10,9 @@ import java.util.Map;
 import java.util.function.Consumer;
 import org.jspecify.annotations.Nullable;
 import org.realityforge.jdbt.db.DatabaseConnection;
-import org.realityforge.jdbt.db.DbDriverFactory;
+import org.realityforge.jdbt.db.DbDriver;
 import org.realityforge.jdbt.db.sqlserver.SqlServerDatabaseStatisticsExporter;
+import org.realityforge.jdbt.db.sqlserver.SqlServerDbDriver;
 import org.realityforge.jdbt.files.FileResolver;
 import org.realityforge.jdbt.packaging.DatabaseDataPackager;
 import org.realityforge.jdbt.packaging.DeterministicZipPackager;
@@ -23,19 +24,17 @@ import org.realityforge.jdbt.runtime.StandardImportEmitter;
 final class DefaultCommandRunner implements CommandRunner {
     private static final String DEFAULT_IMPORT_KEY = "default";
     private final ProjectRuntimeLoader projectRuntimeLoader;
-    private final DbDriverFactory dbDriverFactory;
+    private final DbDriver dbDriver;
     private final FileResolver fileResolver;
 
     DefaultCommandRunner(final ProjectRuntimeLoader projectRuntimeLoader) {
-        this(projectRuntimeLoader, new DbDriverFactory(), new FileResolver());
+        this(projectRuntimeLoader, new SqlServerDbDriver(), new FileResolver());
     }
 
     DefaultCommandRunner(
-            final ProjectRuntimeLoader projectRuntimeLoader,
-            final DbDriverFactory dbDriverFactory,
-            final FileResolver fileResolver) {
+            final ProjectRuntimeLoader projectRuntimeLoader, final DbDriver dbDriver, final FileResolver fileResolver) {
         this.projectRuntimeLoader = projectRuntimeLoader;
-        this.dbDriverFactory = dbDriverFactory;
+        this.dbDriver = dbDriver;
         this.fileResolver = fileResolver;
     }
 
@@ -45,49 +44,43 @@ final class DefaultCommandRunner implements CommandRunner {
     }
 
     @Override
-    public void status(final String driver) {
+    public void status() {
         final var runtime = projectRuntimeLoader.load();
-        final var runtimeEngine = runtimeEngine(driver);
+        final var runtimeEngine = runtimeEngine();
         System.out.print(runtimeEngine.status(runtime.database()));
     }
 
     @Override
     public void create(
-            final String driver,
-            final DatabaseConnection target,
-            final boolean noCreate,
-            final Map<String, String> filterProperties) {
+            final DatabaseConnection target, final boolean noCreate, final Map<String, String> filterProperties) {
         final var runtime = projectRuntimeLoader.load();
-        runtimeEngine(driver).create(runtime.database(), target, noCreate, filterProperties);
+        runtimeEngine().create(runtime.database(), target, noCreate, filterProperties);
     }
 
     @Override
     public void createWithDataset(
-            final String driver,
             final DatabaseConnection target,
             final boolean noCreate,
             final String dataset,
             final Map<String, String> filterProperties) {
         final var runtime = projectRuntimeLoader.load();
-        runtimeEngine(driver).createWithDataset(runtime.database(), target, noCreate, dataset, filterProperties);
+        runtimeEngine().createWithDataset(runtime.database(), target, noCreate, dataset, filterProperties);
     }
 
     @Override
-    public void drop(final String driver, final DatabaseConnection target, final Map<String, String> filterProperties) {
+    public void drop(final DatabaseConnection target, final Map<String, String> filterProperties) {
         final var runtime = projectRuntimeLoader.load();
-        runtimeEngine(driver).drop(runtime.database(), target, filterProperties);
+        runtimeEngine().drop(runtime.database(), target, filterProperties);
     }
 
     @Override
-    public void migrate(
-            final String driver, final DatabaseConnection target, final Map<String, String> filterProperties) {
+    public void migrate(final DatabaseConnection target, final Map<String, String> filterProperties) {
         final var runtime = projectRuntimeLoader.load();
-        runtimeEngine(driver).migrate(runtime.database(), target, filterProperties);
+        runtimeEngine().migrate(runtime.database(), target, filterProperties);
     }
 
     @Override
     public void databaseImport(
-            final String driver,
             final @Nullable String importKey,
             final @Nullable String moduleGroup,
             final DatabaseConnection target,
@@ -100,7 +93,7 @@ final class DefaultCommandRunner implements CommandRunner {
         withImportTiming(
                 runtime,
                 timingOutput,
-                timing -> runtimeEngine(driver, timing)
+                timing -> runtimeEngine(timing)
                         .databaseImport(
                                 runtime.database(),
                                 resolvedImport,
@@ -113,7 +106,6 @@ final class DefaultCommandRunner implements CommandRunner {
 
     @Override
     public void createByImport(
-            final String driver,
             final @Nullable String importKey,
             final DatabaseConnection target,
             final DatabaseConnection source,
@@ -126,7 +118,7 @@ final class DefaultCommandRunner implements CommandRunner {
         withImportTiming(
                 runtime,
                 timingOutput,
-                timing -> runtimeEngine(driver, timing)
+                timing -> runtimeEngine(timing)
                         .createByImport(
                                 runtime.database(),
                                 resolvedImport,
@@ -139,32 +131,23 @@ final class DefaultCommandRunner implements CommandRunner {
 
     @Override
     public void loadDataset(
-            final String driver,
-            final String dataset,
-            final DatabaseConnection target,
-            final Map<String, String> filterProperties) {
+            final String dataset, final DatabaseConnection target, final Map<String, String> filterProperties) {
         final var runtime = projectRuntimeLoader.load();
-        runtimeEngine(driver).loadDataset(runtime.database(), dataset, target, filterProperties);
+        runtimeEngine().loadDataset(runtime.database(), dataset, target, filterProperties);
     }
 
     @Override
     public void upModuleGroup(
-            final String driver,
-            final String moduleGroup,
-            final DatabaseConnection target,
-            final Map<String, String> filterProperties) {
+            final String moduleGroup, final DatabaseConnection target, final Map<String, String> filterProperties) {
         final var runtime = projectRuntimeLoader.load();
-        runtimeEngine(driver).upModuleGroup(runtime.database(), moduleGroup, target, filterProperties);
+        runtimeEngine().upModuleGroup(runtime.database(), moduleGroup, target, filterProperties);
     }
 
     @Override
     public void downModuleGroup(
-            final String driver,
-            final String moduleGroup,
-            final DatabaseConnection target,
-            final Map<String, String> filterProperties) {
+            final String moduleGroup, final DatabaseConnection target, final Map<String, String> filterProperties) {
         final var runtime = projectRuntimeLoader.load();
-        runtimeEngine(driver).downModuleGroup(runtime.database(), moduleGroup, target, filterProperties);
+        runtimeEngine().downModuleGroup(runtime.database(), moduleGroup, target, filterProperties);
     }
 
     @Override
@@ -190,24 +173,21 @@ final class DefaultCommandRunner implements CommandRunner {
             final @Nullable String importKey, final @Nullable Path outputDirectory, final boolean replace) {
         final var runtime = projectRuntimeLoader.load();
         final var resolvedImport = resolveImportKey(runtime, importKey);
-        new StandardImportEmitter(dbDriverFactory.create("sqlserver"))
-                .emit(runtime.database(), resolvedImport, outputDirectory, replace);
+        new StandardImportEmitter(dbDriver).emit(runtime.database(), resolvedImport, outputDirectory, replace);
     }
 
     @Override
     public void verifyConstraints(
-            final String driver,
             final DatabaseConnection target,
             final List<String> schemas,
             final List<String> checkQueries,
             final Map<String, String> filterProperties) {
         final var runtime = projectRuntimeLoader.load();
-        runtimeEngine(driver).verifyConstraints(runtime.database(), target, schemas, checkQueries, filterProperties);
+        runtimeEngine().verifyConstraints(runtime.database(), target, schemas, checkQueries, filterProperties);
     }
 
     @Override
     public void exportFixtures(
-            final String driver,
             final DatabaseConnection target,
             final Path propertiesFile,
             final @Nullable String dataset,
@@ -215,19 +195,15 @@ final class DefaultCommandRunner implements CommandRunner {
             final Map<String, String> filterProperties) {
         final var runtime = projectRuntimeLoader.load();
         final var resolvedOutputDirectory = null == outputDirectory ? runtime.projectDirectory() : outputDirectory;
-        runtimeEngine(driver)
+        runtimeEngine()
                 .exportFixtures(
                         runtime.database(), target, propertiesFile, dataset, resolvedOutputDirectory, filterProperties);
     }
 
     @Override
-    public void exportDatabaseStatistics(final String driver, final DatabaseConnection target, final Path outputFile) {
-        if (!"sqlserver".equalsIgnoreCase(driver)) {
-            throw new RuntimeExecutionException(
-                    "Database statistics export only supports the sqlserver driver, not '" + driver + "'");
-        }
+    public void exportDatabaseStatistics(final DatabaseConnection target, final Path outputFile) {
         final var runtime = projectRuntimeLoader.load();
-        final var count = new SqlServerDatabaseStatisticsExporter(dbDriverFactory.create("sqlserver"))
+        final var count = new SqlServerDatabaseStatisticsExporter(dbDriver)
                 .export(runtime.database().repository(), target, outputFile);
         System.out.println("Exported " + count + " database statistics to "
                 + outputFile.toAbsolutePath().normalize());
@@ -245,13 +221,11 @@ final class DefaultCommandRunner implements CommandRunner {
         return DEFAULT_IMPORT_KEY;
     }
 
-    private RuntimeEngine runtimeEngine(final String driver) {
-        final var dbDriver = dbDriverFactory.create(driver);
+    private RuntimeEngine runtimeEngine() {
         return new RuntimeEngine(dbDriver, fileResolver);
     }
 
-    private RuntimeEngine runtimeEngine(final String driver, final ImportTimingRecorder timing) {
-        final var dbDriver = dbDriverFactory.create(driver);
+    private RuntimeEngine runtimeEngine(final ImportTimingRecorder timing) {
         return new RuntimeEngine(dbDriver, fileResolver, System.out::println, timing);
     }
 

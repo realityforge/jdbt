@@ -19,8 +19,9 @@ import org.realityforge.jdbt.config.ImportConfig;
 import org.realityforge.jdbt.db.DatabaseConnection;
 import org.realityforge.jdbt.db.DatabaseMetadata;
 import org.realityforge.jdbt.db.DbDriver;
-import org.realityforge.jdbt.db.DbDriverFactory;
+import org.realityforge.jdbt.db.ImportMaintenanceObserver;
 import org.realityforge.jdbt.db.QueryResult;
+import org.realityforge.jdbt.db.SqlTimingObserver;
 import org.realityforge.jdbt.files.FileResolver;
 import org.realityforge.jdbt.runtime.RuntimeExecutionException;
 
@@ -39,21 +40,21 @@ final class DefaultCommandRunnerTest {
         final var output = new ByteArrayOutputStream();
         try {
             System.setOut(new PrintStream(output, true, StandardCharsets.UTF_8));
-            runner.status("sqlserver");
+            runner.status();
         } finally {
             System.setOut(originalOut);
         }
 
-        runner.create("noop", target, true, Map.of());
-        runner.createWithDataset("noop", target, true, "seed", Map.of());
-        runner.drop("noop", target, Map.of());
-        runner.migrate("noop", target, Map.of());
-        runner.databaseImport("noop", null, null, target, source, null, null, Map.of());
-        runner.createByImport("noop", null, target, source, null, true, null, Map.of());
-        runner.loadDataset("noop", "seed", target, Map.of());
-        runner.upModuleGroup("noop", "all", target, Map.of());
-        runner.downModuleGroup("noop", "all", target, Map.of());
-        runner.verifyConstraints("noop", target, List.of("MyModule"), List.of(), Map.of());
+        runner.create(target, true, Map.of());
+        runner.createWithDataset(target, true, "seed", Map.of());
+        runner.drop(target, Map.of());
+        runner.migrate(target, Map.of());
+        runner.databaseImport(null, null, target, source, null, null, Map.of());
+        runner.createByImport(null, target, source, null, true, null, Map.of());
+        runner.loadDataset("seed", target, Map.of());
+        runner.upModuleGroup("all", target, Map.of());
+        runner.downModuleGroup("all", target, Map.of());
+        runner.verifyConstraints(target, List.of("MyModule"), List.of(), Map.of());
 
         assertThat(output.toString(StandardCharsets.UTF_8))
                 .contains("Database Version")
@@ -118,13 +119,12 @@ final class DefaultCommandRunnerTest {
                 consumer,
                 "jdbt.yml",
                 "postDbArtifacts: ['" + output + "']\nimports:\n  default:\n    modules: [MyModule]\n");
-        final var driverFactory = new RecordingDriverFactory();
-        final var runner =
-                new DefaultCommandRunner(new ProjectRuntimeLoader(consumer), driverFactory, new FileResolver());
+        final var driver = new RecordingDriver();
+        final var runner = new DefaultCommandRunner(new ProjectRuntimeLoader(consumer), driver, new FileResolver());
 
-        runner.databaseImport("recording", "default", null, target, source, null, null, Map.of());
+        runner.databaseImport("default", null, target, source, null, null, Map.of());
 
-        assertThat(driverFactory.driver.transcript()).isEqualTo("""
+        assertThat(driver.transcript()).isEqualTo("""
             open target
             sql:artifact pre
             sql:DELETE FROM [MyModule].[foo]
@@ -144,14 +144,12 @@ final class DefaultCommandRunnerTest {
         writeFile(tempDir, "jdbt.yml", projectConfig(false));
         writeFile(tempDir, "repository.yml", repositoryConfig());
         writeFile(tempDir, "fixtures.properties", "MyModule.foo=SELECT __TENANT__ AS ID, 'A' AS NAME\n");
-        final var driverFactory = new RecordingDriverFactory();
-        final var runner =
-                new DefaultCommandRunner(new ProjectRuntimeLoader(tempDir), driverFactory, new FileResolver());
+        final var driver = new RecordingDriver();
+        final var runner = new DefaultCommandRunner(new ProjectRuntimeLoader(tempDir), driver, new FileResolver());
 
-        runner.exportFixtures(
-                "recording", target, tempDir.resolve("fixtures.properties"), null, null, Map.of("tenant", "7"));
+        runner.exportFixtures(target, tempDir.resolve("fixtures.properties"), null, null, Map.of("tenant", "7"));
 
-        assertThat(driverFactory.driver.transcript()).isEqualTo("""
+        assertThat(driver.transcript()).isEqualTo("""
             open target
             query:SELECT 7 AS ID, 'A' AS NAME
             close
@@ -173,28 +171,15 @@ final class DefaultCommandRunnerTest {
         writeFile(projectDirectory, "repository.yml", repositoryConfig());
         writeFile(projectDirectory, "fixtures.properties", "MyModule.foo=SELECT 1 AS ID\n");
         Files.createDirectories(resourceRoot);
-        final var driverFactory = new RecordingDriverFactory();
+        final var driver = new RecordingDriver();
         final var runner =
-                new DefaultCommandRunner(new ProjectRuntimeLoader(projectDirectory), driverFactory, new FileResolver());
+                new DefaultCommandRunner(new ProjectRuntimeLoader(projectDirectory), driver, new FileResolver());
 
-        runner.exportFixtures(
-                "recording", target, projectDirectory.resolve("fixtures.properties"), null, null, Map.of());
+        runner.exportFixtures(target, projectDirectory.resolve("fixtures.properties"), null, null, Map.of());
 
         assertThat(projectDirectory.resolve("MyModule/fixtures/MyModule.foo.yml"))
                 .exists();
         assertThat(resourceRoot.resolve("MyModule/fixtures/MyModule.foo.yml")).doesNotExist();
-    }
-
-    @Test
-    void exportDatabaseStatisticsRejectsUnsupportedDriver(@TempDir final Path tempDir) {
-        assertThatThrownBy(() -> createRunner(tempDir)
-                        .exportDatabaseStatistics(
-                                "noop",
-                                new DatabaseConnection("localhost", 5432, "rose", "admin", "secret"),
-                                tempDir.resolve("statistics.csv")))
-                .isInstanceOf(RuntimeExecutionException.class)
-                .hasMessageContaining("only supports the sqlserver driver")
-                .hasMessageContaining("noop");
     }
 
     @Test
@@ -203,7 +188,7 @@ final class DefaultCommandRunnerTest {
         writeFile(tempDir, "repository.yml", repositoryConfig());
         final var runner = createRunner(tempDir);
 
-        assertThatThrownBy(() -> runner.databaseImport("sqlserver", null, null, target, source, null, null, Map.of()))
+        assertThatThrownBy(() -> runner.databaseImport(null, null, target, source, null, null, Map.of()))
                 .isInstanceOf(RuntimeExecutionException.class)
                 .hasMessageContaining("Unable to locate import definition by key");
     }
@@ -213,12 +198,10 @@ final class DefaultCommandRunnerTest {
         writeFile(tempDir, "jdbt.yml", projectConfig(false));
         writeFile(tempDir, "repository.yml", repositoryConfig());
         writeFile(tempDir, "evidence/import.ndjson", "stale timing\n");
-        final var driverFactory = new RecordingDriverFactory();
-        final var runner =
-                new DefaultCommandRunner(new ProjectRuntimeLoader(tempDir), driverFactory, new FileResolver());
+        final var driver = new RecordingDriver();
+        final var runner = new DefaultCommandRunner(new ProjectRuntimeLoader(tempDir), driver, new FileResolver());
 
-        runner.databaseImport(
-                "recording", null, null, target, source, null, Path.of("evidence/import.ndjson"), Map.of());
+        runner.databaseImport(null, null, target, source, null, Path.of("evidence/import.ndjson"), Map.of());
 
         assertThat(tempDir.resolve("evidence/import.ndjson"))
                 .content(StandardCharsets.UTF_8)
@@ -227,7 +210,7 @@ final class DefaultCommandRunnerTest {
                 .contains("\"parent_operation_id\":null");
 
         final var absoluteOutput = tempDir.resolve("absolute/create.ndjson").toAbsolutePath();
-        runner.createByImport("recording", null, target, source, null, true, absoluteOutput, Map.of());
+        runner.createByImport(null, target, source, null, true, absoluteOutput, Map.of());
 
         assertThat(absoluteOutput)
                 .content(StandardCharsets.UTF_8)
@@ -239,16 +222,15 @@ final class DefaultCommandRunnerTest {
         writeFile(tempDir, "jdbt.yml", projectConfig(false));
         writeFile(tempDir, "repository.yml", repositoryConfig());
         Files.createDirectories(tempDir.resolve("timing-directory"));
-        final var driverFactory = new RecordingDriverFactory();
-        final var runner =
-                new DefaultCommandRunner(new ProjectRuntimeLoader(tempDir), driverFactory, new FileResolver());
+        final var driver = new RecordingDriver();
+        final var runner = new DefaultCommandRunner(new ProjectRuntimeLoader(tempDir), driver, new FileResolver());
 
-        assertThatThrownBy(() -> runner.databaseImport(
-                        "recording", null, null, target, source, null, Path.of("timing-directory"), Map.of()))
+        assertThatThrownBy(() ->
+                        runner.databaseImport(null, null, target, source, null, Path.of("timing-directory"), Map.of()))
                 .isInstanceOf(RuntimeExecutionException.class)
                 .hasMessage("Unable to open import timing output")
                 .hasNoCause();
-        assertThat(driverFactory.driver.events).isEmpty();
+        assertThat(driver.events).isEmpty();
     }
 
     @Test
@@ -349,23 +331,7 @@ final class DefaultCommandRunnerTest {
     }
 
     private static DefaultCommandRunner createRunner(final Path tempDir) {
-        return new DefaultCommandRunner(new ProjectRuntimeLoader(tempDir), new TestDriverFactory(), new FileResolver());
-    }
-
-    private static final class TestDriverFactory extends DbDriverFactory {
-        @Override
-        public DbDriver create(final String driver) {
-            return super.create("noop");
-        }
-    }
-
-    private static final class RecordingDriverFactory extends DbDriverFactory {
-        private final RecordingDriver driver = new RecordingDriver();
-
-        @Override
-        public DbDriver create(final String driver) {
-            return this.driver;
-        }
+        return new DefaultCommandRunner(new ProjectRuntimeLoader(tempDir), new RecordingDriver(), new FileResolver());
     }
 
     private static final class RecordingDriver implements DbDriver {
@@ -398,7 +364,8 @@ final class DefaultCommandRunnerTest {
         public void dropSchema(final String schemaName, final List<String> tablesInDropOrder) {}
 
         @Override
-        public void execute(final String sql, final boolean executeInControlDatabase) {
+        public void execute(
+                final String sql, final boolean executeInControlDatabase, final SqlTimingObserver timingObserver) {
             events.add("sql:" + sql.trim());
         }
 
@@ -422,7 +389,10 @@ final class DefaultCommandRunnerTest {
 
         @Override
         public void postTableImport(
-                final DatabaseMetadata database, final ImportConfig importConfig, final String tableName) {
+                final DatabaseMetadata database,
+                final ImportConfig importConfig,
+                final String tableName,
+                final ImportMaintenanceObserver observer) {
             events.add("post-table:" + importConfig.key() + ':' + tableName);
         }
 
@@ -431,12 +401,16 @@ final class DefaultCommandRunnerTest {
                 final DatabaseMetadata database,
                 final ImportConfig importConfig,
                 final String moduleName,
-                final List<String> tablesInOrder) {
+                final List<String> tablesInOrder,
+                final ImportMaintenanceObserver observer) {
             events.add("post-module:" + importConfig.key() + ':' + moduleName);
         }
 
         @Override
-        public void postDatabaseImport(final DatabaseMetadata database, final ImportConfig importConfig) {
+        public void postDatabaseImport(
+                final DatabaseMetadata database,
+                final ImportConfig importConfig,
+                final ImportMaintenanceObserver observer) {
             events.add("post-import:" + importConfig.key());
         }
 

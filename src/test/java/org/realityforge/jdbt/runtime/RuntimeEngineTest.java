@@ -68,6 +68,13 @@ final class RuntimeEngineTest {
                 "migrations",
                 "2",
                 "abc",
+                null,
+                null,
+                false,
+                true,
+                true,
+                false,
+                Map.of(),
                 migrationsOn.imports(),
                 migrationsOn.moduleGroups());
 
@@ -296,7 +303,7 @@ final class RuntimeEngineTest {
                 Map.of(),
                 List.of("defaultDataset"),
                 Map.of("default", importConfig)));
-        final var driver = new RecordingDriver(false, true);
+        final var driver = new RecordingDriver(true);
         final var output = new StringWriter();
         final var clock = new AtomicLong();
         final var timing = new ImportTimingRecorder(output, () -> clock.getAndAdd(1_000L));
@@ -343,8 +350,7 @@ final class RuntimeEngineTest {
         final var output = new StringWriter();
         final var clock = new AtomicLong();
         final var timing = new ImportTimingRecorder(output, () -> clock.getAndAdd(1_000L));
-        final var engine =
-                new RuntimeEngine(new RecordingDriver(false, true), new FileResolver(), ignored -> {}, timing);
+        final var engine = new RuntimeEngine(new RecordingDriver(true), new FileResolver(), ignored -> {}, timing);
 
         engine.createByImport(database, "default", connection, sourceConnection, "MyModule.bar", false, Map.of());
 
@@ -386,7 +392,7 @@ final class RuntimeEngineTest {
             @Override
             public void execute(
                     final String sql, final boolean executeInControlDatabase, final SqlTimingObserver timingObserver) {
-                super.execute(sql, executeInControlDatabase);
+                super.execute(sql, executeInControlDatabase, timingObserver);
                 if ("TIMING".equals(sql.trim())) {
                     timingObserver.observe(new SqlTimingObservation(
                             1,
@@ -490,7 +496,7 @@ final class RuntimeEngineTest {
             @Override
             public void execute(
                     final String sql, final boolean executeInControlDatabase, final SqlTimingObserver timingObserver) {
-                super.execute(sql, executeInControlDatabase);
+                super.execute(sql, executeInControlDatabase, timingObserver);
                 if (sql.startsWith("INSERT INTO")) {
                     timingObserver.observe(new SqlTimingObservation(
                             1,
@@ -732,7 +738,7 @@ final class RuntimeEngineTest {
             """);
         createFile(tempDir, "db/MyModule/datasets/myset/MyModule.baz.yml", "[]\n");
 
-        final var driver = new RecordingDriver(true);
+        final var driver = new RecordingDriver();
         final var engine = new RuntimeEngine(driver, new FileResolver());
         final var database = runtimeDatabase(
                 singleModuleRepository(
@@ -1011,7 +1017,7 @@ final class RuntimeEngineTest {
     @Test
     void createByImportSkipsCreatePathWhenResuming(@TempDir final Path tempDir) throws IOException {
         createFile(tempDir, "db/db-hooks/post/post.sql", "ASSERT_DATABASE_VERSION('Version_2')");
-        final var driver = new RecordingDriver(true);
+        final var driver = new RecordingDriver();
         final var engine = new RuntimeEngine(driver, new FileResolver());
         final var repository = new RepositoryConfig(
                 List.of("MyModule"),
@@ -1086,6 +1092,13 @@ final class RuntimeEngineTest {
                 "migrations",
                 "1",
                 "hash",
+                null,
+                null,
+                false,
+                true,
+                true,
+                false,
+                Map.of(),
                 Map.of("default", new ImportConfig("default", repository.modules(), "import", List.of(), List.of())),
                 Map.of());
 
@@ -1200,19 +1213,19 @@ final class RuntimeEngineTest {
     }
 
     @Test
-    void importExpandsAssertFiltersForSqlServerOnly(@TempDir final Path tempDir) throws IOException {
+    void importExpandsAssertFilters(@TempDir final Path tempDir) throws IOException {
         createFile(
                 tempDir,
                 "db/MyModule/import/MyModule.foo.sql",
                 "ASSERT_ROW_COUNT(1)\nASSERT_UNCHANGED_ROW_COUNT()\nASSERT_DATABASE_VERSION('Version_2')");
 
-        final var sqlServerDriver = new RecordingDriver(true);
-        final var sqlServerEngine = new RuntimeEngine(sqlServerDriver, new FileResolver());
+        final var driver = new RecordingDriver();
+        final var engine = new RuntimeEngine(driver, new FileResolver());
         final var database = runtimeDatabase(RepositoryConfigTestData.singleModule(), List.of(tempDir.resolve("db")));
 
-        sqlServerEngine.databaseImport(database, "default", null, connection, sourceConnection, null, Map.of());
+        engine.databaseImport(database, "default", null, connection, sourceConnection, null, Map.of());
 
-        assertThat(String.join("\n", sqlServerDriver.calls))
+        assertThat(String.join("\n", driver.calls))
                 .doesNotContain("ASSERT_ROW_COUNT")
                 .doesNotContain("ASSERT_UNCHANGED_ROW_COUNT")
                 .doesNotContain("ASSERT_DATABASE_VERSION")
@@ -1220,43 +1233,25 @@ final class RuntimeEngineTest {
                 .contains("COUNT(*) FROM [IMPORT_DB].[MyModule].[foo]")
                 .contains("DatabaseSchemaVersion")
                 .contains("RAISERROR");
-
-        final var nonSqlServerDriver = new RecordingDriver(false);
-        final var nonSqlServerEngine = new RuntimeEngine(nonSqlServerDriver, new FileResolver());
-
-        nonSqlServerEngine.databaseImport(database, "default", null, connection, sourceConnection, null, Map.of());
-
-        assertThat(String.join("\n", nonSqlServerDriver.calls))
-                .contains("ASSERT_ROW_COUNT(1)")
-                .contains("ASSERT_UNCHANGED_ROW_COUNT()")
-                .contains("ASSERT_DATABASE_VERSION('Version_2')");
     }
 
     @Test
-    void createExpandsOnlyDatabaseVersionAssertForSqlServer(@TempDir final Path tempDir) throws IOException {
+    void createExpandsOnlyDatabaseVersionAssert(@TempDir final Path tempDir) throws IOException {
         createFile(
                 tempDir,
                 "db/db-hooks/post/post.sql",
                 "ASSERT_DATABASE_VERSION('Version_2')\nASSERT_ROW_COUNT(1)\nASSERT_UNCHANGED_ROW_COUNT()");
         final var database = runtimeDatabase(RepositoryConfigTestData.singleModule(), List.of(tempDir.resolve("db")));
 
-        final var sqlServerDriver = new RecordingDriver(true);
-        new RuntimeEngine(sqlServerDriver, new FileResolver()).create(database, connection, false, Map.of());
+        final var driver = new RecordingDriver();
+        new RuntimeEngine(driver, new FileResolver()).create(database, connection, false, Map.of());
 
-        assertThat(String.join("\n", sqlServerDriver.calls))
+        assertThat(String.join("\n", driver.calls))
                 .doesNotContain("ASSERT_DATABASE_VERSION")
                 .doesNotContain("__SOURCE__")
                 .doesNotContain("__TARGET__")
                 .contains("FROM sys.fn_listextendedproperty")
                 .contains("Expected DatabaseSchemaVersion in current database")
-                .contains("ASSERT_ROW_COUNT(1)")
-                .contains("ASSERT_UNCHANGED_ROW_COUNT()");
-
-        final var nonSqlServerDriver = new RecordingDriver(false);
-        new RuntimeEngine(nonSqlServerDriver, new FileResolver()).create(database, connection, false, Map.of());
-
-        assertThat(String.join("\n", nonSqlServerDriver.calls))
-                .contains("ASSERT_DATABASE_VERSION('Version_2')")
                 .contains("ASSERT_ROW_COUNT(1)")
                 .contains("ASSERT_UNCHANGED_ROW_COUNT()");
     }
@@ -1413,6 +1408,12 @@ final class RuntimeEngineTest {
                 "migrations",
                 version,
                 "hash",
+                null,
+                null,
+                false,
+                true,
+                true,
+                false,
                 filterProperties,
                 imports,
                 moduleGroups);
@@ -1504,20 +1505,14 @@ final class RuntimeEngineTest {
         private final List<String> calls = new ArrayList<>();
         private final Map<String, Boolean> migrateDecision = new LinkedHashMap<>();
         private final Map<String, QueryResult> queryResults = new LinkedHashMap<>();
-        private final boolean supportsAssertMacros;
         private final boolean observeMaintenance;
         private List<String> primaryKeyColumnNames = List.of("[ID]");
 
         private RecordingDriver() {
-            this(false, false);
+            this(false);
         }
 
-        private RecordingDriver(final boolean supportsAssertMacros) {
-            this(supportsAssertMacros, false);
-        }
-
-        private RecordingDriver(final boolean supportsAssertMacros, final boolean observeMaintenance) {
-            this.supportsAssertMacros = supportsAssertMacros;
+        private RecordingDriver(final boolean observeMaintenance) {
             this.observeMaintenance = observeMaintenance;
         }
 
@@ -1552,7 +1547,8 @@ final class RuntimeEngineTest {
         }
 
         @Override
-        public void execute(final String sql, final boolean executeInControlDatabase) {
+        public void execute(
+                final String sql, final boolean executeInControlDatabase, final SqlTimingObserver timingObserver) {
             calls.add("execute(" + executeInControlDatabase + "):" + sql.trim());
         }
 
@@ -1584,17 +1580,11 @@ final class RuntimeEngineTest {
 
         @Override
         public void postTableImport(
-                final DatabaseMetadata database, final ImportConfig importConfig, final String tableName) {
-            calls.add("postTableImport(" + importConfig.key() + ',' + tableName + ")");
-        }
-
-        @Override
-        public void postTableImport(
                 final DatabaseMetadata database,
                 final ImportConfig importConfig,
                 final String tableName,
                 final ImportMaintenanceObserver observer) {
-            postTableImport(database, importConfig, tableName);
+            calls.add("postTableImport(" + importConfig.key() + ',' + tableName + ")");
             if (observeMaintenance && database.reindexOnImport()) {
                 observer.run("post-table-reindex", tableName, () -> {});
             }
@@ -1605,18 +1595,9 @@ final class RuntimeEngineTest {
                 final DatabaseMetadata database,
                 final ImportConfig importConfig,
                 final String moduleName,
-                final List<String> tablesInOrder) {
-            calls.add("postDataModuleImport(" + importConfig.key() + ',' + moduleName + ")");
-        }
-
-        @Override
-        public void postDataModuleImport(
-                final DatabaseMetadata database,
-                final ImportConfig importConfig,
-                final String moduleName,
                 final List<String> tablesInOrder,
                 final ImportMaintenanceObserver observer) {
-            postDataModuleImport(database, importConfig, moduleName, tablesInOrder);
+            calls.add("postDataModuleImport(" + importConfig.key() + ',' + moduleName + ")");
             if (observeMaintenance && database.shrinkOnImport()) {
                 observer.run("module-shrink-notruncate", moduleName, () -> {});
                 observer.run("module-shrink-truncate", moduleName, () -> {});
@@ -1629,25 +1610,15 @@ final class RuntimeEngineTest {
         }
 
         @Override
-        public void postDatabaseImport(final DatabaseMetadata database, final ImportConfig importConfig) {
-            calls.add("postDatabaseImport(" + importConfig.key() + ")");
-        }
-
-        @Override
         public void postDatabaseImport(
                 final DatabaseMetadata database,
                 final ImportConfig importConfig,
                 final ImportMaintenanceObserver observer) {
-            postDatabaseImport(database, importConfig);
+            calls.add("postDatabaseImport(" + importConfig.key() + ")");
             if (observeMaintenance && database.reindexOnImport()) {
                 observer.run("database-update-statistics", null, () -> {});
                 observer.run("database-update-usage", null, () -> {});
             }
-        }
-
-        @Override
-        public boolean supportsAssertMacros() {
-            return supportsAssertMacros;
         }
 
         @Override
@@ -1759,7 +1730,7 @@ final class RuntimeEngineTest {
     }
 
     private static RepositoryTable table(final String name, final RowSource rowSource) {
-        return new RepositoryTable(name, List.of("[ID]"), rowSource);
+        return new RepositoryTable(name, List.of("[ID]"), List.of(), rowSource);
     }
 
     private static RepositoryConfig singleModuleRepository(final RepositoryTable... tables) {

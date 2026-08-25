@@ -131,8 +131,7 @@ public final class SqlServerDbDriver implements DbDriver {
         }
     }
 
-    @Override
-    public void execute(final String sql, final boolean executeInControlDatabase) {
+    private void execute(final String sql, final boolean executeInControlDatabase) {
         final var target = targetConnection;
         if (executeInControlDatabase && null != target) {
             executeInCatalog(target, "msdb", () -> executeSql(target, sql));
@@ -145,6 +144,10 @@ public final class SqlServerDbDriver implements DbDriver {
     @Override
     public void execute(
             final String sql, final boolean executeInControlDatabase, final SqlTimingObserver timingObserver) {
+        if (SqlTimingObserver.NONE == timingObserver) {
+            execute(sql, executeInControlDatabase);
+            return;
+        }
         final var target = targetConnection;
         if (executeInControlDatabase && null != target) {
             executeInCatalog(target, "msdb", () -> executeTimedSql(target, sql, timingObserver));
@@ -240,12 +243,6 @@ public final class SqlServerDbDriver implements DbDriver {
 
     @Override
     public void postTableImport(
-            final DatabaseMetadata database, final ImportConfig importConfig, final String tableName) {
-        postTableImport(database, importConfig, tableName, (operation, subject, action) -> action.run());
-    }
-
-    @Override
-    public void postTableImport(
             final DatabaseMetadata database,
             final ImportConfig importConfig,
             final String tableName,
@@ -254,16 +251,6 @@ public final class SqlServerDbDriver implements DbDriver {
         if (database.reindexOnImport()) {
             observer.run("post-table-reindex", tableName, () -> reindex(tableName));
         }
-    }
-
-    @Override
-    public void postDataModuleImport(
-            final DatabaseMetadata database,
-            final ImportConfig importConfig,
-            final String moduleName,
-            final List<String> tablesInOrder) {
-        postDataModuleImport(
-                database, importConfig, moduleName, tablesInOrder, (operation, subject, action) -> action.run());
     }
 
     @Override
@@ -292,11 +279,6 @@ public final class SqlServerDbDriver implements DbDriver {
     }
 
     @Override
-    public void postDatabaseImport(final DatabaseMetadata database, final ImportConfig importConfig) {
-        postDatabaseImport(database, importConfig, (operation, subject, action) -> action.run());
-    }
-
-    @Override
     public void postDatabaseImport(
             final DatabaseMetadata database,
             final ImportConfig importConfig,
@@ -311,16 +293,6 @@ public final class SqlServerDbDriver implements DbDriver {
                                     + "DBCC UPDATEUSAGE(@DbName) WITH NO_INFOMSGS, COUNT_ROWS",
                             false));
         }
-    }
-
-    @Override
-    public boolean supportsAssertMacros() {
-        return true;
-    }
-
-    @Override
-    public boolean supportsStandardImportScripts() {
-        return true;
     }
 
     @Override

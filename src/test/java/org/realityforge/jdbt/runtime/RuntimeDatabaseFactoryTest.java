@@ -12,6 +12,7 @@ import org.realityforge.jdbt.config.ImportConfig;
 import org.realityforge.jdbt.config.ModuleGroupConfig;
 import org.realityforge.jdbt.repository.RepositoryConfig;
 import org.realityforge.jdbt.repository.RepositoryTable;
+import org.realityforge.jdbt.repository.RowSource;
 
 final class RuntimeDatabaseFactoryTest {
     @Test
@@ -20,7 +21,9 @@ final class RuntimeDatabaseFactoryTest {
         final var repository = new RepositoryConfig(
                 List.of("Core"),
                 Map.of(),
-                Map.of("Core", List.of(new RepositoryTable("[Core].[tblA]", List.of("[ID]")))),
+                Map.of(
+                        "Core",
+                        List.of(new RepositoryTable("[Core].[tblA]", List.of("[ID]"), List.of(), RowSource.IMPORT))),
                 Map.of("Core", List.of()));
         final var database = new DatabaseConfig(
                 List.of("."),
@@ -37,6 +40,12 @@ final class RuntimeDatabaseFactoryTest {
                 true,
                 "migrations",
                 "v1",
+                null,
+                null,
+                false,
+                true,
+                true,
+                false,
                 Map.of("mode", new FilterPropertyConfig("__MODE__", "bulk", List.of("bulk", "delta"))),
                 Map.of("default", new ImportConfig("default", List.of("Core"), "import", List.of(), List.of())),
                 Map.of("g", new ModuleGroupConfig("g", List.of("Core"), false)));

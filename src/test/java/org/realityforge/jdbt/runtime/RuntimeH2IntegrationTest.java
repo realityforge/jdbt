@@ -22,7 +22,9 @@ import org.realityforge.jdbt.db.DatabaseConnection;
 import org.realityforge.jdbt.db.DatabaseException;
 import org.realityforge.jdbt.db.DatabaseMetadata;
 import org.realityforge.jdbt.db.DbDriver;
+import org.realityforge.jdbt.db.ImportMaintenanceObserver;
 import org.realityforge.jdbt.db.QueryResult;
+import org.realityforge.jdbt.db.SqlTimingObserver;
 import org.realityforge.jdbt.files.FileResolver;
 import org.realityforge.jdbt.repository.RepositoryConfig;
 import org.realityforge.jdbt.repository.RepositoryTable;
@@ -60,7 +62,7 @@ final class RuntimeH2IntegrationTest {
                 Map.of(
                         "Core",
                         List.of(new RepositoryTable(
-                                "\"PUBLIC\".\"FOO\"", List.of("\"ID\"", "\"NAME\""), RowSource.DEPLOYMENT))),
+                                "\"PUBLIC\".\"FOO\"", List.of("\"ID\"", "\"NAME\""), List.of(), RowSource.DEPLOYMENT))),
                 Map.of("Core", List.of()));
         return new RuntimeDatabase(
                 repository,
@@ -83,6 +85,13 @@ final class RuntimeH2IntegrationTest {
                 "migrations",
                 "1",
                 "hash",
+                null,
+                null,
+                false,
+                true,
+                true,
+                false,
+                Map.of(),
                 Map.of("custom", new ImportConfig("custom", repository.modules(), "load", List.of(), List.of())),
                 Map.of("group", new ModuleGroupConfig("group", repository.modules(), true)));
     }
@@ -131,7 +140,8 @@ final class RuntimeH2IntegrationTest {
         public void dropSchema(final String schemaName, final List<String> tablesInDropOrder) {}
 
         @Override
-        public void execute(final String sql, final boolean executeInControlDatabase) {
+        public void execute(
+                final String sql, final boolean executeInControlDatabase, final SqlTimingObserver timingObserver) {
             try (var statement = connection().createStatement()) {
                 statement.execute(sql);
             } catch (final SQLException sqle) {
@@ -170,17 +180,24 @@ final class RuntimeH2IntegrationTest {
 
         @Override
         public void postTableImport(
-                final DatabaseMetadata database, final ImportConfig importConfig, final String tableName) {}
+                final DatabaseMetadata database,
+                final ImportConfig importConfig,
+                final String tableName,
+                final ImportMaintenanceObserver observer) {}
 
         @Override
         public void postDataModuleImport(
                 final DatabaseMetadata database,
                 final ImportConfig importConfig,
                 final String moduleName,
-                final List<String> tablesInOrder) {}
+                final List<String> tablesInOrder,
+                final ImportMaintenanceObserver observer) {}
 
         @Override
-        public void postDatabaseImport(final DatabaseMetadata database, final ImportConfig importConfig) {}
+        public void postDatabaseImport(
+                final DatabaseMetadata database,
+                final ImportConfig importConfig,
+                final ImportMaintenanceObserver observer) {}
 
         @Override
         public List<String> columnNamesForTable(final String tableName) {

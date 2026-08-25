@@ -36,6 +36,7 @@ import org.realityforge.jdbt.db.DatabaseConnection;
 import org.realityforge.jdbt.db.DatabaseMetadata;
 import org.realityforge.jdbt.db.DbDriver;
 import org.realityforge.jdbt.db.QueryResult;
+import org.realityforge.jdbt.db.SqlTimingObserver;
 import org.realityforge.jdbt.db.sqlserver.SqlServerAssertExpander;
 import org.realityforge.jdbt.files.FileResolver;
 import org.realityforge.jdbt.repository.RowSource;
@@ -394,7 +395,7 @@ public final class RuntimeEngine {
                 timing.run(
                         "table-clear/" + ImportTimingRecorder.component(timingDatabaseObject(table)),
                         "table_clear",
-                        () -> db.execute("DELETE FROM " + table, false));
+                        () -> db.execute("DELETE FROM " + table, false, SqlTimingObserver.NONE));
             }
         }
 
@@ -465,7 +466,7 @@ public final class RuntimeEngine {
                 timing.run(
                         "table-clear/" + ImportTimingRecorder.component(timingDatabaseObject(table)),
                         "table_clear",
-                        () -> db.execute("DELETE FROM " + table, false));
+                        () -> db.execute("DELETE FROM " + table, false, SqlTimingObserver.NONE));
             }
         }
 
@@ -475,7 +476,7 @@ public final class RuntimeEngine {
                 timing.run(
                         "table-clear/" + ImportTimingRecorder.component(timingDatabaseObject(table)),
                         "table_clear",
-                        () -> db.execute("DELETE FROM " + table, false));
+                        () -> db.execute("DELETE FROM " + table, false, SqlTimingObserver.NONE));
                 resumeAt.value = null;
             }
             if (null == resumeAt.value) {
@@ -760,7 +761,7 @@ public final class RuntimeEngine {
             final Map<String, String> declaredFilters,
             final String sourceName,
             final String timingSource) {
-        var effectiveSql = db.supportsAssertMacros() ? SqlServerAssertExpander.expandImportSql(sql) : sql;
+        var effectiveSql = SqlServerAssertExpander.expandImportSql(sql);
         effectiveSql = applyDeclaredFilterProperties(effectiveSql, declaredFilters);
         if (null != tableName) {
             effectiveSql = effectiveSql.replace("__TABLE__", tableName);
@@ -781,7 +782,7 @@ public final class RuntimeEngine {
         timing.run("sql-file/" + ImportTimingRecorder.component(logicalFile), "sql_file", () -> {
             logSqlFile(label, file);
             var sql = loadData(database, file);
-            if (expandDatabaseVersionAssert && db.supportsAssertMacros()) {
+            if (expandDatabaseVersionAssert) {
                 sql = SqlServerAssertExpander.expandCreationSql(sql);
             }
             runSqlBatch(
@@ -1419,7 +1420,7 @@ public final class RuntimeEngine {
         Collections.reverse(tables);
         for (final var tableName : tables) {
             if (fixtures.containsKey(tableName)) {
-                db.execute("DELETE FROM " + tableName, false);
+                db.execute("DELETE FROM " + tableName, false, SqlTimingObserver.NONE);
             }
         }
 
@@ -1582,7 +1583,7 @@ public final class RuntimeEngine {
                                 throw primary;
                             }
                         } else {
-                            db.execute(batch, executeInControlDatabase);
+                            db.execute(batch, executeInControlDatabase, SqlTimingObserver.NONE);
                         }
                     });
                 } catch (final RuntimeException e) {

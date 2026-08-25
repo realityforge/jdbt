@@ -4,13 +4,7 @@ package(default_visibility = ["//visibility:public"])
 
 java_library(
     name = "db",
-    srcs = ["DbDriverFactory.java"],
     exports = [":db_core"],
-    deps = [
-        ":db_core",
-        "//src/main/java/org/realityforge/jdbt/config",
-        "//src/main/java/org/realityforge/jdbt/db/sqlserver",
-    ],
 )
 
 java_library(
@@ -21,7 +15,6 @@ java_library(
         "DatabaseMetadata.java",
         "DbDriver.java",
         "ImportMaintenanceObserver.java",
-        "NoOpDbDriver.java",
         "QueryResult.java",
         "SqlTimingObservation.java",
         "SqlTimingObserver.java",

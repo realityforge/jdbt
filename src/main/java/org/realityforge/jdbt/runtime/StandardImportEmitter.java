@@ -29,11 +29,6 @@ public final class StandardImportEmitter {
             final String importKey,
             final @Nullable Path outputDirectory,
             final boolean replace) {
-        if (!driver.supportsStandardImportScripts()) {
-            throw new RuntimeExecutionException(
-                    "Database driver does not support offline Standard Import Script emission");
-        }
-
         final var importConfig = database.imports().get(importKey);
         if (null == importConfig) {
             throw new RuntimeExecutionException("Unable to locate import definition by key '" + importKey + "'");

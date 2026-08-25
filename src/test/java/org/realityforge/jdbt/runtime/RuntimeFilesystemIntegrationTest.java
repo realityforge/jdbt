@@ -18,7 +18,9 @@ import org.realityforge.jdbt.config.ModuleGroupConfig;
 import org.realityforge.jdbt.db.DatabaseConnection;
 import org.realityforge.jdbt.db.DatabaseMetadata;
 import org.realityforge.jdbt.db.DbDriver;
+import org.realityforge.jdbt.db.ImportMaintenanceObserver;
 import org.realityforge.jdbt.db.QueryResult;
+import org.realityforge.jdbt.db.SqlTimingObserver;
 import org.realityforge.jdbt.files.FileResolver;
 import org.realityforge.jdbt.repository.RepositoryConfig;
 import org.realityforge.jdbt.repository.RepositoryTable;
@@ -121,9 +123,9 @@ final class RuntimeFilesystemIntegrationTest {
                 Map.of(
                         "Core",
                         List.of(
-                                new RepositoryTable("[Core].[foo]", List.of("[ID]"), fooRowSource),
-                                new RepositoryTable("[Core].[bar]", List.of("[ID]")),
-                                new RepositoryTable("[Core].[baz]", List.of("[ID]")))),
+                                new RepositoryTable("[Core].[foo]", List.of("[ID]"), List.of(), fooRowSource),
+                                new RepositoryTable("[Core].[bar]", List.of("[ID]"), List.of(), RowSource.IMPORT),
+                                new RepositoryTable("[Core].[baz]", List.of("[ID]"), List.of(), RowSource.IMPORT))),
                 Map.of("Core", List.of()));
         return new RuntimeDatabase(
                 repository,
@@ -146,6 +148,13 @@ final class RuntimeFilesystemIntegrationTest {
                 "migrations",
                 "1",
                 "hash",
+                null,
+                null,
+                false,
+                true,
+                true,
+                false,
+                Map.of(),
                 Map.of("custom", new ImportConfig("custom", repository.modules(), "load", List.of(), List.of())),
                 Map.of("group", new ModuleGroupConfig("group", repository.modules(), true)));
     }
@@ -204,7 +213,8 @@ final class RuntimeFilesystemIntegrationTest {
         }
 
         @Override
-        public void execute(final String sql, final boolean executeInControlDatabase) {
+        public void execute(
+                final String sql, final boolean executeInControlDatabase, final SqlTimingObserver timingObserver) {
             events.add("sql:" + sql.trim());
             if (!failOn.isEmpty() && sql.contains(failOn)) {
                 throw new RuntimeExecutionException("forced failure on " + failOn);
@@ -239,7 +249,10 @@ final class RuntimeFilesystemIntegrationTest {
 
         @Override
         public void postTableImport(
-                final DatabaseMetadata database, final ImportConfig importConfig, final String tableName) {
+                final DatabaseMetadata database,
+                final ImportConfig importConfig,
+                final String tableName,
+                final ImportMaintenanceObserver observer) {
             events.add("post-table:" + importConfig.key() + ':' + tableName);
         }
 
@@ -248,12 +261,16 @@ final class RuntimeFilesystemIntegrationTest {
                 final DatabaseMetadata database,
                 final ImportConfig importConfig,
                 final String moduleName,
-                final List<String> tablesInOrder) {
+                final List<String> tablesInOrder,
+                final ImportMaintenanceObserver observer) {
             events.add("post-module:" + importConfig.key() + ':' + moduleName);
         }
 
         @Override
-        public void postDatabaseImport(final DatabaseMetadata database, final ImportConfig importConfig) {
+        public void postDatabaseImport(
+                final DatabaseMetadata database,
+                final ImportConfig importConfig,
+                final ImportMaintenanceObserver observer) {
             events.add("post-import:" + importConfig.key());
         }
 

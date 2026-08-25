@@ -13,7 +13,7 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.realityforge.jdbt.config.ImportConfig;
-import org.realityforge.jdbt.db.DbDriverFactory;
+import org.realityforge.jdbt.db.sqlserver.SqlServerDbDriver;
 import org.realityforge.jdbt.repository.RepositoryConfig;
 import org.realityforge.jdbt.repository.RepositoryTable;
 import org.realityforge.jdbt.repository.RowSource;
@@ -27,10 +27,13 @@ final class StandardImportEmitterTest {
                 Map.of(
                         "First",
                         List.of(
-                                new RepositoryTable("[First].[tblImport]", List.of("[ID]", "[Name]"), RowSource.IMPORT),
-                                new RepositoryTable("[First].[tblDeployment]", List.of("[ID]"), RowSource.DEPLOYMENT)),
+                                new RepositoryTable(
+                                        "[First].[tblImport]", List.of("[ID]", "[Name]"), List.of(), RowSource.IMPORT),
+                                new RepositoryTable(
+                                        "[First].[tblDeployment]", List.of("[ID]"), List.of(), RowSource.DEPLOYMENT)),
                         "Second",
-                        List.of(new RepositoryTable("[Second].[tblOther]", List.of("[Value]")))),
+                        List.of(new RepositoryTable(
+                                "[Second].[tblOther]", List.of("[Value]"), List.of(), RowSource.IMPORT))),
                 Map.of("First", List.of("[First].[ThingSeq]"), "Second", List.of()));
         final var database = database(
                 project,
@@ -39,7 +42,7 @@ final class StandardImportEmitterTest {
                         "selected",
                         new ImportConfig("selected", List.of("Second", "First"), "import", List.of(), List.of())));
 
-        final var output = new StandardImportEmitter(new DbDriverFactory().create("sqlserver"))
+        final var output = new StandardImportEmitter(new SqlServerDbDriver())
                 .emit(database, "selected", Path.of("generated"), false);
 
         assertThat(output).isEqualTo(project.resolve("generated").toRealPath());
@@ -72,8 +75,7 @@ final class StandardImportEmitterTest {
         Files.createDirectories(stale.getParent());
         Files.writeString(stale, "stale", StandardCharsets.UTF_8);
 
-        final var output = new StandardImportEmitter(new DbDriverFactory().create("sqlserver"))
-                .emit(database, "default", null, false);
+        final var output = new StandardImportEmitter(new SqlServerDbDriver()).emit(database, "default", null, false);
 
         assertThat(output).isEqualTo(project.resolve("tmp/imports").toRealPath());
         assertThat(stale).doesNotExist();
@@ -86,7 +88,7 @@ final class StandardImportEmitterTest {
         final var output = project.resolve("custom");
         Files.createDirectories(output);
         Files.writeString(output.resolve("keep.txt"), "keep", StandardCharsets.UTF_8);
-        final var emitter = new StandardImportEmitter(new DbDriverFactory().create("sqlserver"));
+        final var emitter = new StandardImportEmitter(new SqlServerDbDriver());
 
         assertThatThrownBy(() -> emitter.emit(database, "default", output, false))
                 .isInstanceOf(RuntimeExecutionException.class)
@@ -99,21 +101,8 @@ final class StandardImportEmitterTest {
     }
 
     @Test
-    void unsupportedDriverFailsBeforeOutputMutation(@TempDir final Path project) throws IOException {
-        final var output = project.resolve("custom");
-        Files.createDirectories(output);
-        Files.writeString(output.resolve("keep.txt"), "keep", StandardCharsets.UTF_8);
-
-        assertThatThrownBy(() -> new StandardImportEmitter(new DbDriverFactory().create("noop"))
-                        .emit(database(project, repository(), imports()), "default", output, true))
-                .isInstanceOf(RuntimeExecutionException.class)
-                .hasMessageContaining("does not support");
-        assertThat(output.resolve("keep.txt")).content().isEqualTo("keep");
-    }
-
-    @Test
     void rejectsFilesystemRootProjectAndProjectAncestorsEvenWithReplace(@TempDir final Path project) {
-        final var emitter = new StandardImportEmitter(new DbDriverFactory().create("sqlserver"));
+        final var emitter = new StandardImportEmitter(new SqlServerDbDriver());
         final var database = database(project, repository(), imports());
 
         for (final var forbidden :
@@ -132,7 +121,7 @@ final class StandardImportEmitterTest {
         final var link = project.resolve("linked-output");
         Files.createSymbolicLink(link, actual);
 
-        assertThatThrownBy(() -> new StandardImportEmitter(new DbDriverFactory().create("sqlserver"))
+        assertThatThrownBy(() -> new StandardImportEmitter(new SqlServerDbDriver())
                         .emit(database(project, repository(), imports()), "default", link, true))
                 .isInstanceOf(RuntimeExecutionException.class)
                 .hasMessageContaining("symbolic link");
@@ -143,7 +132,7 @@ final class StandardImportEmitterTest {
     void resolvesDeepestExistingAncestorForNestedOutput(@TempDir final Path project) throws IOException {
         final var database = database(project, repository(), imports());
 
-        final var output = new StandardImportEmitter(new DbDriverFactory().create("sqlserver"))
+        final var output = new StandardImportEmitter(new SqlServerDbDriver())
                 .emit(database, "default", Path.of("new/child/imports"), false);
 
         assertThat(output).isEqualTo(project.resolve("new/child/imports").toRealPath());
@@ -161,11 +150,12 @@ final class StandardImportEmitterTest {
                 Map.of(
                         "Core",
                         List.of(
-                                new RepositoryTable("[Core].[tbl]", List.of("[ID]")),
-                                new RepositoryTable("\"Core\".\"tbl\"", List.of("\"ID\"")))),
+                                new RepositoryTable("[Core].[tbl]", List.of("[ID]"), List.of(), RowSource.IMPORT),
+                                new RepositoryTable(
+                                        "\"Core\".\"tbl\"", List.of("\"ID\""), List.of(), RowSource.IMPORT))),
                 Map.of("Core", List.of()));
 
-        assertThatThrownBy(() -> new StandardImportEmitter(new DbDriverFactory().create("sqlserver"))
+        assertThatThrownBy(() -> new StandardImportEmitter(new SqlServerDbDriver())
                         .emit(database(project, repository, imports()), "default", output, true))
                 .isInstanceOf(RuntimeExecutionException.class)
                 .hasMessageContaining("Multiple repository objects");
@@ -178,9 +168,11 @@ final class StandardImportEmitterTest {
         final var moduleRepository = new RepositoryConfig(
                 List.of(unsafeModule),
                 Map.of(),
-                Map.of(unsafeModule, List.of(new RepositoryTable("[Core].[tbl]", List.of("[ID]")))),
+                Map.of(
+                        unsafeModule,
+                        List.of(new RepositoryTable("[Core].[tbl]", List.of("[ID]"), List.of(), RowSource.IMPORT))),
                 Map.of(unsafeModule, List.of()));
-        final var emitter = new StandardImportEmitter(new DbDriverFactory().create("sqlserver"));
+        final var emitter = new StandardImportEmitter(new SqlServerDbDriver());
 
         assertThatThrownBy(() -> emitter.emit(
                         database(
@@ -203,7 +195,9 @@ final class StandardImportEmitterTest {
         return new RepositoryConfig(
                 List.of("Core"),
                 Map.of(),
-                Map.of("Core", List.of(new RepositoryTable("[Core].[tbl]", List.of("[ID]")))),
+                Map.of(
+                        "Core",
+                        List.of(new RepositoryTable("[Core].[tbl]", List.of("[ID]"), List.of(), RowSource.IMPORT))),
                 Map.of("Core", List.of()));
     }
 
@@ -234,6 +228,13 @@ final class StandardImportEmitterTest {
                 "migrations",
                 null,
                 null,
+                null,
+                null,
+                false,
+                true,
+                true,
+                false,
+                Map.of(),
                 imports,
                 Map.of());
     }

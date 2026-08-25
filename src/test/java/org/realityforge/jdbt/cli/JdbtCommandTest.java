@@ -62,7 +62,7 @@ final class JdbtCommandTest {
     }
 
     @Test
-    void statusDispatchesToRunnerWithDefaultDriver() {
+    void statusDispatchesToRunner() {
         final var runner = new RecordingRunner();
 
         final var exitCode = JdbtCommand.execute(
@@ -70,7 +70,6 @@ final class JdbtCommandTest {
 
         assertThat(exitCode).isZero();
         assertThat(runner.lastCall).isEqualTo("status");
-        assertThat(runner.driver).isEqualTo("sqlserver");
     }
 
     @Test
@@ -327,19 +326,6 @@ final class JdbtCommandTest {
     }
 
     @Test
-    void emitStandardImportsRejectsConnectionAndDriverOptions() {
-        final var runner = new RecordingRunner();
-
-        final var exitCode = JdbtCommand.execute(
-                new String[] {"emit-standard-imports", "--driver", "sqlserver"},
-                runner,
-                new PasswordResolver(Map.of(), new ByteArrayInputStream(new byte[0])));
-
-        assertThat(exitCode).isEqualTo(JdbtCommand.USAGE_EXIT_CODE);
-        assertThat(runner.lastCall).isEmpty();
-    }
-
-    @Test
     void exportFixturesDispatchesPropertiesOutputAndFilters() {
         final var runner = new RecordingRunner();
 
@@ -369,7 +355,6 @@ final class JdbtCommandTest {
 
         assertThat(exitCode).isZero();
         assertThat(runner.lastCall).isEqualTo("export-fixtures");
-        assertThat(runner.driver).isEqualTo("sqlserver");
         assertThat(runner.targetConnection).isEqualTo(new DatabaseConnection("localhost", 1433, "db", "sa", "secret"));
         assertThat(runner.propertiesFile).isEqualTo(Path.of("fixtures.properties"));
         assertThat(runner.dataset).isEqualTo("sample");
@@ -489,7 +474,6 @@ final class JdbtCommandTest {
 
         assertThat(exitCode).isZero();
         assertThat(runner.lastCall).isEqualTo("export-database-statistics");
-        assertThat(runner.driver).isEqualTo("sqlserver");
         assertThat(runner.targetConnection)
                 .isEqualTo(new DatabaseConnection("db.example", 1434, "rose", "admin", "secret"));
         assertThat(runner.outputFile).isEqualTo(Path.of("statistics.csv"));
@@ -554,7 +538,6 @@ final class JdbtCommandTest {
 
     private static final class RecordingRunner implements CommandRunner {
         private String lastCall = "";
-        private String driver = "";
         private @Nullable String importKey;
         private @Nullable String moduleGroup;
         private @Nullable String resumeAt;
@@ -577,19 +560,14 @@ final class JdbtCommandTest {
         }
 
         @Override
-        public void status(final String driver) {
+        public void status() {
             this.lastCall = "status";
-            this.driver = driver;
         }
 
         @Override
         public void create(
-                final String driver,
-                final DatabaseConnection target,
-                final boolean noCreate,
-                final Map<String, String> filterProperties) {
+                final DatabaseConnection target, final boolean noCreate, final Map<String, String> filterProperties) {
             this.lastCall = "create";
-            this.driver = driver;
             this.targetConnection = target;
             this.noCreate = noCreate;
             this.filterProperties = filterProperties;
@@ -597,13 +575,11 @@ final class JdbtCommandTest {
 
         @Override
         public void createWithDataset(
-                final String driver,
                 final DatabaseConnection target,
                 final boolean noCreate,
                 final String dataset,
                 final Map<String, String> filterProperties) {
             this.lastCall = "create-with-dataset";
-            this.driver = driver;
             this.targetConnection = target;
             this.noCreate = noCreate;
             this.dataset = dataset;
@@ -611,26 +587,21 @@ final class JdbtCommandTest {
         }
 
         @Override
-        public void drop(
-                final String driver, final DatabaseConnection target, final Map<String, String> filterProperties) {
+        public void drop(final DatabaseConnection target, final Map<String, String> filterProperties) {
             this.lastCall = "drop";
-            this.driver = driver;
             this.targetConnection = target;
             this.filterProperties = filterProperties;
         }
 
         @Override
-        public void migrate(
-                final String driver, final DatabaseConnection target, final Map<String, String> filterProperties) {
+        public void migrate(final DatabaseConnection target, final Map<String, String> filterProperties) {
             this.lastCall = "migrate";
-            this.driver = driver;
             this.targetConnection = target;
             this.filterProperties = filterProperties;
         }
 
         @Override
         public void databaseImport(
-                final String driver,
                 final @Nullable String importKey,
                 final @Nullable String moduleGroup,
                 final DatabaseConnection target,
@@ -639,7 +610,6 @@ final class JdbtCommandTest {
                 final @Nullable Path timingOutput,
                 final Map<String, String> filterProperties) {
             this.lastCall = "import";
-            this.driver = driver;
             this.importKey = importKey;
             this.moduleGroup = moduleGroup;
             this.targetConnection = target;
@@ -651,7 +621,6 @@ final class JdbtCommandTest {
 
         @Override
         public void createByImport(
-                final String driver,
                 final @Nullable String importKey,
                 final DatabaseConnection target,
                 final DatabaseConnection source,
@@ -660,7 +629,6 @@ final class JdbtCommandTest {
                 final @Nullable Path timingOutput,
                 final Map<String, String> filterProperties) {
             this.lastCall = "create-by-import";
-            this.driver = driver;
             this.importKey = importKey;
             this.targetConnection = target;
             this.sourceConnection = source;
@@ -672,24 +640,16 @@ final class JdbtCommandTest {
 
         @Override
         public void loadDataset(
-                final String driver,
-                final String dataset,
-                final DatabaseConnection target,
-                final Map<String, String> filterProperties) {
+                final String dataset, final DatabaseConnection target, final Map<String, String> filterProperties) {
             this.lastCall = "load-dataset";
-            this.driver = driver;
             this.targetConnection = target;
             this.filterProperties = filterProperties;
         }
 
         @Override
         public void upModuleGroup(
-                final String driver,
-                final String moduleGroup,
-                final DatabaseConnection target,
-                final Map<String, String> filterProperties) {
+                final String moduleGroup, final DatabaseConnection target, final Map<String, String> filterProperties) {
             this.lastCall = "up-module-group";
-            this.driver = driver;
             this.moduleGroup = moduleGroup;
             this.targetConnection = target;
             this.filterProperties = filterProperties;
@@ -697,12 +657,8 @@ final class JdbtCommandTest {
 
         @Override
         public void downModuleGroup(
-                final String driver,
-                final String moduleGroup,
-                final DatabaseConnection target,
-                final Map<String, String> filterProperties) {
+                final String moduleGroup, final DatabaseConnection target, final Map<String, String> filterProperties) {
             this.lastCall = "down-module-group";
-            this.driver = driver;
             this.moduleGroup = moduleGroup;
             this.targetConnection = target;
             this.filterProperties = filterProperties;
@@ -725,13 +681,11 @@ final class JdbtCommandTest {
 
         @Override
         public void verifyConstraints(
-                final String driver,
                 final DatabaseConnection target,
                 final List<String> schemas,
                 final List<String> checkQueries,
                 final Map<String, String> filterProperties) {
             this.lastCall = "verify-constraints";
-            this.driver = driver;
             this.targetConnection = target;
             this.schemas = schemas;
             this.checkQueries = checkQueries;
@@ -740,14 +694,12 @@ final class JdbtCommandTest {
 
         @Override
         public void exportFixtures(
-                final String driver,
                 final DatabaseConnection target,
                 final Path propertiesFile,
                 final @Nullable String dataset,
                 final @Nullable Path outputDirectory,
                 final Map<String, String> filterProperties) {
             this.lastCall = "export-fixtures";
-            this.driver = driver;
             this.targetConnection = target;
             this.propertiesFile = propertiesFile;
             this.dataset = dataset;
@@ -756,10 +708,8 @@ final class JdbtCommandTest {
         }
 
         @Override
-        public void exportDatabaseStatistics(
-                final String driver, final DatabaseConnection target, final Path outputFile) {
+        public void exportDatabaseStatistics(final DatabaseConnection target, final Path outputFile) {
             this.lastCall = "export-database-statistics";
-            this.driver = driver;
             this.targetConnection = target;
             this.outputFile = outputFile;
         }

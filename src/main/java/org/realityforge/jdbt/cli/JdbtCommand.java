@@ -100,19 +100,12 @@ public final class JdbtCommand implements Callable<Integer> {
         @CommandLine.ParentCommand
         private @Nullable JdbtCommand parent;
 
-        @CommandLine.Mixin
-        private @Nullable ExecutionOptions executionOptions;
-
         protected final CommandRunner runner() {
             return Objects.requireNonNull(parent).runner();
         }
 
         protected final PasswordResolver passwordResolver() {
             return Objects.requireNonNull(parent).passwordResolver;
-        }
-
-        protected final String driver() {
-            return Objects.requireNonNull(executionOptions).driver;
         }
     }
 
@@ -139,14 +132,6 @@ public final class JdbtCommand implements Callable<Integer> {
             }
             return Collections.unmodifiableMap(new LinkedHashMap<>(values));
         }
-    }
-
-    private static final class ExecutionOptions {
-        @CommandLine.Option(
-                names = "--driver",
-                defaultValue = "sqlserver",
-                description = "Database driver. Supported values: sqlserver")
-        private String driver = "sqlserver";
     }
 
     @SuppressWarnings("FieldCanBeFinal")
@@ -255,7 +240,7 @@ public final class JdbtCommand implements Callable<Integer> {
     static final class StatusCommand extends BaseCommand {
         @Override
         public Integer call() {
-            runner().status(driver());
+            runner().status();
             return 0;
         }
     }
@@ -280,7 +265,7 @@ public final class JdbtCommand implements Callable<Integer> {
 
         @Override
         public Integer call() {
-            runner().create(driver(), target.toConnection(passwordResolver()), noCreate, filterProperties());
+            runner().create(target.toConnection(passwordResolver()), noCreate, filterProperties());
             return 0;
         }
     }
@@ -299,8 +284,7 @@ public final class JdbtCommand implements Callable<Integer> {
 
         @Override
         public Integer call() {
-            runner().createWithDataset(
-                            driver(), target.toConnection(passwordResolver()), noCreate, dataset, filterProperties());
+            runner().createWithDataset(target.toConnection(passwordResolver()), noCreate, dataset, filterProperties());
             return 0;
         }
     }
@@ -313,7 +297,7 @@ public final class JdbtCommand implements Callable<Integer> {
 
         @Override
         public Integer call() {
-            runner().drop(driver(), target.toConnection(passwordResolver()), filterProperties());
+            runner().drop(target.toConnection(passwordResolver()), filterProperties());
             return 0;
         }
     }
@@ -326,7 +310,7 @@ public final class JdbtCommand implements Callable<Integer> {
 
         @Override
         public Integer call() {
-            runner().migrate(driver(), target.toConnection(passwordResolver()), filterProperties());
+            runner().migrate(target.toConnection(passwordResolver()), filterProperties());
             return 0;
         }
     }
@@ -355,7 +339,6 @@ public final class JdbtCommand implements Callable<Integer> {
         @Override
         public Integer call() {
             runner().databaseImport(
-                            driver(),
                             importKey,
                             moduleGroup,
                             target.toConnection(passwordResolver()),
@@ -391,7 +374,6 @@ public final class JdbtCommand implements Callable<Integer> {
         @Override
         public Integer call() {
             runner().createByImport(
-                            driver(),
                             importKey,
                             target.toConnection(passwordResolver()),
                             source.toConnection(passwordResolver()),
@@ -414,7 +396,7 @@ public final class JdbtCommand implements Callable<Integer> {
 
         @Override
         public Integer call() {
-            runner().loadDataset(driver(), dataset, target.toConnection(passwordResolver()), filterProperties());
+            runner().loadDataset(dataset, target.toConnection(passwordResolver()), filterProperties());
             return 0;
         }
     }
@@ -430,7 +412,7 @@ public final class JdbtCommand implements Callable<Integer> {
 
         @Override
         public Integer call() {
-            runner().upModuleGroup(driver(), moduleGroup, target.toConnection(passwordResolver()), filterProperties());
+            runner().upModuleGroup(moduleGroup, target.toConnection(passwordResolver()), filterProperties());
             return 0;
         }
     }
@@ -446,8 +428,7 @@ public final class JdbtCommand implements Callable<Integer> {
 
         @Override
         public Integer call() {
-            runner().downModuleGroup(
-                            driver(), moduleGroup, target.toConnection(passwordResolver()), filterProperties());
+            runner().downModuleGroup(moduleGroup, target.toConnection(passwordResolver()), filterProperties());
             return 0;
         }
     }
@@ -516,7 +497,6 @@ public final class JdbtCommand implements Callable<Integer> {
                         "At least one --schema or --check-query must be specified.");
             }
             runner().verifyConstraints(
-                            driver(),
                             target.toConnection(passwordResolver()),
                             List.copyOf(schemas),
                             List.copyOf(checkQueries),
@@ -547,7 +527,6 @@ public final class JdbtCommand implements Callable<Integer> {
         @Override
         public Integer call() {
             runner().exportFixtures(
-                            driver(),
                             target.toConnection(passwordResolver()),
                             propertiesFile,
                             dataset,
@@ -571,7 +550,7 @@ public final class JdbtCommand implements Callable<Integer> {
 
         @Override
         public Integer call() {
-            runner().exportDatabaseStatistics(driver(), target.toConnection(passwordResolver()), outputFile);
+            runner().exportDatabaseStatistics(target.toConnection(passwordResolver()), outputFile);
             return 0;
         }
     }

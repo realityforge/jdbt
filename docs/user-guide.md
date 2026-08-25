@@ -233,7 +233,6 @@ All module and hook paths are resolved relative to the directory containing `jdb
 
 Options available on database-executing subcommands:
 
-- `--driver sqlserver` (default: `sqlserver`)
 - `--property <key=value>` (repeatable; available on SQL-executing commands)
 
 The offline `emit-standard-imports` command has its own credential-free option set documented below.
@@ -274,7 +273,6 @@ bazel run //src/main/java/org/realityforge/jdbt:jdbt_bin -- status
 
 ```bash
 bazel run //src/main/java/org/realityforge/jdbt:jdbt_bin -- create \
-  --driver sqlserver \
   --target-host localhost --target-port 1433 \
   --target-database MyDb --target-username sa --password-env DB_PASS
 ```
@@ -285,7 +283,6 @@ Optional: `--no-create` (skip drop/create, run create flow against existing data
 
 ```bash
 bazel run //src/main/java/org/realityforge/jdbt:jdbt_bin -- create-with-dataset seed \
-  --driver sqlserver \
   --target-host localhost --target-port 1433 \
   --target-database MyDb --target-username sa --password-env DB_PASS
 ```

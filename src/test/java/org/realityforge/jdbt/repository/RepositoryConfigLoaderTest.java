@@ -38,9 +38,10 @@ final class RepositoryConfigLoaderTest {
         assertThat(config.modules()).containsExactly("Core", "Geo");
         assertThat(config.schemaOverrides()).containsEntry("Geo", "G");
         assertThat(config.tablesForModule("Core"))
-                .containsExactly(new RepositoryTable("[Core].[tblA]", List.of("[ID]"), List.of("[PK_A]")));
+                .containsExactly(
+                        new RepositoryTable("[Core].[tblA]", List.of("[ID]"), List.of("[PK_A]"), RowSource.IMPORT));
         assertThat(config.tablesForModule("Geo"))
-                .containsExactly(new RepositoryTable("[G].[tblB]", List.of("[ID]"), RowSource.DEPLOYMENT));
+                .containsExactly(new RepositoryTable("[G].[tblB]", List.of("[ID]"), List.of(), RowSource.DEPLOYMENT));
         assertThat(config.sequenceMap().get("Core")).containsExactly("[Core].[tblASeq]");
         assertThat(config.sequenceMap().get("Geo")).isEmpty();
     }

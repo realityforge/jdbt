@@ -17,12 +17,7 @@ public interface DbDriver {
 
     void dropSchema(String schemaName, List<String> tablesInDropOrder);
 
-    void execute(String sql, boolean executeInControlDatabase);
-
-    default void execute(
-            final String sql, final boolean executeInControlDatabase, final SqlTimingObserver timingObserver) {
-        execute(sql, executeInControlDatabase);
-    }
+    void execute(String sql, boolean executeInControlDatabase, SqlTimingObserver timingObserver);
 
     default void enableImportTiming() {}
 
@@ -36,44 +31,17 @@ public interface DbDriver {
 
     void preTableImport(DatabaseMetadata database, ImportConfig importConfig, String tableName);
 
-    void postTableImport(DatabaseMetadata database, ImportConfig importConfig, String tableName);
-
-    default void postTableImport(
-            final DatabaseMetadata database,
-            final ImportConfig importConfig,
-            final String tableName,
-            final ImportMaintenanceObserver observer) {
-        postTableImport(database, importConfig, tableName);
-    }
+    void postTableImport(
+            DatabaseMetadata database, ImportConfig importConfig, String tableName, ImportMaintenanceObserver observer);
 
     void postDataModuleImport(
-            DatabaseMetadata database, ImportConfig importConfig, String moduleName, List<String> tablesInOrder);
+            DatabaseMetadata database,
+            ImportConfig importConfig,
+            String moduleName,
+            List<String> tablesInOrder,
+            ImportMaintenanceObserver observer);
 
-    default void postDataModuleImport(
-            final DatabaseMetadata database,
-            final ImportConfig importConfig,
-            final String moduleName,
-            final List<String> tablesInOrder,
-            final ImportMaintenanceObserver observer) {
-        postDataModuleImport(database, importConfig, moduleName, tablesInOrder);
-    }
-
-    void postDatabaseImport(DatabaseMetadata database, ImportConfig importConfig);
-
-    default void postDatabaseImport(
-            final DatabaseMetadata database,
-            final ImportConfig importConfig,
-            final ImportMaintenanceObserver observer) {
-        postDatabaseImport(database, importConfig);
-    }
-
-    default boolean supportsAssertMacros() {
-        return false;
-    }
-
-    default boolean supportsStandardImportScripts() {
-        return false;
-    }
+    void postDatabaseImport(DatabaseMetadata database, ImportConfig importConfig, ImportMaintenanceObserver observer);
 
     List<String> columnNamesForTable(String tableName);
 

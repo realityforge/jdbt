@@ -31,6 +31,7 @@ import org.realityforge.jdbt.db.DatabaseMetadata;
 import org.realityforge.jdbt.db.ImportMaintenanceObserver;
 import org.realityforge.jdbt.db.QueryResult;
 import org.realityforge.jdbt.db.SqlTimingObservation;
+import org.realityforge.jdbt.db.SqlTimingObserver;
 
 final class SqlServerDbDriverTest {
     private final DatabaseConnection config = new DatabaseConnection("127.0.0.1", 1433, "DB", "sa", "secret");
@@ -57,8 +58,8 @@ final class SqlServerDbDriverTest {
         final var driver = new SqlServerDbDriver((connection, controlDatabase) -> controlDatabase ? control : target);
         driver.open(config, false);
 
-        driver.execute("SELECT 1", false);
-        driver.execute("SELECT 2", true);
+        driver.execute("SELECT 1", false, SqlTimingObserver.NONE);
+        driver.execute("SELECT 2", true, SqlTimingObserver.NONE);
 
         verify(targetStatement).execute("SELECT 1");
         final var ordered = inOrder(target, targetStatement);
@@ -81,7 +82,7 @@ final class SqlServerDbDriverTest {
         final var driver = new SqlServerDbDriver((connection, controlDatabase) -> controlDatabase ? control : target);
         driver.open(config, false);
 
-        assertThatThrownBy(() -> driver.execute("FAIL", true))
+        assertThatThrownBy(() -> driver.execute("FAIL", true, SqlTimingObserver.NONE))
                 .isInstanceOf(DatabaseException.class)
                 .hasMessageContaining("Failed to execute SQL");
 
@@ -393,8 +394,8 @@ final class SqlServerDbDriverTest {
         driver.open(config, false);
 
         driver.preTableImport(metadata, importConfig, "[Core].[tbl]");
-        driver.execute("INSERT IMPORT ROWS", true);
-        driver.postTableImport(metadata, importConfig, "[Core].[tbl]");
+        driver.execute("INSERT IMPORT ROWS", true, SqlTimingObserver.NONE);
+        driver.postTableImport(metadata, importConfig, "[Core].[tbl]", ImportMaintenanceObserver.DIRECT);
 
         final var ordered = inOrder(target, statement);
         ordered.verify(target).createStatement();
@@ -440,7 +441,7 @@ final class SqlServerDbDriverTest {
         final var driver = new SqlServerDbDriver((connection, controlDatabase) -> control);
         driver.open(config, true);
 
-        driver.drop(new DatabaseMetadata("1", "hash"), config);
+        driver.drop(new DatabaseMetadata("1", "hash", null, null, false, true, true, false), config);
 
         verify(statement).execute("SET DEADLOCK_PRIORITY HIGH");
         verify(statement).execute("EXEC msdb.dbo.sp_delete_database_backuphistory @database_name = N'DB'");
@@ -577,11 +578,14 @@ final class SqlServerDbDriverTest {
         driver.open(config, false);
         driver.preFixtureImport("[dbo].[tbl]");
         driver.postFixtureImport("[dbo].[tbl]");
-        final var metadata = new DatabaseMetadata("1", "hash");
+        final var metadata = new DatabaseMetadata("1", "hash", null, null, false, true, true, false);
         driver.preTableImport(
                 metadata, new ImportConfig("default", List.of(), "import", List.of(), List.of()), "[dbo].[tbl]");
         driver.postTableImport(
-                metadata, new ImportConfig("default", List.of(), "import", List.of(), List.of()), "[dbo].[tbl]");
+                metadata,
+                new ImportConfig("default", List.of(), "import", List.of(), List.of()),
+                "[dbo].[tbl]",
+                ImportMaintenanceObserver.DIRECT);
 
         verify(statement, times(2)).execute("SET IDENTITY_INSERT [dbo].[tbl] ON");
         verify(statement, times(2)).execute("SET IDENTITY_INSERT [dbo].[tbl] OFF");
@@ -618,16 +622,22 @@ final class SqlServerDbDriverTest {
         final var importConfig = new ImportConfig("default", List.of("Core"), "import", List.of(), List.of());
         final var noMaintenance = new DatabaseMetadata("1", "hash", null, null, false, true, false, false);
 
-        driver.postDatabaseImport(noMaintenance, importConfig);
-        driver.postDataModuleImport(noMaintenance, importConfig, "Core", List.of("[Core].[foo]"));
+        driver.postDatabaseImport(noMaintenance, importConfig, ImportMaintenanceObserver.DIRECT);
+        driver.postDataModuleImport(
+                noMaintenance, importConfig, "Core", List.of("[Core].[foo]"), ImportMaintenanceObserver.DIRECT);
 
         verify(statement, never()).execute(contains("sp_updatestats"));
         verify(statement, never()).execute(contains("SHRINKDATABASE"));
         verify(statement, never()).execute(contains("DBREINDEX"));
 
         final var shrinkAndReindex = new DatabaseMetadata("1", "hash", null, null, false, true, true, true);
-        driver.postDataModuleImport(shrinkAndReindex, importConfig, "Core", List.of("[Core].[foo]", "[Core].[bar]"));
-        driver.postDatabaseImport(shrinkAndReindex, importConfig);
+        driver.postDataModuleImport(
+                shrinkAndReindex,
+                importConfig,
+                "Core",
+                List.of("[Core].[foo]", "[Core].[bar]"),
+                ImportMaintenanceObserver.DIRECT);
+        driver.postDatabaseImport(shrinkAndReindex, importConfig, ImportMaintenanceObserver.DIRECT);
 
         verify(statement)
                 .execute("DECLARE @DbName VARCHAR(100); SET @DbName = DB_NAME(); DBCC SHRINKDATABASE(@DbName, 10,"

@@ -16,18 +16,6 @@ public record RepositoryTable(String name, List<String> columns, List<String> in
     private static final Pattern QUOTED_COLUMN =
             Pattern.compile("(?:" + BRACKETED_IDENTIFIER + '|' + QUOTED_IDENTIFIER + ')');
 
-    public RepositoryTable(final String name, final List<String> columns) {
-        this(name, columns, List.of(), RowSource.IMPORT);
-    }
-
-    public RepositoryTable(final String name, final List<String> columns, final List<String> indexes) {
-        this(name, columns, indexes, RowSource.IMPORT);
-    }
-
-    public RepositoryTable(final String name, final List<String> columns, final RowSource rowSource) {
-        this(name, columns, List.of(), rowSource);
-    }
-
     public RepositoryTable {
         if (name.isBlank()) {
             throw new ConfigException("Repository table name must not be blank.");

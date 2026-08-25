@@ -20,9 +20,12 @@ import org.realityforge.jdbt.db.DatabaseConnection;
 import org.realityforge.jdbt.db.DatabaseException;
 import org.realityforge.jdbt.db.DatabaseMetadata;
 import org.realityforge.jdbt.db.DbDriver;
+import org.realityforge.jdbt.db.ImportMaintenanceObserver;
 import org.realityforge.jdbt.db.QueryResult;
+import org.realityforge.jdbt.db.SqlTimingObserver;
 import org.realityforge.jdbt.repository.RepositoryConfig;
 import org.realityforge.jdbt.repository.RepositoryTable;
+import org.realityforge.jdbt.repository.RowSource;
 
 final class SqlServerDatabaseStatisticsExporterTest {
     private static final List<String> COLUMNS = List.of(
@@ -166,9 +169,13 @@ final class SqlServerDatabaseStatisticsExporterTest {
                 Map.of(
                         "A",
                         List.of(new RepositoryTable(
-                                "[A,Schema].[A\"Table]", List.of("[ID]"), List.of("[PK_A]", "[IX_Zed]", "[IX_Alpha]"))),
+                                "[A,Schema].[A\"Table]",
+                                List.of("[ID]"),
+                                List.of("[PK_A]", "[IX_Zed]", "[IX_Alpha]"),
+                                RowSource.IMPORT)),
                         "Zed",
-                        List.of(new RepositoryTable("[Zed].[Thing]", List.of("[ID]"), List.of("[PK_Thing]")))),
+                        List.of(new RepositoryTable(
+                                "[Zed].[Thing]", List.of("[ID]"), List.of("[PK_Thing]"), RowSource.IMPORT))),
                 Map.of("A", List.of(), "Zed", List.of()));
     }
 
@@ -229,7 +236,8 @@ final class SqlServerDatabaseStatisticsExporterTest {
         public void dropSchema(final String schemaName, final List<String> tablesInDropOrder) {}
 
         @Override
-        public void execute(final String sql, final boolean executeInControlDatabase) {}
+        public void execute(
+                final String sql, final boolean executeInControlDatabase, final SqlTimingObserver timingObserver) {}
 
         @Override
         public void preFixtureImport(final String tableName) {}
@@ -249,17 +257,24 @@ final class SqlServerDatabaseStatisticsExporterTest {
 
         @Override
         public void postTableImport(
-                final DatabaseMetadata database, final ImportConfig importConfig, final String tableName) {}
+                final DatabaseMetadata database,
+                final ImportConfig importConfig,
+                final String tableName,
+                final ImportMaintenanceObserver observer) {}
 
         @Override
         public void postDataModuleImport(
                 final DatabaseMetadata database,
                 final ImportConfig importConfig,
                 final String moduleName,
-                final List<String> tablesInOrder) {}
+                final List<String> tablesInOrder,
+                final ImportMaintenanceObserver observer) {}
 
         @Override
-        public void postDatabaseImport(final DatabaseMetadata database, final ImportConfig importConfig) {}
+        public void postDatabaseImport(
+                final DatabaseMetadata database,
+                final ImportConfig importConfig,
+                final ImportMaintenanceObserver observer) {}
 
         @Override
         public List<String> columnNamesForTable(final String tableName) {
