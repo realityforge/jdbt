@@ -21,6 +21,7 @@ import org.realityforge.jdbt.runtime.RuntimeExecutionException;
 import org.realityforge.jdbt.runtime.StandardImportEmitter;
 
 final class DefaultCommandRunner implements CommandRunner {
+    private static final String DEFAULT_IMPORT_KEY = "default";
     private final ProjectRuntimeLoader projectRuntimeLoader;
     private final DbDriverFactory dbDriverFactory;
     private final FileResolver fileResolver;
@@ -237,11 +238,11 @@ final class DefaultCommandRunner implements CommandRunner {
         if (null != importKey) {
             return importKey;
         }
-        final var defaultImport = runtime.defaults().defaultImport();
-        if (!runtime.database().imports().containsKey(defaultImport)) {
-            throw new RuntimeExecutionException("Unable to locate import definition by key '" + defaultImport + "'");
+        if (!runtime.database().imports().containsKey(DEFAULT_IMPORT_KEY)) {
+            throw new RuntimeExecutionException(
+                    "Unable to locate import definition by key '" + DEFAULT_IMPORT_KEY + "'");
         }
-        return defaultImport;
+        return DEFAULT_IMPORT_KEY;
     }
 
     private RuntimeEngine runtimeEngine(final String driver) {

@@ -4,14 +4,14 @@ import java.nio.file.Path;
 import java.util.List;
 import org.jspecify.annotations.Nullable;
 import org.realityforge.jdbt.config.DatabaseConfig;
-import org.realityforge.jdbt.config.DefaultsConfig;
 import org.realityforge.jdbt.files.ArtifactContent;
 import org.realityforge.jdbt.repository.RepositoryConfig;
 
 public final class RuntimeDatabaseFactory {
+    private static final String INDEX_FILE_NAME = "index.txt";
+
     public RuntimeDatabase from(
             final DatabaseConfig database,
-            final DefaultsConfig defaults,
             final RepositoryConfig repository,
             final List<ArtifactContent> preDbArtifacts,
             final List<ArtifactContent> postDbArtifacts,
@@ -22,7 +22,7 @@ public final class RuntimeDatabaseFactory {
                 List.of(searchDirectory),
                 preDbArtifacts,
                 postDbArtifacts,
-                defaults.indexFileName(),
+                INDEX_FILE_NAME,
                 database.upDirs(),
                 database.downDirs(),
                 database.finalizeDirs(),

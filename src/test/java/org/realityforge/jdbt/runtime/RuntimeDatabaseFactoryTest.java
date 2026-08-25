@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.realityforge.jdbt.config.DatabaseConfig;
-import org.realityforge.jdbt.config.DefaultsConfig;
 import org.realityforge.jdbt.config.FilterPropertyConfig;
 import org.realityforge.jdbt.config.ImportConfig;
 import org.realityforge.jdbt.config.ModuleGroupConfig;
@@ -44,14 +43,7 @@ final class RuntimeDatabaseFactoryTest {
                 Map.of("default", new ImportConfig("default", List.of("Core"), "import", List.of(), List.of())),
                 Map.of("g", new ModuleGroupConfig("g", List.of("Core"), false)));
 
-        final var runtimeDatabase = factory.from(
-                database,
-                DefaultsConfig.rubyCompatibleDefaults(),
-                repository,
-                List.of(),
-                List.of(),
-                "hash",
-                Path.of("dbRoot"));
+        final var runtimeDatabase = factory.from(database, repository, List.of(), List.of(), "hash", Path.of("dbRoot"));
 
         assertThat(runtimeDatabase.searchDirs()).containsExactly(Path.of("dbRoot"));
         assertThat(runtimeDatabase.indexFileName()).isEqualTo("index.txt");

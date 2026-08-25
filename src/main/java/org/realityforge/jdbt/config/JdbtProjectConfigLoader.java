@@ -7,6 +7,20 @@ import java.util.Map;
 import java.util.Set;
 
 public final class JdbtProjectConfigLoader {
+    private static final List<String> DEFAULT_UP_DIRS =
+            List.of(".", "types", "views", "functions", "stored-procedures", "misc");
+    private static final List<String> DEFAULT_DOWN_DIRS = List.of("down");
+    private static final List<String> DEFAULT_FINALIZE_DIRS = List.of("triggers", "finalize");
+    private static final List<String> DEFAULT_PRE_CREATE_DIRS = List.of("db-hooks/pre");
+    private static final List<String> DEFAULT_POST_CREATE_DIRS = List.of("db-hooks/post");
+    private static final List<String> DEFAULT_PRE_IMPORT_DIRS = List.of("import-hooks/pre");
+    private static final List<String> DEFAULT_POST_IMPORT_DIRS = List.of("import-hooks/post");
+    private static final String DEFAULT_IMPORT_DIR = "import";
+    private static final String DEFAULT_DATASETS_DIR_NAME = "datasets";
+    private static final List<String> DEFAULT_PRE_DATASET_DIRS = List.of("pre");
+    private static final List<String> DEFAULT_POST_DATASET_DIRS = List.of("post");
+    private static final String DEFAULT_FIXTURE_DIR_NAME = "fixtures";
+    private static final String DEFAULT_MIGRATIONS_DIR_NAME = "migrations";
     private static final Set<String> RESERVED_FILTER_PROPERTY_KEYS =
             Set.of("sourceDatabase", "targetDatabase", "table");
     private static final Set<String> RESERVED_FILTER_PATTERNS = Set.of("__SOURCE__", "__TARGET__", "__TABLE__");
@@ -44,17 +58,13 @@ public final class JdbtProjectConfigLoader {
                         "resourceRoot"),
                 sourceName);
 
-        final var defaults = DefaultsConfig.rubyCompatibleDefaults();
-        final var database = loadDatabase(root, defaults, repositoryModules, sourceName);
+        final var database = loadDatabase(root, repositoryModules, sourceName);
         final var resourceRoot = YamlMapSupport.optionalString(root, "resourceRoot", sourceName);
-        return new JdbtProjectConfig(defaults, database, null == resourceRoot ? "." : resourceRoot);
+        return new JdbtProjectConfig(database, null == resourceRoot ? "." : resourceRoot);
     }
 
     private static DatabaseConfig loadDatabase(
-            final Map<String, Object> body,
-            final DefaultsConfig defaults,
-            final List<String> repositoryModules,
-            final String sourceName) {
+            final Map<String, Object> body, final List<String> repositoryModules, final String sourceName) {
         final var path = sourceName;
         YamlMapSupport.assertKeys(
                 body,
@@ -92,28 +102,28 @@ public final class JdbtProjectConfigLoader {
         final var migrationsAppliedAtCreate = YamlMapSupport.optionalBoolean(body, "migrationsAppliedAtCreate", path);
 
         final var filterProperties = loadFilterProperties(body, path);
-        final var imports = loadImports(body, defaults, repositoryModules, path);
+        final var imports = loadImports(body, repositoryModules, path);
         final var moduleGroups = loadModuleGroups(body, repositoryModules, path);
 
         return new DatabaseConfig(
-                YamlMapSupport.optionalStringList(body, "upDirs", path, defaults.upDirs()),
-                YamlMapSupport.optionalStringList(body, "downDirs", path, defaults.downDirs()),
-                YamlMapSupport.optionalStringList(body, "finalizeDirs", path, defaults.finalizeDirs()),
-                YamlMapSupport.optionalStringList(body, "preCreateDirs", path, defaults.preCreateDirs()),
-                YamlMapSupport.optionalStringList(body, "postCreateDirs", path, defaults.postCreateDirs()),
+                YamlMapSupport.optionalStringList(body, "upDirs", path, DEFAULT_UP_DIRS),
+                YamlMapSupport.optionalStringList(body, "downDirs", path, DEFAULT_DOWN_DIRS),
+                YamlMapSupport.optionalStringList(body, "finalizeDirs", path, DEFAULT_FINALIZE_DIRS),
+                YamlMapSupport.optionalStringList(body, "preCreateDirs", path, DEFAULT_PRE_CREATE_DIRS),
+                YamlMapSupport.optionalStringList(body, "postCreateDirs", path, DEFAULT_POST_CREATE_DIRS),
                 YamlMapSupport.optionalStringList(body, "datasets", path, List.of()),
                 YamlMapSupport.optionalString(body, "datasetsDirName", path) == null
-                        ? defaults.datasetsDirName()
+                        ? DEFAULT_DATASETS_DIR_NAME
                         : YamlMapSupport.requireString(body, "datasetsDirName", path),
-                YamlMapSupport.optionalStringList(body, "preDatasetDirs", path, defaults.preDatasetDirs()),
-                YamlMapSupport.optionalStringList(body, "postDatasetDirs", path, defaults.postDatasetDirs()),
+                YamlMapSupport.optionalStringList(body, "preDatasetDirs", path, DEFAULT_PRE_DATASET_DIRS),
+                YamlMapSupport.optionalStringList(body, "postDatasetDirs", path, DEFAULT_POST_DATASET_DIRS),
                 YamlMapSupport.optionalString(body, "fixtureDirName", path) == null
-                        ? defaults.fixtureDirName()
+                        ? DEFAULT_FIXTURE_DIR_NAME
                         : YamlMapSupport.requireString(body, "fixtureDirName", path),
                 migrations,
                 migrationsAppliedAtCreate == null ? migrations : migrationsAppliedAtCreate,
                 YamlMapSupport.optionalString(body, "migrationsDirName", path) == null
-                        ? defaults.migrationsDirName()
+                        ? DEFAULT_MIGRATIONS_DIR_NAME
                         : YamlMapSupport.requireString(body, "migrationsDirName", path),
                 YamlMapSupport.optionalString(body, "version", path),
                 YamlMapSupport.optionalString(body, "dataPath", path),
@@ -236,10 +246,7 @@ public final class JdbtProjectConfigLoader {
     }
 
     private static Map<String, ImportConfig> loadImports(
-            final Map<String, Object> body,
-            final DefaultsConfig defaults,
-            final List<String> repositoryModules,
-            final String databasePath) {
+            final Map<String, Object> body, final List<String> repositoryModules, final String databasePath) {
         final var importsNode = YamlMapSupport.optionalMap(body, "imports", databasePath);
         if (importsNode == null) {
             return Map.of();
@@ -259,7 +266,7 @@ public final class JdbtProjectConfigLoader {
             validateModulesExist(modules, repositoryModules, "import", importKey, databasePath);
 
             final var dir = YamlMapSupport.optionalString(importNode, "dir", path) == null
-                    ? defaults.importDir()
+                    ? DEFAULT_IMPORT_DIR
                     : YamlMapSupport.requireString(importNode, "dir", path);
             imports.put(
                     importKey,
@@ -268,9 +275,9 @@ public final class JdbtProjectConfigLoader {
                             modules,
                             dir,
                             YamlMapSupport.optionalStringList(
-                                    importNode, "preImportDirs", path, defaults.preImportDirs()),
+                                    importNode, "preImportDirs", path, DEFAULT_PRE_IMPORT_DIRS),
                             YamlMapSupport.optionalStringList(
-                                    importNode, "postImportDirs", path, defaults.postImportDirs())));
+                                    importNode, "postImportDirs", path, DEFAULT_POST_IMPORT_DIRS)));
         }
         return Collections.unmodifiableMap(new LinkedHashMap<>(imports));
     }

@@ -14,7 +14,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.realityforge.jdbt.config.ConfigException;
-import org.realityforge.jdbt.config.DefaultsConfig;
 import org.realityforge.jdbt.config.JdbtProjectConfigLoader;
 import org.realityforge.jdbt.config.YamlMapSupport;
 import org.realityforge.jdbt.files.ArtifactContent;
@@ -63,23 +62,16 @@ final class ProjectRuntimeLoader {
         final var resolvedPreDbArtifacts = loadArtifacts(database.preDbArtifacts());
         final var resolvedPostDbArtifacts = loadArtifacts(database.postDbArtifacts());
         final var runtimeDatabaseWithoutHash = runtimeDatabaseFactory.from(
-                database,
-                projectConfig.defaults(),
-                repository,
-                resolvedPreDbArtifacts,
-                resolvedPostDbArtifacts,
-                null,
-                resourceRoot);
+                database, repository, resolvedPreDbArtifacts, resolvedPostDbArtifacts, null, resourceRoot);
         validateLogicalResourcePaths(runtimeDatabaseWithoutHash);
         final var runtimeDatabase = runtimeDatabaseFactory.from(
                 database,
-                projectConfig.defaults(),
                 repository,
                 resolvedPreDbArtifacts,
                 resolvedPostDbArtifacts,
                 schemaHash(runtimeDatabaseWithoutHash),
                 resourceRoot);
-        return new LoadedRuntime(runtimeDatabase, projectConfig.defaults(), projectDirectory);
+        return new LoadedRuntime(runtimeDatabase, projectDirectory);
     }
 
     void validate() {
@@ -417,5 +409,5 @@ final class ProjectRuntimeLoader {
         }
     }
 
-    record LoadedRuntime(RuntimeDatabase database, DefaultsConfig defaults, Path projectDirectory) {}
+    record LoadedRuntime(RuntimeDatabase database, Path projectDirectory) {}
 }

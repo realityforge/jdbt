@@ -7,7 +7,6 @@ java_library(
     srcs = [
         "ConfigException.java",
         "DatabaseConfig.java",
-        "DefaultsConfig.java",
         "FilterPropertyConfig.java",
         "ImportConfig.java",
         "JdbtProjectConfig.java",
