@@ -1,7 +1,11 @@
-package org.realityforge.jdbt.runtime;
+package org.realityforge.jdbt.db.sqlserver;
 
-final class SqlServerAssertExpander {
-    static String expandImportSql(final String sql) {
+import org.realityforge.jdbt.db.DatabaseException;
+
+public final class SqlServerAssertExpander {
+    private SqlServerAssertExpander() {}
+
+    public static String expandImportSql(final String sql) {
         var output = replaceArgumentMacro(
                 sql, "ASSERT_DATABASE_VERSION", SqlServerAssertExpander::importDatabaseVersionAssertion);
         output = replaceNoArgumentMacro(
@@ -9,7 +13,7 @@ final class SqlServerAssertExpander {
         return replaceArgumentMacro(output, "ASSERT_ROW_COUNT", SqlServerAssertExpander::rowCountAssertion);
     }
 
-    static String expandCreationSql(final String sql) {
+    public static String expandCreationSql(final String sql) {
         return replaceArgumentMacro(
                 sql, "ASSERT_DATABASE_VERSION", SqlServerAssertExpander::creationDatabaseVersionAssertion);
     }
@@ -72,7 +76,7 @@ final class SqlServerAssertExpander {
                 }
             }
         }
-        throw new RuntimeExecutionException("Unterminated assert expression in SQL: " + sql);
+        throw new DatabaseException("Unterminated assert expression in SQL: " + sql);
     }
 
     private static String importDatabaseVersionAssertion(final String expectedVersionExpression) {
@@ -153,5 +157,4 @@ final class SqlServerAssertExpander {
         String replacementSql();
     }
 
-    private SqlServerAssertExpander() {}
 }

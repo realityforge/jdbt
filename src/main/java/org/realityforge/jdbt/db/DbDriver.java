@@ -19,6 +19,13 @@ public interface DbDriver {
 
     void execute(String sql, boolean executeInControlDatabase);
 
+    default void execute(
+            final String sql, final boolean executeInControlDatabase, final SqlTimingObserver timingObserver) {
+        execute(sql, executeInControlDatabase);
+    }
+
+    default void enableImportTiming() {}
+
     void preFixtureImport(String tableName);
 
     void insert(String tableName, Map<String, Object> record);
@@ -31,10 +38,34 @@ public interface DbDriver {
 
     void postTableImport(DatabaseMetadata database, ImportConfig importConfig, String tableName);
 
+    default void postTableImport(
+            final DatabaseMetadata database,
+            final ImportConfig importConfig,
+            final String tableName,
+            final ImportMaintenanceObserver observer) {
+        postTableImport(database, importConfig, tableName);
+    }
+
     void postDataModuleImport(
             DatabaseMetadata database, ImportConfig importConfig, String moduleName, List<String> tablesInOrder);
 
+    default void postDataModuleImport(
+            final DatabaseMetadata database,
+            final ImportConfig importConfig,
+            final String moduleName,
+            final List<String> tablesInOrder,
+            final ImportMaintenanceObserver observer) {
+        postDataModuleImport(database, importConfig, moduleName, tablesInOrder);
+    }
+
     void postDatabaseImport(DatabaseMetadata database, ImportConfig importConfig);
+
+    default void postDatabaseImport(
+            final DatabaseMetadata database,
+            final ImportConfig importConfig,
+            final ImportMaintenanceObserver observer) {
+        postDatabaseImport(database, importConfig);
+    }
 
     default boolean supportsAssertMacros() {
         return false;

@@ -1,6 +1,12 @@
-load("@rules_java//java:defs.bzl", _java_binary = "java_binary", _java_import = "java_import", _java_plugin = "java_plugin", _java_test = "java_test")
+load("@rules_java//java:defs.bzl", _java_binary = "java_binary", _java_import = "java_import", _java_plugin = "java_plugin")
+load("//third_party/java:rules.bzl", _java_test = "java_test")
 
 package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    # An expanded version of this patch appears in the pull-request https://github.com/bazelbuild/rules_java/pull/376
+    "rules_java_exclude_build_data.patch",
+])
 
 _java_plugin(
     name = "nullaway_plugin",
@@ -12,7 +18,7 @@ _java_plugin(
 # DO NOT EDIT: Content is auto-generated from //third_party/java:dependencies.yml by https://github.com/realityforge/bazel-depgen version 0.28
 
 # SHA256 of the configuration content that generated this content
-_CONFIG_SHA256 = "DA49A27B095FE87359B9E4C68DCB9FE4C451BF893CE25A20D9F95F369CFB9631"
+_CONFIG_SHA256 = "3A2F4C3071893A2E94CA14819C28312DE4F960383B912982B697B0F8EFEEFF8A"
 
 exports_files(["dependencies.yml"])
 

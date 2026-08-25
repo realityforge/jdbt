@@ -8,6 +8,8 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.realityforge.jdbt.config.ConfigException;
 import org.realityforge.jdbt.config.ImportConfig;
+import org.realityforge.jdbt.db.postgres.PostgresDbDriver;
+import org.realityforge.jdbt.db.sqlserver.SqlServerDbDriver;
 
 final class DbDriverFactoryTest {
     @Test

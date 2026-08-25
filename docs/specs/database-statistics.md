@@ -10,11 +10,13 @@ Every table in a [Repository Descriptor](../glossary/README.md#repository-descri
 
 `export-database-statistics` accepts the standard database key, driver, target connection, and target password-source options plus a required `--output` file. SQL Server is supported; other drivers fail before connecting. The target principal needs database-level `VIEW DEFINITION`.
 
-The command issues one SQL Server catalog query. It sums `sys.partitions.rows` by object and index, uses the heap or clustered storage row as the table count, and uses each named index's own aggregate as its index count. The values are approximate and may have small cross-index skew during concurrent database activity. A filtered index therefore reports only its qualifying entries.
+The command issues one SQL Server catalog query. It independently sums `sys.partitions.rows` and `sys.allocation_units.used_pages` by object and index before combining the aggregates. Used pages include active in-row, LOB, and row-overflow allocation units; dropped allocation units are excluded.
+
+The heap or clustered storage aggregate supplies the table metrics, and each named index's own aggregate supplies its index metrics. A named clustered index and its table therefore describe the same physical storage and must not be summed as independent space. Row counts are approximate and may have small cross-index skew during concurrent database activity. A filtered index reports only its qualifying entries.
 
 ## Model validation
 
-The export contains only modeled tables and indexes. Database-only objects are ignored. Before writing output, the command reports modeled objects that are missing, duplicated, disabled, hypothetical, unsupported, partitionless, inaccessible, or have invalid counts. Independent validation failures are collected where practical.
+The export contains only modeled tables and indexes. Database-only objects are ignored. Before writing output, the command reports modeled objects that are missing, duplicated, disabled, hypothetical, unsupported, partitionless, inaccessible, or have missing, null, or negative row or page counts. Zero is valid. Independent validation failures are collected where practical.
 
 Supported modeled index storage is SQL Server heap, clustered rowstore, and nonclustered rowstore. A new storage type requires explicit collector support; it must not silently emit zero.
 
@@ -26,12 +28,14 @@ The exact header is:
 object_type,schema,table,index,metric,value
 ```
 
-Identifiers are natural, unquoted database identifiers and are matched case-sensitively to Repository Metadata. Tables are ordered by schema and table. Each table row precedes its indexes, which are alphabetically ordered. Table rows have an empty `index`; every row uses the metric `approximate_row_count` and a non-negative integer value.
+Identifiers are natural, unquoted database identifiers and are matched case-sensitively to Repository Metadata. Tables are ordered by schema and table. Each table identity precedes its indexes, which are alphabetically ordered. Table rows have an empty `index`.
+
+Each identity emits exactly two adjacent rows: `approximate_row_count` then `used_page_count`. Both use non-negative integer values. A used-page value is the native SQL Server page count; consumers may convert pages to bytes but must preserve the exported metric.
 
 Output is deterministic escaped CSV encoded as UTF-8 with LF endings. It contains no connection metadata, credentials, summaries, or capture timestamp.
 
 ## File safety
 
-The complete query, validation, and render finish before replacement. The command creates missing parent directories, writes a sibling temporary file, and atomically replaces the required output path. It does not fall back to a non-atomic move. Query, validation, rendering, or move failure preserves an existing output file and closes the database connection. Success prints one concise line identifying the row count and output path.
+The complete query, validation, and render finish before replacement. The command creates missing parent directories, writes a sibling temporary file, and atomically replaces the required output path. It does not fall back to a non-atomic move. Query, validation, rendering, or move failure preserves an existing output file and closes the database connection. Success prints one concise line identifying the emitted CSV data-row count and output path.
 
 The metadata ownership decision is recorded in [ADR 0002](../adr/0002-model-database-statistics-through-repository-metadata.md).

@@ -4,21 +4,29 @@ package(default_visibility = ["//visibility:public"])
 
 java_library(
     name = "db",
+    srcs = ["DbDriverFactory.java"],
+    exports = [":db_core"],
+    deps = [
+        ":db_core",
+        "//src/main/java/org/realityforge/jdbt/config",
+        "//src/main/java/org/realityforge/jdbt/db/postgres",
+        "//src/main/java/org/realityforge/jdbt/db/sqlserver",
+    ],
+)
+
+java_library(
+    name = "db_core",
     srcs = [
         "DatabaseConnection.java",
         "DatabaseException.java",
         "DatabaseMetadata.java",
         "DbDriver.java",
-        "DbDriverFactory.java",
+        "ImportMaintenanceObserver.java",
         "NoOpDbDriver.java",
-        "PostgresDbDriver.java",
         "QueryResult.java",
-        "SqlServerDbDriver.java",
+        "SqlTimingObservation.java",
+        "SqlTimingObserver.java",
         "package-info.java",
     ],
-    deps = [
-        "//src/main/java/org/realityforge/jdbt/config",
-        "//third_party/java:mssql_jdbc",
-        "//third_party/java:postgresql",
-    ],
+    deps = ["//src/main/java/org/realityforge/jdbt/config"],
 )

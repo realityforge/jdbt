@@ -46,6 +46,7 @@ interface CommandRunner {
             DatabaseConnection target,
             DatabaseConnection source,
             @Nullable String resumeAt,
+            @Nullable Path timingOutput,
             Map<String, String> filterProperties);
 
     void createByImport(
@@ -56,6 +57,7 @@ interface CommandRunner {
             DatabaseConnection source,
             @Nullable String resumeAt,
             boolean noCreate,
+            @Nullable Path timingOutput,
             Map<String, String> filterProperties);
 
     void loadDataset(

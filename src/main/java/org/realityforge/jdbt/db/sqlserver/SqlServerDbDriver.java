@@ -1,8 +1,12 @@
-package org.realityforge.jdbt.db;
+package org.realityforge.jdbt.db.sqlserver;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.sql.Statement;
+import java.sql.Types;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -10,9 +14,22 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.jspecify.annotations.Nullable;
 import org.realityforge.jdbt.config.ImportConfig;
+import org.realityforge.jdbt.db.DatabaseConnection;
+import org.realityforge.jdbt.db.DatabaseException;
+import org.realityforge.jdbt.db.DatabaseMetadata;
+import org.realityforge.jdbt.db.DbDriver;
+import org.realityforge.jdbt.db.ImportMaintenanceObserver;
+import org.realityforge.jdbt.db.QueryResult;
+import org.realityforge.jdbt.db.SqlTimingObservation;
+import org.realityforge.jdbt.db.SqlTimingObserver;
 
 @SuppressWarnings({"SqlNoDataSourceInspection", "SqlResolve"})
-final class SqlServerDbDriver implements DbDriver {
+public final class SqlServerDbDriver implements DbDriver {
+    private static final String TIMING_PROTOCOL = "jdbt.timing.v1";
+    private static final List<String> TIMING_COLUMNS =
+            List.of("Protocol", "Ordinal", "OperationId", "ParentOperationId", "Kind", "Status", "ElapsedMicroseconds");
+    private static final List<Integer> TIMING_COLUMN_TYPES = List.of(
+            Types.VARCHAR, Types.BIGINT, Types.VARCHAR, Types.VARCHAR, Types.VARCHAR, Types.VARCHAR, Types.BIGINT);
     private static final Logger LOGGER = Logger.getLogger(SqlServerDbDriver.class.getName());
 
     @FunctionalInterface
@@ -24,8 +41,9 @@ final class SqlServerDbDriver implements DbDriver {
     private @Nullable DatabaseConnection config;
     private @Nullable Connection targetConnection;
     private @Nullable Connection controlConnection;
+    private @Nullable String importTimingTable;
 
-    SqlServerDbDriver() {
+    public SqlServerDbDriver() {
         this(SqlServerDbDriver::openSqlServerConnection);
     }
 
@@ -50,6 +68,7 @@ final class SqlServerDbDriver implements DbDriver {
         closeQuietly(controlConnection);
         targetConnection = null;
         controlConnection = null;
+        importTimingTable = null;
     }
 
     @Override
@@ -114,12 +133,66 @@ final class SqlServerDbDriver implements DbDriver {
 
     @Override
     public void execute(final String sql, final boolean executeInControlDatabase) {
-        if (executeInControlDatabase && null != targetConnection) {
-            executeInCatalog(targetConnection, "msdb", sql);
+        final var target = targetConnection;
+        if (executeInControlDatabase && null != target) {
+            executeInCatalog(target, "msdb", () -> executeSql(target, sql));
         } else {
             final var connection = executeInControlDatabase ? controlConnection() : targetConnection();
             executeSql(connection, sql);
         }
+    }
+
+    @Override
+    public void execute(
+            final String sql, final boolean executeInControlDatabase, final SqlTimingObserver timingObserver) {
+        final var target = targetConnection;
+        if (executeInControlDatabase && null != target) {
+            executeInCatalog(target, "msdb", () -> executeTimedSql(target, sql, timingObserver));
+        } else {
+            final var connection = executeInControlDatabase ? controlConnection() : targetConnection();
+            executeTimedSql(connection, sql, timingObserver);
+        }
+    }
+
+    @Override
+    public void enableImportTiming() {
+        final var connection = targetConnection();
+        final var connectionConfig = config;
+        if (null == connectionConfig) {
+            throw new IllegalStateException("Import timing requested before driver was opened");
+        }
+        final var timingTable = quote(connectionConfig.database()) + ".[dbo].[tblImportTiming]";
+        executeSql(connection, """
+            DECLARE @LockResult INT
+            EXEC @LockResult = [sys].[sp_getapplock]
+              @Resource = N'jdbt.import.timing',
+              @LockMode = 'Exclusive',
+              @LockOwner = 'Session',
+              @LockTimeout = 0,
+              @DbPrincipal = 'public'
+            IF @LockResult < 0
+              THROW 51000, 'Another timed JDBT operation is active in this database', 1
+
+            IF OBJECT_ID(N'[dbo].[tblImportTiming]', 'U') IS NOT NULL
+              DROP TABLE [dbo].[tblImportTiming]
+
+            CREATE TABLE [dbo].[tblImportTiming]
+            (
+              [Ordinal] BIGINT NOT NULL,
+              [OperationId] VARCHAR(2000) NOT NULL,
+              [ParentOperationId] VARCHAR(2000) NULL,
+              [Kind] VARCHAR(100) NOT NULL,
+              [StartedAt] DATETIME2(7) NOT NULL,
+              [Status] VARCHAR(20) NOT NULL,
+              [ElapsedMicroseconds] BIGINT NOT NULL
+            )
+
+            EXEC [sys].[sp_set_session_context]
+              @key = N'jdbt.import.timing',
+              @value = N'jdbt.timing.v1',
+              @read_only = 1
+            """);
+        importTimingTable = timingTable;
     }
 
     @Override
@@ -168,9 +241,18 @@ final class SqlServerDbDriver implements DbDriver {
     @Override
     public void postTableImport(
             final DatabaseMetadata database, final ImportConfig importConfig, final String tableName) {
+        postTableImport(database, importConfig, tableName, (operation, subject, action) -> action.run());
+    }
+
+    @Override
+    public void postTableImport(
+            final DatabaseMetadata database,
+            final ImportConfig importConfig,
+            final String tableName,
+            final ImportMaintenanceObserver observer) {
         postFixtureImport(tableName);
         if (database.reindexOnImport()) {
-            reindex(tableName);
+            observer.run("post-table-reindex", tableName, () -> reindex(tableName));
         }
     }
 
@@ -180,13 +262,30 @@ final class SqlServerDbDriver implements DbDriver {
             final ImportConfig importConfig,
             final String moduleName,
             final List<String> tablesInOrder) {
+        postDataModuleImport(
+                database, importConfig, moduleName, tablesInOrder, (operation, subject, action) -> action.run());
+    }
+
+    @Override
+    public void postDataModuleImport(
+            final DatabaseMetadata database,
+            final ImportConfig importConfig,
+            final String moduleName,
+            final List<String> tablesInOrder,
+            final ImportMaintenanceObserver observer) {
         if (database.shrinkOnImport()) {
             final var prefix = "DECLARE @DbName VARCHAR(100); SET @DbName = DB_NAME(); ";
-            execute(prefix + "DBCC SHRINKDATABASE(@DbName, 10, NOTRUNCATE) WITH NO_INFOMSGS", false);
-            execute(prefix + "DBCC SHRINKDATABASE(@DbName, 10, TRUNCATEONLY) WITH NO_INFOMSGS", false);
+            observer.run(
+                    "module-shrink-notruncate",
+                    moduleName,
+                    () -> execute(prefix + "DBCC SHRINKDATABASE(@DbName, 10, NOTRUNCATE) WITH NO_INFOMSGS", false));
+            observer.run(
+                    "module-shrink-truncate",
+                    moduleName,
+                    () -> execute(prefix + "DBCC SHRINKDATABASE(@DbName, 10, TRUNCATEONLY) WITH NO_INFOMSGS", false));
             if (database.reindexOnImport()) {
                 for (final var table : tablesInOrder) {
-                    reindex(table);
+                    observer.run("post-shrink-reindex", table, () -> reindex(table));
                 }
             }
         }
@@ -194,12 +293,23 @@ final class SqlServerDbDriver implements DbDriver {
 
     @Override
     public void postDatabaseImport(final DatabaseMetadata database, final ImportConfig importConfig) {
+        postDatabaseImport(database, importConfig, (operation, subject, action) -> action.run());
+    }
+
+    @Override
+    public void postDatabaseImport(
+            final DatabaseMetadata database,
+            final ImportConfig importConfig,
+            final ImportMaintenanceObserver observer) {
         if (database.reindexOnImport()) {
-            execute("EXEC dbo.sp_updatestats", false);
-            execute(
-                    "DECLARE @DbName VARCHAR(100); SET @DbName = DB_NAME(); "
-                            + "DBCC UPDATEUSAGE(@DbName) WITH NO_INFOMSGS, COUNT_ROWS",
-                    false);
+            observer.run("database-update-statistics", null, () -> execute("EXEC dbo.sp_updatestats", false));
+            observer.run(
+                    "database-update-usage",
+                    null,
+                    () -> execute(
+                            "DECLARE @DbName VARCHAR(100); SET @DbName = DB_NAME(); "
+                                    + "DBCC UPDATEUSAGE(@DbName) WITH NO_INFOMSGS, COUNT_ROWS",
+                            false));
         }
     }
 
@@ -281,7 +391,17 @@ final class SqlServerDbDriver implements DbDriver {
 
     @Override
     public QueryResult verifySchemaConstraints(final String schemaName) {
-        return query("EXEC " + quote(schemaName) + ".spCheckConstraints");
+        final var result = query("EXEC " + quote(schemaName) + ".spCheckConstraints");
+        final var violationIndex = result.columnLabels().indexOf("IsViolation");
+        if (-1 == violationIndex) {
+            throw new DatabaseException("Constraint check result is missing IsViolation");
+        }
+        return new QueryResult(
+                result.columnLabels(),
+                result.rows().stream()
+                        .filter(row -> Boolean.TRUE.equals(row.get(violationIndex))
+                                || row.get(violationIndex) instanceof Number number && 0 != number.intValue())
+                        .toList());
     }
 
     @Override
@@ -483,7 +603,126 @@ final class SqlServerDbDriver implements DbDriver {
         }
     }
 
-    private static void executeInCatalog(final Connection connection, final String catalog, final String sql) {
+    private void executeTimedSql(
+            final Connection connection, final String sql, final SqlTimingObserver timingObserver) {
+        final var timingTable = importTimingTable;
+        if (null == timingTable) {
+            throw new IllegalStateException("Timed SQL execution requested before import timing was enabled");
+        }
+        final DatabaseException primary;
+        try (var statement = connection.createStatement()) {
+            if (processTimingResults(statement, sql, timingObserver)) {
+                executeSql(connection, "TRUNCATE TABLE " + timingTable);
+            }
+            return;
+        } catch (final RuntimeException timingFailure) {
+            throw timingFailure;
+        } catch (final SQLException sqle) {
+            primary = new DatabaseException("Failed to execute SQL", sqle);
+        }
+        drainImportTiming(connection, timingTable, timingObserver, primary);
+        throw primary;
+    }
+
+    private static boolean processTimingResults(
+            final Statement statement, final String sql, final SqlTimingObserver timingObserver) throws SQLException {
+        var hasResultSet = statement.execute(sql);
+        var timingResult = false;
+        while (true) {
+            if (hasResultSet) {
+                try (var resultSet = statement.getResultSet()) {
+                    timingResult |= processTimingResult(resultSet, timingObserver);
+                }
+            } else if (-1 == statement.getUpdateCount()) {
+                break;
+            }
+            hasResultSet = statement.getMoreResults(Statement.CLOSE_CURRENT_RESULT);
+        }
+        return timingResult;
+    }
+
+    private static void drainImportTiming(
+            final Connection connection,
+            final String timingTable,
+            final SqlTimingObserver timingObserver,
+            final DatabaseException primary) {
+        try (var statement = connection.createStatement()) {
+            processTimingResults(statement, timingDrainSql(timingTable), timingObserver);
+        } catch (final SQLException | RuntimeException ignored) {
+            primary.addSuppressed(new DatabaseException("Unable to drain SQL import timing after database failure"));
+        }
+    }
+
+    private static String timingDrainSql(final String timingTable) {
+        return "IF OBJECT_ID(N'" + sqlString(timingTable) + "', 'U') IS NOT NULL "
+                + "SELECT 'jdbt.timing.v1' AS [Protocol], [Ordinal], [OperationId], [ParentOperationId], [Kind],"
+                + " [Status], [ElapsedMicroseconds] FROM " + timingTable + " ORDER BY [Ordinal]";
+    }
+
+    private static boolean processTimingResult(final ResultSet resultSet, final SqlTimingObserver timingObserver)
+            throws SQLException {
+        final var metadata = resultSet.getMetaData();
+        if (!isTimingResult(metadata)) {
+            return false;
+        }
+        validateTimingColumns(metadata);
+        while (resultSet.next()) {
+            final var protocol = resultSet.getString(1);
+            if (!TIMING_PROTOCOL.equals(protocol)) {
+                throw new DatabaseException("Unsupported SQL import timing protocol");
+            }
+            final var ordinal = resultSet.getLong(2);
+            if (resultSet.wasNull()) {
+                throw new DatabaseException("SQL import timing ordinal must not be null");
+            }
+            final var operationId = requiredTimingString(resultSet, 3, "operation ID");
+            final var parentOperationId = resultSet.getString(4);
+            final var kind = requiredTimingString(resultSet, 5, "kind");
+            final var status = requiredTimingString(resultSet, 6, "status");
+            final var elapsedMicroseconds = resultSet.getLong(7);
+            if (resultSet.wasNull()) {
+                throw new DatabaseException("SQL import timing elapsed time must not be null");
+            }
+            timingObserver.observe(new SqlTimingObservation(
+                    ordinal, operationId, parentOperationId, kind, status, elapsedMicroseconds));
+        }
+        return true;
+    }
+
+    private static boolean isTimingResult(final ResultSetMetaData metadata) throws SQLException {
+        return metadata.getColumnCount() > 0 && TIMING_COLUMNS.get(0).equals(metadata.getColumnLabel(1));
+    }
+
+    private static void validateTimingColumns(final ResultSetMetaData metadata) throws SQLException {
+        if (TIMING_COLUMNS.size() != metadata.getColumnCount()) {
+            throw new DatabaseException("Invalid SQL import timing result shape");
+        }
+        for (int i = 0; i < TIMING_COLUMNS.size(); i++) {
+            if (!TIMING_COLUMNS.get(i).equals(metadata.getColumnLabel(i + 1))) {
+                throw new DatabaseException("Invalid SQL import timing result shape");
+            }
+        }
+        validateTimingColumnTypes(metadata);
+    }
+
+    private static void validateTimingColumnTypes(final ResultSetMetaData metadata) throws SQLException {
+        for (int i = 0; i < TIMING_COLUMN_TYPES.size(); i++) {
+            if (TIMING_COLUMN_TYPES.get(i) != metadata.getColumnType(i + 1)) {
+                throw new DatabaseException("Invalid SQL import timing column type");
+            }
+        }
+    }
+
+    private static String requiredTimingString(final ResultSet resultSet, final int column, final String field)
+            throws SQLException {
+        final var value = resultSet.getString(column);
+        if (null == value) {
+            throw new DatabaseException("SQL import timing " + field + " must not be null");
+        }
+        return value;
+    }
+
+    private static void executeInCatalog(final Connection connection, final String catalog, final Runnable action) {
         final String originalCatalog;
         try {
             originalCatalog = connection.getCatalog();
@@ -491,14 +730,14 @@ final class SqlServerDbDriver implements DbDriver {
             throw new DatabaseException("Failed to read SQL Server connection catalog", sqle);
         }
 
-        @Nullable DatabaseException failure = null;
+        @Nullable RuntimeException failure = null;
         try {
             connection.setCatalog(catalog);
-            executeSql(connection, sql);
+            action.run();
         } catch (final SQLException sqle) {
             failure = new DatabaseException("Failed to select SQL Server catalog " + catalog, sqle);
             throw failure;
-        } catch (final DatabaseException e) {
+        } catch (final RuntimeException e) {
             failure = e;
             throw e;
         } finally {

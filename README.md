@@ -46,6 +46,25 @@ Build a runnable deploy jar:
 bazel build //src/main/java/org/realityforge/jdbt:jdbt_bin_deploy.jar
 ```
 
+### Consuming JDBT as a Bazel module
+
+JDBT patches `rules_java` 9.8.0 so its deploy JARs can omit Bazel build metadata. Bazel applies module overrides only
+from the root module. Until `rules_java` releases this support, repositories that consume JDBT must copy
+`third_party/java/rules_java_exclude_build_data.patch` into their own source tree and apply it from their root
+`MODULE.bazel`:
+
+```starlark
+single_version_override(
+    module_name = "rules_java",
+    patch_strip = 1,
+    patches = ["//third_party:rules_java_exclude_build_data.patch"],
+    version = "9.8.0",
+)
+```
+
+Remove the copied patch and override after upgrading to a `rules_java` release that provides
+`java_binary(exclude_build_data = ...)`.
+
 ## Quick start
 
 1. Create `jdbt.yml` in the working directory, or select its directory with `--project-dir`.

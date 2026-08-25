@@ -1,6 +1,8 @@
 package org.realityforge.jdbt.db;
 
 import org.realityforge.jdbt.config.ConfigException;
+import org.realityforge.jdbt.db.postgres.PostgresDbDriver;
+import org.realityforge.jdbt.db.sqlserver.SqlServerDbDriver;
 
 public class DbDriverFactory {
     public DbDriver create(final String driver) {

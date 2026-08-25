@@ -360,6 +360,9 @@ public final class JdbtCommand implements Callable<Integer> {
         @CommandLine.Option(names = "--resume-at", description = "Resume import at table or sequence")
         private @Nullable String resumeAt;
 
+        @CommandLine.Option(names = "--timing-output", description = "Write structured import timing to this path")
+        private @Nullable Path timingOutput;
+
         @CommandLine.Mixin
         private TargetConnectionOptions target = new TargetConnectionOptions();
 
@@ -376,6 +379,7 @@ public final class JdbtCommand implements Callable<Integer> {
                             target.toConnection(passwordResolver()),
                             source.toConnection(passwordResolver()),
                             resumeAt,
+                            timingOutput,
                             filterProperties());
             return 0;
         }
@@ -393,6 +397,9 @@ public final class JdbtCommand implements Callable<Integer> {
         @CommandLine.Option(names = "--no-create", description = "Skip dropping and creating the target database")
         private boolean noCreate;
 
+        @CommandLine.Option(names = "--timing-output", description = "Write structured import timing to this path")
+        private @Nullable Path timingOutput;
+
         @CommandLine.Mixin
         private TargetConnectionOptions target = new TargetConnectionOptions();
 
@@ -409,6 +416,7 @@ public final class JdbtCommand implements Callable<Integer> {
                             source.toConnection(passwordResolver()),
                             resumeAt,
                             noCreate,
+                            timingOutput,
                             filterProperties());
             return 0;
         }
@@ -587,7 +595,7 @@ public final class JdbtCommand implements Callable<Integer> {
     @CommandLine.Command(
             name = "export-database-statistics",
             mixinStandardHelpOptions = true,
-            description = "Export approximate row counts for modeled tables and indexes")
+            description = "Export physical statistics for modeled tables and indexes")
     @SuppressWarnings("FieldCanBeFinal")
     static final class ExportDatabaseStatisticsCommand extends BaseCommand {
         @CommandLine.Option(names = "--output", required = true, description = "Output CSV file")

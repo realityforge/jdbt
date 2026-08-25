@@ -48,8 +48,8 @@ final class DefaultCommandRunnerTest {
         runner.createWithDataset("default", "noop", target, true, "seed", Map.of());
         runner.drop("default", "noop", target, Map.of());
         runner.migrate("default", "noop", target, Map.of());
-        runner.databaseImport("default", "noop", null, null, target, source, null, Map.of());
-        runner.createByImport("default", "noop", null, target, source, null, true, Map.of());
+        runner.databaseImport("default", "noop", null, null, target, source, null, null, Map.of());
+        runner.createByImport("default", "noop", null, target, source, null, true, null, Map.of());
         runner.loadDataset("default", "noop", "seed", target, Map.of());
         runner.upModuleGroup("default", "noop", "all", target, Map.of());
         runner.downModuleGroup("default", "noop", "all", target, Map.of());
@@ -122,7 +122,7 @@ final class DefaultCommandRunnerTest {
         final var runner =
                 new DefaultCommandRunner(new ProjectRuntimeLoader(consumer), driverFactory, new FileResolver());
 
-        runner.databaseImport("default", "recording", "default", null, target, source, null, Map.of());
+        runner.databaseImport("default", "recording", "default", null, target, source, null, null, Map.of());
 
         assertThat(driverFactory.driver.transcript()).isEqualTo("""
             open target
@@ -210,10 +210,61 @@ final class DefaultCommandRunnerTest {
         writeFile(tempDir, "repository.yml", repositoryConfig());
         final var runner = createRunner(tempDir);
 
-        assertThatThrownBy(
-                        () -> runner.databaseImport("default", "sqlserver", null, null, target, source, null, Map.of()))
+        assertThatThrownBy(() ->
+                        runner.databaseImport("default", "sqlserver", null, null, target, source, null, null, Map.of()))
                 .isInstanceOf(RuntimeExecutionException.class)
                 .hasMessageContaining("Unable to locate import definition by key");
+    }
+
+    @Test
+    void importTimingPathsResolveFromProjectAndTruncateBeforeExecution(@TempDir final Path tempDir) throws IOException {
+        writeFile(tempDir, "jdbt.yml", projectConfig(false));
+        writeFile(tempDir, "repository.yml", repositoryConfig());
+        writeFile(tempDir, "evidence/import.ndjson", "stale timing\n");
+        final var driverFactory = new RecordingDriverFactory();
+        final var runner =
+                new DefaultCommandRunner(new ProjectRuntimeLoader(tempDir), driverFactory, new FileResolver());
+
+        runner.databaseImport(
+                "default", "recording", null, null, target, source, null, Path.of("evidence/import.ndjson"), Map.of());
+
+        assertThat(tempDir.resolve("evidence/import.ndjson"))
+                .content(StandardCharsets.UTF_8)
+                .doesNotContain("stale timing")
+                .contains("\"operation_id\":\"command/import\"")
+                .contains("\"parent_operation_id\":null");
+
+        final var absoluteOutput = tempDir.resolve("absolute/create.ndjson").toAbsolutePath();
+        runner.createByImport("default", "recording", null, target, source, null, true, absoluteOutput, Map.of());
+
+        assertThat(absoluteOutput)
+                .content(StandardCharsets.UTF_8)
+                .contains("\"operation_id\":\"command/create-by-import\"");
+    }
+
+    @Test
+    void timingOutputSetupFailureOccursBeforeDatabaseMutation(@TempDir final Path tempDir) throws IOException {
+        writeFile(tempDir, "jdbt.yml", projectConfig(false));
+        writeFile(tempDir, "repository.yml", repositoryConfig());
+        Files.createDirectories(tempDir.resolve("timing-directory"));
+        final var driverFactory = new RecordingDriverFactory();
+        final var runner =
+                new DefaultCommandRunner(new ProjectRuntimeLoader(tempDir), driverFactory, new FileResolver());
+
+        assertThatThrownBy(() -> runner.databaseImport(
+                        "default",
+                        "recording",
+                        null,
+                        null,
+                        target,
+                        source,
+                        null,
+                        Path.of("timing-directory"),
+                        Map.of()))
+                .isInstanceOf(RuntimeExecutionException.class)
+                .hasMessage("Unable to open import timing output")
+                .hasNoCause();
+        assertThat(driverFactory.driver.events).isEmpty();
     }
 
     @Test

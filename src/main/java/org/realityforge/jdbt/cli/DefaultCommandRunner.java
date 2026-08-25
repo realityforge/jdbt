@@ -7,13 +7,15 @@ import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import org.jspecify.annotations.Nullable;
 import org.realityforge.jdbt.db.DatabaseConnection;
 import org.realityforge.jdbt.db.DbDriverFactory;
+import org.realityforge.jdbt.db.sqlserver.SqlServerDatabaseStatisticsExporter;
 import org.realityforge.jdbt.files.FileResolver;
 import org.realityforge.jdbt.packaging.DatabaseDataPackager;
 import org.realityforge.jdbt.packaging.DeterministicZipPackager;
-import org.realityforge.jdbt.runtime.DatabaseStatisticsExporter;
+import org.realityforge.jdbt.runtime.ImportTimingRecorder;
 import org.realityforge.jdbt.runtime.RuntimeEngine;
 import org.realityforge.jdbt.runtime.RuntimeExecutionException;
 import org.realityforge.jdbt.runtime.StandardImportEmitter;
@@ -100,12 +102,22 @@ final class DefaultCommandRunner implements CommandRunner {
             final DatabaseConnection target,
             final DatabaseConnection source,
             final @Nullable String resumeAt,
+            final @Nullable Path timingOutput,
             final Map<String, String> filterProperties) {
         final var runtime = projectRuntimeLoader.load(databaseKey);
         final var resolvedImport = resolveImportKey(runtime, importKey);
-        runtimeEngine(driver)
-                .databaseImport(
-                        runtime.database(), resolvedImport, moduleGroup, target, source, resumeAt, filterProperties);
+        withImportTiming(
+                runtime,
+                timingOutput,
+                timing -> runtimeEngine(driver, timing)
+                        .databaseImport(
+                                runtime.database(),
+                                resolvedImport,
+                                moduleGroup,
+                                target,
+                                source,
+                                resumeAt,
+                                filterProperties));
     }
 
     @Override
@@ -117,12 +129,22 @@ final class DefaultCommandRunner implements CommandRunner {
             final DatabaseConnection source,
             final @Nullable String resumeAt,
             final boolean noCreate,
+            final @Nullable Path timingOutput,
             final Map<String, String> filterProperties) {
         final var runtime = projectRuntimeLoader.load(databaseKey);
         final var resolvedImport = resolveImportKey(runtime, importKey);
-        runtimeEngine(driver)
-                .createByImport(
-                        runtime.database(), resolvedImport, target, source, resumeAt, noCreate, filterProperties);
+        withImportTiming(
+                runtime,
+                timingOutput,
+                timing -> runtimeEngine(driver, timing)
+                        .createByImport(
+                                runtime.database(),
+                                resolvedImport,
+                                target,
+                                source,
+                                resumeAt,
+                                noCreate,
+                                filterProperties));
     }
 
     @Override
@@ -224,7 +246,7 @@ final class DefaultCommandRunner implements CommandRunner {
                     "Database statistics export only supports the sqlserver driver, not '" + driver + "'");
         }
         final var runtime = projectRuntimeLoader.load(databaseKey);
-        final var count = new DatabaseStatisticsExporter(dbDriverFactory.create("sqlserver"))
+        final var count = new SqlServerDatabaseStatisticsExporter(dbDriverFactory.create("sqlserver"))
                 .export(runtime.database().repository(), target, outputFile);
         System.out.println("Exported " + count + " database statistics to "
                 + outputFile.toAbsolutePath().normalize());
@@ -245,6 +267,28 @@ final class DefaultCommandRunner implements CommandRunner {
     private RuntimeEngine runtimeEngine(final String driver) {
         final var dbDriver = dbDriverFactory.create(driver);
         return new RuntimeEngine(dbDriver, fileResolver);
+    }
+
+    private RuntimeEngine runtimeEngine(final String driver, final ImportTimingRecorder timing) {
+        final var dbDriver = dbDriverFactory.create(driver);
+        return new RuntimeEngine(dbDriver, fileResolver, System.out::println, timing);
+    }
+
+    private static void withImportTiming(
+            final ProjectRuntimeLoader.LoadedRuntime runtime,
+            final @Nullable Path timingOutput,
+            final Consumer<ImportTimingRecorder> action) {
+        if (null == timingOutput) {
+            action.accept(ImportTimingRecorder.disabled());
+            return;
+        }
+        final var resolvedOutput = (timingOutput.isAbsolute()
+                        ? timingOutput
+                        : runtime.projectDirectory().resolve(timingOutput))
+                .normalize();
+        try (var timing = ImportTimingRecorder.open(resolvedOutput)) {
+            action.accept(timing);
+        }
     }
 
     private static void deleteRecursively(final Path directory) {

@@ -4,7 +4,14 @@ module(
 
 bazel_dep(name = "buildifier_prebuilt", version = "8.5.1", dev_dependency = True)
 
+bazel_dep(name = "ahab", version = "0.2.0")
 bazel_dep(name = "rules_java", version = "9.8.0")
+single_version_override(
+    module_name = "rules_java",
+    patch_strip = 1,
+    patches = ["//third_party/java:rules_java_exclude_build_data.patch"],
+    version = "9.8.0",
+)
 
 # Expose rules_java's compatibility proxy to the root module for IJWB's bundled
 # IntelliJ aspect, which loads @compatibility_proxy//:proxy.bzl directly.

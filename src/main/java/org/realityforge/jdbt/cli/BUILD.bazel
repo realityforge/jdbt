@@ -15,6 +15,7 @@ java_library(
     deps = [
         "//src/main/java/org/realityforge/jdbt/config",
         "//src/main/java/org/realityforge/jdbt/db",
+        "//src/main/java/org/realityforge/jdbt/db/sqlserver",
         "//src/main/java/org/realityforge/jdbt/files",
         "//src/main/java/org/realityforge/jdbt/packaging",
         "//src/main/java/org/realityforge/jdbt/repository",

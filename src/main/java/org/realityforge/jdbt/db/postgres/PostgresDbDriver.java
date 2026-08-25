@@ -1,4 +1,4 @@
-package org.realityforge.jdbt.db;
+package org.realityforge.jdbt.db.postgres;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -10,8 +10,13 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.jspecify.annotations.Nullable;
 import org.realityforge.jdbt.config.ImportConfig;
+import org.realityforge.jdbt.db.DatabaseConnection;
+import org.realityforge.jdbt.db.DatabaseException;
+import org.realityforge.jdbt.db.DatabaseMetadata;
+import org.realityforge.jdbt.db.DbDriver;
+import org.realityforge.jdbt.db.QueryResult;
 
-final class PostgresDbDriver implements DbDriver {
+public final class PostgresDbDriver implements DbDriver {
     private static final Logger LOGGER = Logger.getLogger(PostgresDbDriver.class.getName());
 
     @FunctionalInterface
@@ -24,7 +29,7 @@ final class PostgresDbDriver implements DbDriver {
     private @Nullable Connection targetConnection;
     private @Nullable Connection controlConnection;
 
-    PostgresDbDriver() {
+    public PostgresDbDriver() {
         this(PostgresDbDriver::openPostgresConnection);
     }
 

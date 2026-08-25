@@ -1,9 +1,10 @@
-package org.realityforge.jdbt.runtime;
+package org.realityforge.jdbt.db.sqlserver;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.Test;
+import org.realityforge.jdbt.db.DatabaseException;
 
 final class SqlServerAssertExpanderTest {
     @Test
@@ -45,7 +46,7 @@ final class SqlServerAssertExpanderTest {
     @Test
     void rejectsUnterminatedAssertExpression() {
         assertThatThrownBy(() -> SqlServerAssertExpander.expandImportSql("ASSERT_ROW_COUNT(1"))
-                .isInstanceOf(RuntimeExecutionException.class)
+                .isInstanceOf(DatabaseException.class)
                 .hasMessageContaining("Unterminated assert expression");
     }
 

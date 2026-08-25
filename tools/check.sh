@@ -6,6 +6,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${ROOT}"
 tools/update_java_deps.sh --check
 bazel run //:buildifier_check
+bazel run //tools/ahab:hermeticity.check
 tools/java_format.sh check
 bazel build //...
 bazel test //...

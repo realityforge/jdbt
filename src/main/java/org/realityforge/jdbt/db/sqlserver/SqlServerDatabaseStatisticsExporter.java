@@ -1,4 +1,4 @@
-package org.realityforge.jdbt.runtime;
+package org.realityforge.jdbt.db.sqlserver;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -16,16 +16,24 @@ import java.util.Map;
 import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 import org.realityforge.jdbt.db.DatabaseConnection;
+import org.realityforge.jdbt.db.DatabaseException;
 import org.realityforge.jdbt.db.DbDriver;
 import org.realityforge.jdbt.db.QueryResult;
 import org.realityforge.jdbt.repository.RepositoryConfig;
 
-public final class DatabaseStatisticsExporter {
+public final class SqlServerDatabaseStatisticsExporter {
     static final String CATALOG_QUERY = """
         WITH partition_rows AS (
           SELECT object_id, index_id, SUM(rows) AS row_count
           FROM sys.partitions
           GROUP BY object_id, index_id
+        ), allocation_pages AS (
+          SELECT p.object_id, p.index_id, SUM(a.used_pages) AS used_page_count
+          FROM sys.partitions p
+          JOIN sys.allocation_units a
+            ON a.container_id = CASE WHEN a.type = 2 THEN p.partition_id ELSE p.hobt_id END
+          WHERE a.type IN (1, 2, 3)
+          GROUP BY p.object_id, p.index_id
         ), catalog_rows AS (
           SELECT s.name AS schema_name,
                  t.name AS table_name,
@@ -34,11 +42,13 @@ public final class DatabaseStatisticsExporter {
                  i.type AS index_type,
                  i.is_disabled,
                  i.is_hypothetical,
-                 p.row_count
+                 p.row_count,
+                 a.used_page_count
           FROM sys.tables t
           JOIN sys.schemas s ON s.schema_id = t.schema_id
           JOIN sys.indexes i ON i.object_id = t.object_id
           LEFT JOIN partition_rows p ON p.object_id = i.object_id AND p.index_id = i.index_id
+          LEFT JOIN allocation_pages a ON a.object_id = i.object_id AND a.index_id = i.index_id
         )
         SELECT CAST(HAS_PERMS_BY_NAME(DB_NAME(), 'DATABASE', 'VIEW DEFINITION') AS int) AS has_view_definition,
                c.schema_name,
@@ -48,7 +58,8 @@ public final class DatabaseStatisticsExporter {
                c.index_type,
                c.is_disabled,
                c.is_hypothetical,
-               c.row_count
+               c.row_count,
+               c.used_page_count
         FROM (VALUES (0)) marker(value)
         LEFT JOIN catalog_rows c ON 1 = 1
         ORDER BY c.schema_name, c.table_name, c.index_id
@@ -62,12 +73,13 @@ public final class DatabaseStatisticsExporter {
             "index_type",
             "is_disabled",
             "is_hypothetical",
-            "row_count");
+            "row_count",
+            "used_page_count");
     private static final String CSV_HEADER = "object_type,schema,table,index,metric,value\n";
 
     private final DbDriver dbDriver;
 
-    public DatabaseStatisticsExporter(final DbDriver dbDriver) {
+    public SqlServerDatabaseStatisticsExporter(final DbDriver dbDriver) {
         this.dbDriver = dbDriver;
     }
 
@@ -81,12 +93,12 @@ public final class DatabaseStatisticsExporter {
         }
         final var statistics = validateAndCollect(repository, result);
         replaceAtomically(outputFile, render(statistics));
-        return statistics.size();
+        return statistics.size() * 2;
     }
 
     private static List<Statistic> validateAndCollect(final RepositoryConfig repository, final QueryResult result) {
         if (!CATALOG_COLUMNS.equals(result.columnLabels())) {
-            throw new RuntimeExecutionException("Unexpected database statistics columns. Expected " + CATALOG_COLUMNS
+            throw new DatabaseException("Unexpected database statistics columns. Expected " + CATALOG_COLUMNS
                     + " but received " + result.columnLabels());
         }
 
@@ -141,8 +153,12 @@ public final class DatabaseStatisticsExporter {
             } else {
                 final var storage = storageRows.get(0);
                 if (validRow(storage, "table " + expected.key().display(), true, errors)) {
-                    statistics.add(
-                            new Statistic("table", expected.key(), "", Objects.requireNonNull(storage.rowCount())));
+                    statistics.add(new Statistic(
+                            "table",
+                            expected.key(),
+                            "",
+                            Objects.requireNonNull(storage.rowCount()),
+                            Objects.requireNonNull(storage.usedPageCount())));
                 }
             }
 
@@ -160,13 +176,14 @@ public final class DatabaseStatisticsExporter {
                             "index",
                             expected.key(),
                             expectedIndex,
-                            Objects.requireNonNull(matching.get(0).rowCount())));
+                            Objects.requireNonNull(matching.get(0).rowCount()),
+                            Objects.requireNonNull(matching.get(0).usedPageCount())));
                 }
             }
         }
 
         if (!errors.isEmpty()) {
-            throw new RuntimeExecutionException(
+            throw new DatabaseException(
                     "Database statistics validation failed:\n - " + String.join("\n - ", errors));
         }
         return List.copyOf(statistics);
@@ -182,10 +199,10 @@ public final class DatabaseStatisticsExporter {
                 final var value = new ExpectedTable(
                         key,
                         table.indexes().stream()
-                                .map(DatabaseStatisticsExporter::unquote)
+                                .map(SqlServerDatabaseStatisticsExporter::unquote)
                                 .toList());
                 if (null != expected.put(key, value)) {
-                    throw new RuntimeExecutionException("Duplicate modeled table " + key.display());
+                    throw new DatabaseException("Duplicate modeled table " + key.display());
                 }
             }
         }
@@ -200,10 +217,11 @@ public final class DatabaseStatisticsExporter {
         final var disabled = flag(row.get(6), "is_disabled", errors);
         final var hypothetical = flag(row.get(7), "is_hypothetical", errors);
         final var rowCount = longValue(row.get(8), "row_count", errors);
+        final var usedPageCount = longValue(row.get(9), "used_page_count", errors);
         if (null == indexId || null == indexType || null == disabled || null == hypothetical) {
             return null;
         }
-        return new CatalogRow(table, indexName, indexId, indexType, disabled, hypothetical, rowCount);
+        return new CatalogRow(table, indexName, indexId, indexType, disabled, hypothetical, rowCount, usedPageCount);
     }
 
     private static boolean validRow(
@@ -231,6 +249,13 @@ public final class DatabaseStatisticsExporter {
             errors.add("Modeled " + display + " has invalid negative row count " + row.rowCount());
             valid = false;
         }
+        if (null == row.usedPageCount()) {
+            errors.add("Modeled " + display + " has no allocation-unit used page count");
+            valid = false;
+        } else if (row.usedPageCount() < 0) {
+            errors.add("Modeled " + display + " has invalid negative used page count " + row.usedPageCount());
+            valid = false;
+        }
         return valid;
     }
 
@@ -245,7 +270,17 @@ public final class DatabaseStatisticsExporter {
                     .append(',')
                     .append(csv(statistic.index()))
                     .append(",approximate_row_count,")
-                    .append(statistic.value())
+                    .append(statistic.approximateRowCount())
+                    .append('\n')
+                    .append(csv(statistic.objectType()))
+                    .append(',')
+                    .append(csv(statistic.table().schema()))
+                    .append(',')
+                    .append(csv(statistic.table().table()))
+                    .append(',')
+                    .append(csv(statistic.index()))
+                    .append(",used_page_count,")
+                    .append(statistic.usedPageCount())
                     .append('\n');
         }
         return csv.toString();
@@ -274,7 +309,7 @@ public final class DatabaseStatisticsExporter {
                         StandardCopyOption.ATOMIC_MOVE,
                         StandardCopyOption.REPLACE_EXISTING);
             } catch (final AtomicMoveNotSupportedException exception) {
-                throw new RuntimeExecutionException(
+                throw new DatabaseException(
                         "Atomic replacement is not supported for " + absoluteOutput, exception);
             }
             temporaryFile = null;
@@ -395,7 +430,9 @@ public final class DatabaseStatisticsExporter {
             int indexType,
             boolean disabled,
             boolean hypothetical,
-            @Nullable Long rowCount) {}
+            @Nullable Long rowCount,
+            @Nullable Long usedPageCount) {}
 
-    private record Statistic(String objectType, TableKey table, String index, long value) {}
+    private record Statistic(
+            String objectType, TableKey table, String index, long approximateRowCount, long usedPageCount) {}
 }

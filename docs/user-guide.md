@@ -110,7 +110,8 @@ Path categories are deliberately distinct:
 
 - `resourceRoot` and configured artifact paths are project-directory-relative when not absolute
 - logical resource directories in `jdbt.yml` are resource-root-relative
-- CLI path arguments and output paths are caller-working-directory-relative
+- CLI path arguments and output paths are caller-working-directory-relative, except `--timing-output`, whose relative
+  paths are Database-Project-relative as specified under Structured import timing
 - SQL Server `dataPath` and `logPath` refer to the database server filesystem
 
 #### `imports`
@@ -358,6 +359,41 @@ bazel run //src/main/java/org/realityforge/jdbt:jdbt_bin -- create-by-import \
 
 Optional: `--resume-at <tableOrSequence>`, `--no-create`.
 
+### Structured import timing
+
+`import` and `create-by-import` alone accept `--timing-output PATH`. Relative paths resolve from the Database Project;
+absolute paths are used directly. The output file is created or truncated before database mutation, missing parent
+directories are created, and omitting the option preserves the ordinary command output and execution path.
+
+The file is UTF-8 newline-delimited JSON with one flushed terminal observation per line. Version 1 lines contain
+`schema_version`, `sequence`, `operation_id`, `parent_operation_id`, `kind`, `status`, and `elapsed_microseconds`.
+Sequence is deterministic terminal order, not wall-clock order; parent elapsed time includes nested work, so nested
+durations must not be summed. Supported version 1 readers must tolerate additional fields.
+
+Stable kinds are `command`, `phase`, `module`, `table_clear`, `table_transfer`, `sequence_transfer`, `maintenance`,
+`sql_directory`, `sql_file`, `sql_batch`, `analysis_corruption_check`, and `analysis_constraint_check`. Identities use
+canonical logical model names and database-resource paths with percent-encoded components. They never include SQL,
+connection details, credentials, filter values, exception text, or physical paths.
+
+Example:
+
+```bash
+bazel run //src/main/java/org/realityforge/jdbt:jdbt_bin -- import \
+  --timing-output timings/production-import.ndjson \
+  --import default \
+  --target-host localhost --target-database TargetDb --target-username sa --password-env TARGET_PASS \
+  --source-host localhost --source-database SourceDb --source-username sa --source-password-env SOURCE_PASS
+```
+
+On SQL Server, a timed command consumes only the exact internal `jdbt.timing.v1` result shape. Unrelated SQL result
+sets are closed without reading row values. Missing protocol results are valid for projects without server-side timing;
+unsupported or malformed timing fails the opted-in command. The internal SQL protocol and public NDJSON schema are
+versioned independently. If SQL execution fails, jdbt attempts to drain and remove session-local timing before closing
+the target connection. The database error stays primary; any drain, validation, output, or cleanup problem is attached
+only as fixed diagnostic context. Java batch/file/phase/command failures are still emitted when the connection cannot
+be drained. See [Database Imports](specs/database-imports.md#structured-import-timing) for the durable identity,
+compatibility, and failure contract.
+
 `load-dataset`
 
 ```bash
@@ -418,8 +454,9 @@ bazel run //src/main/java/org/realityforge/jdbt:jdbt_bin -- verify-constraints \
   --check-query "EXEC [Analysis].[spPerformChecks]"
 ```
 
-`--schema` may be repeated. For SQL Server, each schema runs `<schema>.spCheckConstraints` and the command fails if
-any row is returned. Other drivers return no schema constraint rows unless they implement a native equivalent.
+`--schema` may be repeated. For SQL Server, each schema runs `<schema>.spCheckConstraints`, requires an `IsViolation`
+column, and fails if any returned row marks a violation. Completed non-violation rows are ignored. Other drivers return
+no schema constraint rows unless they implement a native equivalent.
 
 `--check-query` may be repeated. Each query must return zero rows; any returned row is reported as a failed check.
 
@@ -466,7 +503,7 @@ bazel run //src/main/java/org/realityforge/jdbt:jdbt_bin -- export-database-stat
   --output ./database-statistics.csv
 ```
 
-This SQL Server-only command writes approximate row counts for every modeled table and physical index. The account needs `VIEW DEFINITION` on the database. Database-only objects are ignored; missing or unusable modeled objects fail the export without replacing an existing file. See the [Database Statistics Export specification](specs/database-statistics.md) for query, validation, CSV, and atomic-output semantics.
+This SQL Server-only command writes approximate row counts and physical used-page counts for every modeled table and physical index. The account needs `VIEW DEFINITION` on the database. Database-only objects are ignored; missing or unusable modeled objects fail the export without replacing an existing file. See the [Database Statistics Export specification](specs/database-statistics.md) for query, validation, CSV, and atomic-output semantics.
 
 ## Artifacts and packaging
 

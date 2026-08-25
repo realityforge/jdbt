@@ -26,7 +26,7 @@ A deterministic zip consumed through `preDbArtifacts` or `postDbArtifacts`. It c
 
 ### Database Statistics Export
 
-A deterministic CSV observation of approximate row counts for every table and physical index declared by [Repository Metadata](#repository-metadata). It validates the live database against the modeled identities and excludes database-only objects.
+A deterministic CSV observation of approximate row counts and physical used-page counts for every table and physical index declared by [Repository Metadata](#repository-metadata). It validates the live database against the modeled identities and excludes database-only objects.
 
 ## Import behavior
 

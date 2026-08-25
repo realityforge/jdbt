@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
+import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -17,15 +18,21 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.realityforge.jdbt.config.FilterPropertyConfig;
 import org.realityforge.jdbt.config.ImportConfig;
 import org.realityforge.jdbt.config.ModuleGroupConfig;
 import org.realityforge.jdbt.db.DatabaseConnection;
+import org.realityforge.jdbt.db.DatabaseException;
 import org.realityforge.jdbt.db.DatabaseMetadata;
 import org.realityforge.jdbt.db.DbDriver;
+import org.realityforge.jdbt.db.ImportMaintenanceObserver;
 import org.realityforge.jdbt.db.QueryResult;
+import org.realityforge.jdbt.db.SqlTimingObservation;
+import org.realityforge.jdbt.db.SqlTimingObserver;
 import org.realityforge.jdbt.files.ArtifactContent;
 import org.realityforge.jdbt.files.FileResolver;
 import org.realityforge.jdbt.repository.RepositoryConfig;
@@ -276,6 +283,273 @@ final class RuntimeEngineTest {
                         "MyModule       : Importing MyModule.foo (By D)",
                         "MyModule       : Importing MyModule.bar (By D)",
                         "               : import-hooks/post/post.sql");
+    }
+
+    @Test
+    void timedImportWritesCanonicalNestedLifecycleAndSqlOperations(@TempDir final Path tempDir) throws IOException {
+        createFile(tempDir, "db/import-hooks/pre/pre.sql", "PRE\nGO\n\nGO\nPRE2");
+        createFile(tempDir, "db/MyModule/import/MyModule.foo.sql", "EXPLICIT\nGO\nEXPLICIT2");
+        createFile(tempDir, "db/import-hooks/post/post.sql", "POST");
+        final var repository = new RepositoryConfig(
+                List.of("MyModule"),
+                Map.of(),
+                Map.of("MyModule", tables("[MyModule].[foo]", "[MyModule].[bar]")),
+                Map.of("MyModule", List.of("[MyModule].[seq]")));
+        final var importConfig = new ImportConfig(
+                "default", List.of("MyModule"), "import", List.of("import-hooks/pre"), List.of("import-hooks/post"));
+        final var database = withShrinkOnImport(runtimeDatabase(
+                "default",
+                repository,
+                List.of(tempDir.resolve("db")),
+                Map.of(),
+                List.of("defaultDataset"),
+                Map.of("default", importConfig)));
+        final var driver = new RecordingDriver(false, true);
+        final var output = new StringWriter();
+        final var clock = new AtomicLong();
+        final var timing = new ImportTimingRecorder(output, () -> clock.getAndAdd(1_000L));
+        final var engine = new RuntimeEngine(driver, new FileResolver(), ignored -> {}, timing);
+
+        engine.databaseImport(database, "default", null, connection, sourceConnection, null, Map.of());
+
+        assertThat(output.toString())
+                .contains(
+                        observationParent("sql-directory/import-hooks%2Fpre", "phase/data-import"),
+                        observationParent("sql-file/import-hooks%2Fpre%2Fpre.sql", "sql-directory/import-hooks%2Fpre"),
+                        observationParent(
+                                "sql-batch/import-hooks%2Fpre%2Fpre.sql/1", "sql-file/import-hooks%2Fpre%2Fpre.sql"),
+                        observationParent(
+                                "sql-batch/import-hooks%2Fpre%2Fpre.sql/2", "sql-file/import-hooks%2Fpre%2Fpre.sql"),
+                        observationParent("table-clear/MyModule.bar", "module/import/MyModule"),
+                        observationParent("table-transfer/MyModule.foo", "module/import/MyModule"),
+                        observationParent(
+                                "sql-file/MyModule%2Fimport%2FMyModule.foo.sql", "table-transfer/MyModule.foo"),
+                        observationParent(
+                                "sql-batch/MyModule%2Fimport%2FMyModule.foo.sql/2",
+                                "sql-file/MyModule%2Fimport%2FMyModule.foo.sql"),
+                        observationParent("sql-batch/table-transfer%2FMyModule.bar/1", "table-transfer/MyModule.bar"),
+                        observationParent(
+                                "sql-batch/sequence-transfer%2FMyModule.seq/1", "sequence-transfer/MyModule.seq"),
+                        observationParent("maintenance/post-table-reindex/MyModule.foo", "module/import/MyModule"),
+                        observationParent("maintenance/module-shrink-notruncate/MyModule", "module/import/MyModule"),
+                        observationParent("maintenance/module-shrink-truncate/MyModule", "module/import/MyModule"),
+                        observationParent("maintenance/post-shrink-reindex/MyModule.bar", "module/import/MyModule"),
+                        observationParent("maintenance/database-update-statistics", "phase/data-import"),
+                        observationParent("maintenance/database-update-usage", "phase/data-import"),
+                        "\"operation_id\":\"command/import\",\"parent_operation_id\":null,\"kind\":\"command\",\"status\":\"succeeded\"")
+                .doesNotContain(tempDir.toString(), "zip:", "IMPORT_DB", "DBT_TEST", "secret");
+    }
+
+    @Test
+    void timedCreateByImportResumeReportsOnlyExecutedSuffix(@TempDir final Path tempDir) throws IOException {
+        final var repository = new RepositoryConfig(
+                List.of("MyModule"),
+                Map.of(),
+                Map.of("MyModule", tables("[MyModule].[foo]", "[MyModule].[bar]")),
+                Map.of("MyModule", List.of()));
+        final var database = runtimeDatabase("default", repository, List.of(tempDir.resolve("db")));
+        final var output = new StringWriter();
+        final var clock = new AtomicLong();
+        final var timing = new ImportTimingRecorder(output, () -> clock.getAndAdd(1_000L));
+        final var engine =
+                new RuntimeEngine(new RecordingDriver(false, true), new FileResolver(), ignored -> {}, timing);
+
+        engine.createByImport(database, "default", connection, sourceConnection, "MyModule.bar", false, Map.of());
+
+        assertThat(output.toString())
+                .contains(
+                        observationParent("phase/data-import", "command/create-by-import"),
+                        observationParent("module/import/MyModule", "phase/data-import"),
+                        observationParent("table-clear/MyModule.bar", "module/import/MyModule"),
+                        observationParent("table-transfer/MyModule.bar", "module/import/MyModule"),
+                        observationParent("phase/module-finalize", "command/create-by-import"),
+                        observationParent("phase/post-create", "command/create-by-import"),
+                        observationParent("phase/migration-setup", "command/create-by-import"))
+                .doesNotContain(
+                        "phase/target-prepare",
+                        "phase/pre-create",
+                        "phase/module-create",
+                        "table-clear/MyModule.foo",
+                        "table-transfer/MyModule.foo");
+    }
+
+    @Test
+    void timedImportAttachesSuccessfulSqlTimingTreeToActiveBatch(@TempDir final Path tempDir) throws IOException {
+        createFile(tempDir, "db/import-hooks/pre/timing.sql", "TIMING");
+        final var importConfig =
+                new ImportConfig("default", List.of("MyModule"), "import", List.of("import-hooks/pre"), List.of());
+        final var database = runtimeDatabase(
+                "default",
+                RepositoryConfigTestData.singleModule(),
+                List.of(tempDir.resolve("db")),
+                Map.of(),
+                List.of("defaultDataset"),
+                Map.of("default", importConfig));
+        final var timingActivationCount = new AtomicLong();
+        final var driver = new RecordingDriver() {
+            @Override
+            public void enableImportTiming() {
+                timingActivationCount.incrementAndGet();
+            }
+
+            @Override
+            public void execute(
+                    final String sql, final boolean executeInControlDatabase, final SqlTimingObserver timingObserver) {
+                super.execute(sql, executeInControlDatabase);
+                if ("TIMING".equals(sql.trim())) {
+                    timingObserver.observe(new SqlTimingObservation(
+                            1,
+                            "analysis-corruption/Analysis/handwritten%2F1",
+                            "phase/corruption-checks",
+                            "analysis_corruption_check",
+                            "succeeded",
+                            11));
+                    timingObserver.observe(new SqlTimingObservation(
+                            2, "phase/corruption-checks", "phase/final-validation", "phase", "succeeded", 22));
+                    timingObserver.observe(new SqlTimingObservation(
+                            3, "phase/constraint-checks", "phase/final-validation", "phase", "succeeded", 33));
+                    timingObserver.observe(new SqlTimingObservation(
+                            4, "phase/final-validation", "__JDBT_ACTIVE_SQL_BATCH__", "phase", "succeeded", 44));
+                }
+            }
+        };
+        final var output = new StringWriter();
+        final var clock = new AtomicLong();
+        final var timing = new ImportTimingRecorder(output, () -> clock.getAndAdd(1_000L));
+        final var engine = new RuntimeEngine(driver, new FileResolver(), ignored -> {}, timing);
+
+        engine.databaseImport(database, "default", null, connection, sourceConnection, null, Map.of());
+
+        final var text = output.toString();
+        assertThat(timingActivationCount).hasValue(1);
+        assertThat(((RecordingDriver) driver).calls).startsWith("open(false)");
+        assertThat(text)
+                .contains(
+                        observationParent("analysis-corruption/Analysis/handwritten%2F1", "phase/corruption-checks"),
+                        observationParent("phase/corruption-checks", "phase/final-validation"),
+                        observationParent("phase/constraint-checks", "phase/final-validation"),
+                        observationParent("phase/final-validation", "sql-batch/import-hooks%2Fpre%2Ftiming.sql/1"))
+                .doesNotContain("__JDBT_ACTIVE_SQL_BATCH__");
+        assertThat(text.indexOf("analysis-corruption/Analysis/handwritten%2F1"))
+                .isLessThan(text.indexOf("phase/corruption-checks"));
+        assertThat(text.indexOf("phase/final-validation"))
+                .isLessThan(text.indexOf("sql-batch/import-hooks%2Fpre%2Ftiming.sql/1"));
+    }
+
+    @Test
+    void sqlTimingValidationRejectsMalformedTrees() {
+        assertInvalidSqlTiming(
+                List.of(sqlObservation(2, "phase/root", "__JDBT_ACTIVE_SQL_BATCH__", "phase", "succeeded", 1)),
+                "ordinal is not contiguous");
+        assertInvalidSqlTiming(
+                List.of(sqlObservation(1, "phase/root", "__JDBT_ACTIVE_SQL_BATCH__", "unknown", "succeeded", 1)),
+                "operation kind");
+        assertInvalidSqlTiming(
+                List.of(sqlObservation(1, "phase/root", "__JDBT_ACTIVE_SQL_BATCH__", "phase", "unknown", 1)),
+                "operation status");
+        assertInvalidSqlTiming(
+                List.of(sqlObservation(1, "phase/root", "__JDBT_ACTIVE_SQL_BATCH__", "phase", "succeeded", -1)),
+                "must not be negative");
+        assertInvalidSqlTiming(
+                List.of(
+                        sqlObservation(
+                                1, "phase/final-validation", "__JDBT_ACTIVE_SQL_BATCH__", "phase", "succeeded", 1),
+                        sqlObservation(
+                                2, "phase/final-validation", "__JDBT_ACTIVE_SQL_BATCH__", "phase", "succeeded", 1)),
+                "Duplicate import timing operation ID");
+        assertInvalidSqlTiming(
+                List.of(sqlObservation(
+                        1,
+                        "analysis-corruption/Analysis/handwritten%2F1",
+                        "phase/corruption-checks",
+                        "analysis_corruption_check",
+                        "succeeded",
+                        1)),
+                "contains an unknown parent");
+        assertInvalidSqlTiming(
+                List.of(sqlObservation(
+                        1, "analysis/check", "phase/corruption-checks", "analysis_corruption_check", "succeeded", 1)),
+                "corruption identity");
+        assertInvalidSqlTiming(
+                List.of(sqlObservation(
+                        1,
+                        "analysis-corruption/Analysis/handwritten%2f1",
+                        "phase/corruption-checks",
+                        "analysis_corruption_check",
+                        "succeeded",
+                        1)),
+                "corruption identity");
+        assertInvalidSqlTiming(
+                List.of(sqlObservation(
+                        1,
+                        "analysis-constraint/foreign-key%2FAction.tblAction%2FFK_Action_Parent",
+                        "module/constraint-check/Rose",
+                        "analysis_constraint_check",
+                        "succeeded",
+                        1)),
+                "constraint identity");
+        assertInvalidSqlTiming(
+                List.of(sqlObservation(1, "phase/root", null, "phase", "succeeded", 1)), "parent must not be blank");
+    }
+
+    @Test
+    void timedImportFailureCompletesActiveSqlAndJavaAncestors(@TempDir final Path tempDir) {
+        final var database =
+                runtimeDatabase("default", RepositoryConfigTestData.singleModule(), List.of(tempDir.resolve("db")));
+        final var driver = new RecordingDriver() {
+            @Override
+            public void execute(
+                    final String sql, final boolean executeInControlDatabase, final SqlTimingObserver timingObserver) {
+                super.execute(sql, executeInControlDatabase);
+                if (sql.startsWith("INSERT INTO")) {
+                    timingObserver.observe(new SqlTimingObservation(
+                            1,
+                            "analysis-corruption/Analysis/handwritten%2F1",
+                            "phase/corruption-checks",
+                            "analysis_corruption_check",
+                            "failed",
+                            11));
+                    timingObserver.observe(new SqlTimingObservation(
+                            2, "phase/corruption-checks", "phase/final-validation", "phase", "failed", 22));
+                    timingObserver.observe(new SqlTimingObservation(
+                            3, "phase/final-validation", "__JDBT_ACTIVE_SQL_BATCH__", "phase", "failed", 33));
+                    throw new DatabaseException("database failure");
+                }
+            }
+        };
+        final var output = new StringWriter();
+        final var clock = new AtomicLong();
+        final var timing = new ImportTimingRecorder(output, () -> clock.getAndAdd(1_000L));
+        final var engine = new RuntimeEngine(driver, new FileResolver(), ignored -> {}, timing);
+
+        assertThatThrownBy(() ->
+                        engine.databaseImport(database, "default", null, connection, sourceConnection, null, Map.of()))
+                .isInstanceOf(RuntimeExecutionException.class)
+                .hasMessageContaining("Problem importing MyModule.foo")
+                .rootCause()
+                .isInstanceOf(DatabaseException.class)
+                .hasMessage("database failure");
+
+        final var text = output.toString();
+        assertThat(text)
+                .contains(
+                        failedObservation(
+                                "analysis-corruption/Analysis/handwritten%2F1",
+                                "phase/corruption-checks", "analysis_corruption_check"),
+                        failedObservation("phase/corruption-checks", "phase/final-validation", "phase"),
+                        failedObservation(
+                                "phase/final-validation", "sql-batch/table-transfer%2FMyModule.foo/1", "phase"),
+                        failedObservation(
+                                "sql-batch/table-transfer%2FMyModule.foo/1",
+                                "table-transfer/MyModule.foo", "sql_batch"),
+                        failedObservation("table-transfer/MyModule.foo", "module/import/MyModule", "table_transfer"),
+                        failedObservation("module/import/MyModule", "phase/data-import", "module"),
+                        failedObservation("phase/data-import", "command/import", "phase"),
+                        "\"operation_id\":\"command/import\",\"parent_operation_id\":null,\"kind\":\"command\",\"status\":\"failed\"");
+        assertThat(text.indexOf("analysis-corruption/Analysis/handwritten%2F1"))
+                .isLessThan(text.indexOf("phase/corruption-checks"));
+        assertThat(text.indexOf("phase/final-validation"))
+                .isLessThan(text.indexOf("sql-batch/table-transfer%2FMyModule.foo/1"));
     }
 
     @Test
@@ -813,7 +1087,10 @@ final class RuntimeEngineTest {
     @Test
     void importUsesArtifactLocationsWhenImportFilesInZip(@TempDir final Path tempDir) {
         final var driver = new RecordingDriver();
-        final var engine = new RuntimeEngine(driver, new FileResolver());
+        final var output = new StringWriter();
+        final var clock = new AtomicLong();
+        final var timing = new ImportTimingRecorder(output, () -> clock.getAndAdd(1_000L));
+        final var engine = new RuntimeEngine(driver, new FileResolver(), ignored -> {}, timing);
         final var repository = RepositoryConfigTestData.singleModule();
         final var database = new RuntimeDatabase(
                 "default",
@@ -843,6 +1120,9 @@ final class RuntimeEngineTest {
 
         engine.databaseImport(database, "default", null, connection, sourceConnection, null, Map.of());
         assertThat(driver.calls).contains("execute(true):SELECT IMPORT_DB DBT_TEST");
+        assertThat(output.toString())
+                .contains("\"operation_id\":\"sql-file/MyModule%2Fimport%2FMyModule.foo.sql\"")
+                .doesNotContain("zip:", "post");
     }
 
     @Test
@@ -1197,6 +1477,73 @@ final class RuntimeEngineTest {
         return -1;
     }
 
+    private static String observationParent(final String operationId, final String parentOperationId) {
+        return "\"operation_id\":\"" + operationId + "\",\"parent_operation_id\":\"" + parentOperationId + '"';
+    }
+
+    private static String failedObservation(
+            final String operationId, final String parentOperationId, final String kind) {
+        return observationParent(operationId, parentOperationId) + ",\"kind\":\"" + kind + "\",\"status\":\"failed\"";
+    }
+
+    private static SqlTimingObservation sqlObservation(
+            final long ordinal,
+            final String operationId,
+            final @Nullable String parentOperationId,
+            final String kind,
+            final String status,
+            final long elapsedMicroseconds) {
+        return new SqlTimingObservation(ordinal, operationId, parentOperationId, kind, status, elapsedMicroseconds);
+    }
+
+    private static void assertInvalidSqlTiming(
+            final List<SqlTimingObservation> observations, final String expectedMessage) {
+        final var timing = new ImportTimingRecorder(new StringWriter(), System::nanoTime);
+        assertThatThrownBy(() -> timing.command(
+                        "command/import",
+                        () -> timing.run("sql-batch/file/1", "sql_batch", () -> {
+                            timing.beginSqlBatch();
+                            observations.forEach(timing::recordSqlObservation);
+                            timing.completeSqlBatch();
+                        })))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining(expectedMessage);
+    }
+
+    private static RuntimeDatabase withShrinkOnImport(final RuntimeDatabase database) {
+        return new RuntimeDatabase(
+                database.key(),
+                database.repository(),
+                database.searchDirs(),
+                database.preDbArtifacts(),
+                database.postDbArtifacts(),
+                database.indexFileName(),
+                database.upDirs(),
+                database.downDirs(),
+                database.finalizeDirs(),
+                database.preCreateDirs(),
+                database.postCreateDirs(),
+                database.fixtureDirName(),
+                database.datasetsDirName(),
+                database.preDatasetDirs(),
+                database.postDatasetDirs(),
+                database.datasets(),
+                database.migrationsEnabled(),
+                database.migrationsAppliedAtCreate(),
+                database.migrationsDirName(),
+                database.version(),
+                database.schemaHash(),
+                database.dataPath(),
+                database.logPath(),
+                database.forceDrop(),
+                database.deleteBackupHistory(),
+                database.reindexOnImport(),
+                true,
+                database.filterProperties(),
+                database.imports(),
+                database.moduleGroups());
+    }
+
     private static void createFile(final Path root, final String relativePath, final String content)
             throws IOException {
         final var file = root.resolve(relativePath);
@@ -1204,19 +1551,25 @@ final class RuntimeEngineTest {
         Files.writeString(file, content, StandardCharsets.UTF_8);
     }
 
-    private static final class RecordingDriver implements DbDriver {
+    private static class RecordingDriver implements DbDriver {
         private final List<String> calls = new ArrayList<>();
         private final Map<String, Boolean> migrateDecision = new LinkedHashMap<>();
         private final Map<String, QueryResult> queryResults = new LinkedHashMap<>();
         private final boolean supportsAssertMacros;
+        private final boolean observeMaintenance;
         private List<String> primaryKeyColumnNames = List.of("[ID]");
 
         private RecordingDriver() {
-            this(false);
+            this(false, false);
         }
 
         private RecordingDriver(final boolean supportsAssertMacros) {
+            this(supportsAssertMacros, false);
+        }
+
+        private RecordingDriver(final boolean supportsAssertMacros, final boolean observeMaintenance) {
             this.supportsAssertMacros = supportsAssertMacros;
+            this.observeMaintenance = observeMaintenance;
         }
 
         @Override
@@ -1287,6 +1640,18 @@ final class RuntimeEngineTest {
         }
 
         @Override
+        public void postTableImport(
+                final DatabaseMetadata database,
+                final ImportConfig importConfig,
+                final String tableName,
+                final ImportMaintenanceObserver observer) {
+            postTableImport(database, importConfig, tableName);
+            if (observeMaintenance && database.reindexOnImport()) {
+                observer.run("post-table-reindex", tableName, () -> {});
+            }
+        }
+
+        @Override
         public void postDataModuleImport(
                 final DatabaseMetadata database,
                 final ImportConfig importConfig,
@@ -1296,8 +1661,39 @@ final class RuntimeEngineTest {
         }
 
         @Override
+        public void postDataModuleImport(
+                final DatabaseMetadata database,
+                final ImportConfig importConfig,
+                final String moduleName,
+                final List<String> tablesInOrder,
+                final ImportMaintenanceObserver observer) {
+            postDataModuleImport(database, importConfig, moduleName, tablesInOrder);
+            if (observeMaintenance && database.shrinkOnImport()) {
+                observer.run("module-shrink-notruncate", moduleName, () -> {});
+                observer.run("module-shrink-truncate", moduleName, () -> {});
+                if (database.reindexOnImport()) {
+                    for (final var table : tablesInOrder) {
+                        observer.run("post-shrink-reindex", table, () -> {});
+                    }
+                }
+            }
+        }
+
+        @Override
         public void postDatabaseImport(final DatabaseMetadata database, final ImportConfig importConfig) {
             calls.add("postDatabaseImport(" + importConfig.key() + ")");
+        }
+
+        @Override
+        public void postDatabaseImport(
+                final DatabaseMetadata database,
+                final ImportConfig importConfig,
+                final ImportMaintenanceObserver observer) {
+            postDatabaseImport(database, importConfig);
+            if (observeMaintenance && database.reindexOnImport()) {
+                observer.run("database-update-statistics", null, () -> {});
+                observer.run("database-update-usage", null, () -> {});
+            }
         }
 
         @Override

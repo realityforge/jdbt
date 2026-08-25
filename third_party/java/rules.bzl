@@ -120,23 +120,25 @@ def java_library(name, srcs = [], javacopts = [], deps = [], plugins = [], **kwa
         **kwargs
     )
 
-def java_binary(name, srcs = [], javacopts = [], deps = [], plugins = [], **kwargs):
+def java_binary(name, srcs = [], javacopts = [], deps = [], plugins = [], exclude_build_data = True, **kwargs):
     nullaway_enabled = _has_sources(srcs)
     _java_binary(
         name = name,
         srcs = srcs,
         deps = _with_jspecify(deps) if nullaway_enabled else deps,
+        exclude_build_data = exclude_build_data,
         javacopts = _JAVA_JAVACOPTS + javacopts,
         plugins = _with_nullaway(plugins) if nullaway_enabled else plugins,
         **kwargs
     )
 
-def java_test(name, srcs = [], javacopts = [], deps = [], plugins = [], jvm_flags = [], **kwargs):
+def java_test(name, srcs = [], javacopts = [], deps = [], plugins = [], jvm_flags = [], exclude_build_data = True, **kwargs):
     nullaway_enabled = _has_sources(srcs)
     _java_test(
         name = name,
         srcs = srcs,
         deps = _with_jspecify(deps) if nullaway_enabled else deps,
+        exclude_build_data = exclude_build_data,
         javacopts = _JAVA_JAVACOPTS + javacopts,
         plugins = _with_nullaway(plugins) if nullaway_enabled else plugins,
         jvm_flags = _JAVA_TEST_JVM_FLAGS + jvm_flags,

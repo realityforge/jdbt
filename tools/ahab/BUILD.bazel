@@ -1,0 +1,29 @@
+load("@ahab//:defs.bzl", "ahab", "ahab_check", "ahab_explain", "ahab_update")
+
+exports_files(["exceptions.json"])
+
+# Analyze and produce a visual report
+ahab(
+    name = "hermeticity",
+    label = "//...",
+)
+
+# Ensure hermeticity has not been comprised except for explict exceptions
+ahab_check(
+    name = "hermeticity.check",
+    baseline = "exceptions.json",
+    label = "//...",
+)
+
+# Update the exception list
+ahab_update(
+    name = "hermeticity.update",
+    baseline = "exceptions.json",
+    label = "//...",
+)
+
+# Produces a report based on current exceptions in json
+ahab_explain(
+    name = "hermeticity.explain",
+    report = "exceptions.json",
+)

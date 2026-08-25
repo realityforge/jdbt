@@ -1,4 +1,4 @@
-package org.realityforge.jdbt.db;
+package org.realityforge.jdbt.db.postgres;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -16,6 +16,10 @@ import java.sql.Statement;
 import java.util.LinkedHashMap;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.realityforge.jdbt.db.DatabaseConnection;
+import org.realityforge.jdbt.db.DatabaseException;
+import org.realityforge.jdbt.db.DatabaseMetadata;
+import org.realityforge.jdbt.db.QueryResult;
 
 final class PostgresDbDriverTest {
     private final DatabaseConnection config = new DatabaseConnection("127.0.0.1", 5432, "db", "postgres", "secret");

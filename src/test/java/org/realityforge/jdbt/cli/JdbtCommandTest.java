@@ -182,6 +182,8 @@ final class JdbtCommandTest {
                     "core",
                     "--resume-at",
                     "Core.Table",
+                    "--timing-output",
+                    "tmp/import-timing.ndjson",
                     "--target-host",
                     "thost",
                     "--target-port",
@@ -213,6 +215,7 @@ final class JdbtCommandTest {
         assertThat(runner.importKey).isEqualTo("full");
         assertThat(runner.moduleGroup).isEqualTo("core");
         assertThat(runner.resumeAt).isEqualTo("Core.Table");
+        assertThat(runner.timingOutput).isEqualTo(Path.of("tmp/import-timing.ndjson"));
         assertThat(runner.targetConnection)
                 .isEqualTo(new DatabaseConnection("thost", 1433, "tdb", "tuser", "target-secret"));
         assertThat(runner.sourceConnection)
@@ -243,7 +246,9 @@ final class JdbtCommandTest {
                     "sdb",
                     "--source-username",
                     "suser",
-                    "--source-password-stdin"
+                    "--source-password-stdin",
+                    "--timing-output",
+                    "timing.ndjson"
                 },
                 runner,
                 new PasswordResolver(Map.of(), new ByteArrayInputStream(stdin)));
@@ -254,6 +259,34 @@ final class JdbtCommandTest {
         assertThat(runner.targetConnection.password()).isEqualTo("target");
         assertNotNull(runner.sourceConnection);
         assertThat(runner.sourceConnection.password()).isEqualTo("source");
+        assertThat(runner.timingOutput).isEqualTo(Path.of("timing.ndjson"));
+    }
+
+    @Test
+    void timingOutputIsRejectedByCommandsOtherThanImportCommands() {
+        final var runner = new RecordingRunner();
+
+        final var exitCode = JdbtCommand.execute(
+                new String[] {
+                    "create",
+                    "--timing-output",
+                    "timing.ndjson",
+                    "--target-host",
+                    "localhost",
+                    "--target-port",
+                    "1433",
+                    "--target-database",
+                    "db",
+                    "--target-username",
+                    "sa",
+                    "--password",
+                    "secret"
+                },
+                runner,
+                new PasswordResolver(Map.of(), new ByteArrayInputStream(new byte[0])));
+
+        assertThat(exitCode).isEqualTo(JdbtCommand.USAGE_EXIT_CODE);
+        assertThat(runner.lastCall).isEmpty();
     }
 
     @Test
@@ -538,6 +571,7 @@ final class JdbtCommandTest {
         private @Nullable Path outputFile;
         private @Nullable Path propertiesFile;
         private @Nullable Path outputDirectory;
+        private @Nullable Path timingOutput;
         private boolean replace;
         private List<String> schemas = List.of();
         private List<String> checkQueries = List.of();
@@ -623,6 +657,7 @@ final class JdbtCommandTest {
                 final DatabaseConnection target,
                 final DatabaseConnection source,
                 final @Nullable String resumeAt,
+                final @Nullable Path timingOutput,
                 final Map<String, String> filterProperties) {
             this.lastCall = "import";
             this.databaseKey = databaseKey;
@@ -632,6 +667,7 @@ final class JdbtCommandTest {
             this.targetConnection = target;
             this.sourceConnection = source;
             this.resumeAt = resumeAt;
+            this.timingOutput = timingOutput;
             this.filterProperties = filterProperties;
         }
 
@@ -644,6 +680,7 @@ final class JdbtCommandTest {
                 final DatabaseConnection source,
                 final @Nullable String resumeAt,
                 final boolean noCreate,
+                final @Nullable Path timingOutput,
                 final Map<String, String> filterProperties) {
             this.lastCall = "create-by-import";
             this.databaseKey = databaseKey;
@@ -653,6 +690,7 @@ final class JdbtCommandTest {
             this.sourceConnection = source;
             this.resumeAt = resumeAt;
             this.noCreate = noCreate;
+            this.timingOutput = timingOutput;
             this.filterProperties = filterProperties;
         }
 

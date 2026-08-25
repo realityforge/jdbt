@@ -36,6 +36,7 @@ import org.realityforge.jdbt.db.DatabaseConnection;
 import org.realityforge.jdbt.db.DatabaseMetadata;
 import org.realityforge.jdbt.db.DbDriver;
 import org.realityforge.jdbt.db.QueryResult;
+import org.realityforge.jdbt.db.sqlserver.SqlServerAssertExpander;
 import org.realityforge.jdbt.files.FileResolver;
 import org.realityforge.jdbt.repository.RowSource;
 
@@ -50,15 +51,25 @@ public final class RuntimeEngine {
     private final DbDriver db;
     private final FileResolver fileResolver;
     private final Consumer<String> output;
+    private final ImportTimingRecorder timing;
 
     public RuntimeEngine(final DbDriver db, final FileResolver fileResolver) {
-        this(db, fileResolver, System.out::println);
+        this(db, fileResolver, System.out::println, ImportTimingRecorder.disabled());
     }
 
     public RuntimeEngine(final DbDriver db, final FileResolver fileResolver, final Consumer<String> output) {
+        this(db, fileResolver, output, ImportTimingRecorder.disabled());
+    }
+
+    public RuntimeEngine(
+            final DbDriver db,
+            final FileResolver fileResolver,
+            final Consumer<String> output,
+            final ImportTimingRecorder timing) {
         this.db = db;
         this.fileResolver = fileResolver;
         this.output = Objects.requireNonNull(output);
+        this.timing = Objects.requireNonNull(timing);
     }
 
     public String status(final RuntimeDatabase database) {
@@ -266,25 +277,30 @@ public final class RuntimeEngine {
             final DatabaseConnection source,
             final @Nullable String resumeAt,
             final Map<String, String> filterProperties) {
-        final var declaredFilters = resolveDeclaredFilterValues(database, filterProperties);
-        final var importConfig = importByKey(database, importKey);
-        final var moduleGroup = null == moduleGroupKey ? null : moduleGroup(database, moduleGroupKey);
-        validateInitialFixtures(database);
-        validateImportInputs(database, importConfig, moduleGroup, resumeAt);
-        final var metadata = databaseMetadata(database);
-        withDatabaseConnection(
-                target,
-                false,
-                () -> performImportAction(
-                        database,
-                        metadata,
-                        importConfig,
-                        target,
-                        source,
-                        true,
-                        moduleGroup,
-                        resumeAt,
-                        declaredFilters));
+        timing.command("command/import", () -> {
+            final var declaredFilters = resolveDeclaredFilterValues(database, filterProperties);
+            final var importConfig = importByKey(database, importKey);
+            final var moduleGroup = null == moduleGroupKey ? null : moduleGroup(database, moduleGroupKey);
+            validateInitialFixtures(database);
+            validateImportInputs(database, importConfig, moduleGroup, resumeAt);
+            final var metadata = databaseMetadata(database);
+            withDatabaseConnection(
+                    target,
+                    false,
+                    () -> timing.run(
+                            "phase/data-import",
+                            "phase",
+                            () -> performImportAction(
+                                    database,
+                                    metadata,
+                                    importConfig,
+                                    target,
+                                    source,
+                                    true,
+                                    moduleGroup,
+                                    resumeAt,
+                                    declaredFilters)));
+        });
     }
 
     public void createByImport(
@@ -295,28 +311,56 @@ public final class RuntimeEngine {
             final @Nullable String resumeAt,
             final boolean noCreate,
             final Map<String, String> filterProperties) {
-        final var declaredFilters = resolveDeclaredFilterValues(database, filterProperties);
-        final var importConfig = importByKey(database, importKey);
-        validateInitialFixtures(database);
-        validateImportInputs(database, importConfig, null, resumeAt);
-        if (null == resumeAt) {
-            createDatabaseIfRequired(database, target, noCreate);
-        }
-        final var metadata = databaseMetadata(database);
-        withDatabaseConnection(target, false, () -> {
-            if (null == resumeAt) {
-                for (final var dir : database.preCreateDirs()) {
-                    processCreationDirSet(database, dir, declaredFilters);
+        timing.command("command/create-by-import", () -> {
+            final var declaredFilters = resolveDeclaredFilterValues(database, filterProperties);
+            final var importConfig = importByKey(database, importKey);
+            validateInitialFixtures(database);
+            validateImportInputs(database, importConfig, null, resumeAt);
+            if (null == resumeAt && !noCreate) {
+                timing.run("phase/target-prepare", "phase", () -> createDatabaseIfRequired(database, target, false));
+            }
+            final var metadata = databaseMetadata(database);
+            withDatabaseConnection(target, false, () -> {
+                if (null == resumeAt) {
+                    timing.run("phase/pre-create", "phase", () -> {
+                        for (final var dir : database.preCreateDirs()) {
+                            processCreationDirSet(database, dir, declaredFilters);
+                        }
+                    });
+                    timing.run(
+                            "phase/module-create",
+                            "phase",
+                            () -> performCreateAction(database, ModuleMode.UP, declaredFilters));
                 }
-                performCreateAction(database, ModuleMode.UP, declaredFilters);
-            }
-            performImportAction(
-                    database, metadata, importConfig, target, source, false, null, resumeAt, declaredFilters);
-            performCreateAction(database, ModuleMode.FINALIZE, declaredFilters);
-            for (final var dir : database.postCreateDirs()) {
-                processCreationDirSet(database, dir, declaredFilters);
-            }
-            performPostCreateMigrationsSetup(database, declaredFilters);
+                timing.run(
+                        "phase/data-import",
+                        "phase",
+                        () -> performImportAction(
+                                database,
+                                metadata,
+                                importConfig,
+                                target,
+                                source,
+                                false,
+                                null,
+                                resumeAt,
+                                declaredFilters));
+                timing.run(
+                        "phase/module-finalize",
+                        "phase",
+                        () -> performCreateAction(database, ModuleMode.FINALIZE, declaredFilters));
+                timing.run("phase/post-create", "phase", () -> {
+                    for (final var dir : database.postCreateDirs()) {
+                        processCreationDirSet(database, dir, declaredFilters);
+                    }
+                });
+                if (database.migrationsEnabled()) {
+                    timing.run(
+                            "phase/migration-setup",
+                            "phase",
+                            () -> performPostCreateMigrationsSetup(database, declaredFilters));
+                }
+            });
         });
     }
 
@@ -347,22 +391,28 @@ public final class RuntimeEngine {
                 deleteOrder.addAll(tables);
             }
             for (final var table : deleteOrder) {
-                db.execute("DELETE FROM " + table, false);
+                timing.run(
+                        "table-clear/" + ImportTimingRecorder.component(timingDatabaseObject(table)),
+                        "table_clear",
+                        () -> db.execute("DELETE FROM " + table, false));
             }
         }
 
         final var deleteWithinModule = shouldPerformDelete && null == moduleGroup;
         for (final var moduleName : selectedModules) {
-            importModule(
-                    database,
-                    metadata,
-                    importConfig,
-                    target,
-                    source,
-                    moduleName,
-                    deleteWithinModule,
-                    resumeAt,
-                    declaredFilters);
+            timing.run(
+                    "module/import/" + ImportTimingRecorder.component(moduleName),
+                    "module",
+                    () -> importModule(
+                            database,
+                            metadata,
+                            importConfig,
+                            target,
+                            source,
+                            moduleName,
+                            deleteWithinModule,
+                            resumeAt,
+                            declaredFilters));
         }
 
         if (null != resumeAt.value) {
@@ -375,7 +425,7 @@ public final class RuntimeEngine {
                 processImportDirSet(database, dir, target, source, declaredFilters);
             }
         }
-        db.postDatabaseImport(metadata, importConfig);
+        db.postDatabaseImport(metadata, importConfig, this::timeMaintenance);
     }
 
     private static List<String> selectedImportModules(
@@ -412,24 +462,34 @@ public final class RuntimeEngine {
             final var deleteOrder = new ArrayList<>(orderedTables);
             Collections.reverse(deleteOrder);
             for (final var table : deleteOrder) {
-                db.execute("DELETE FROM " + table, false);
+                timing.run(
+                        "table-clear/" + ImportTimingRecorder.component(timingDatabaseObject(table)),
+                        "table_clear",
+                        () -> db.execute("DELETE FROM " + table, false));
             }
         }
 
         for (final var table : orderedTables) {
             final var cleanName = cleanObjectName(table);
             if (cleanName.equals(resumeAt.value)) {
-                db.execute("DELETE FROM " + table, false);
+                timing.run(
+                        "table-clear/" + ImportTimingRecorder.component(timingDatabaseObject(table)),
+                        "table_clear",
+                        () -> db.execute("DELETE FROM " + table, false));
                 resumeAt.value = null;
             }
             if (null == resumeAt.value) {
                 db.preTableImport(metadata, importConfig, table);
                 try {
-                    performImport(database, importConfig, target, source, moduleName, table, declaredFilters);
+                    timing.run(
+                            "table-transfer/" + ImportTimingRecorder.component(timingDatabaseObject(table)),
+                            "table_transfer",
+                            () -> performImport(
+                                    database, importConfig, target, source, moduleName, table, declaredFilters));
                 } catch (final RuntimeException e) {
                     throw importFailure(cleanName, e);
                 }
-                db.postTableImport(metadata, importConfig, table);
+                db.postTableImport(metadata, importConfig, table, this::timeMaintenance);
             }
         }
 
@@ -440,8 +500,11 @@ public final class RuntimeEngine {
             if (null == resumeAt.value) {
                 final var cleanName = cleanObjectName(sequence);
                 try {
-                    performSequenceImport(
-                            database, importConfig, target, source, moduleName, sequence, declaredFilters);
+                    timing.run(
+                            "sequence-transfer/" + ImportTimingRecorder.component(timingDatabaseObject(sequence)),
+                            "sequence_transfer",
+                            () -> performSequenceImport(
+                                    database, importConfig, target, source, moduleName, sequence, declaredFilters));
                 } catch (final RuntimeException e) {
                     throw importFailure(cleanName, e);
                 }
@@ -449,8 +512,18 @@ public final class RuntimeEngine {
         }
 
         if (null == resumeAt.value) {
-            db.postDataModuleImport(metadata, importConfig, moduleName, orderedTables);
+            db.postDataModuleImport(metadata, importConfig, moduleName, orderedTables, this::timeMaintenance);
         }
+    }
+
+    private void timeMaintenance(final String operation, final @Nullable String subject, final Runnable action) {
+        final var canonicalSubject = null == subject
+                ? null
+                : operation.startsWith("module-shrink-") ? subject : timingDatabaseObject(subject);
+        final var operationId = "maintenance/"
+                + operation
+                + (null == canonicalSubject ? "" : "/" + ImportTimingRecorder.component(canonicalSubject));
+        timing.run(operationId, "maintenance", action);
     }
 
     private static List<String> importTableOrdering(final RuntimeDatabase database, final String moduleName) {
@@ -570,7 +643,18 @@ public final class RuntimeEngine {
         if (null != fixtureFile) {
             loadFixture(tableName, fixtureFile, loadData(database, fixtureFile));
         } else if (null != sqlFile) {
-            runImportSql(tableName, loadData(database, sqlFile), target.database(), source.database(), declaredFilters);
+            final var logicalFile = logicalResourcePath(database, sqlFile);
+            timing.run(
+                    "sql-file/" + ImportTimingRecorder.component(logicalFile),
+                    "sql_file",
+                    () -> runImportSql(
+                            tableName,
+                            loadData(database, sqlFile),
+                            target.database(),
+                            source.database(),
+                            declaredFilters,
+                            sqlFile,
+                            logicalFile));
         } else {
             performStandardImport(tableName, target.database(), source.database(), declaredFilters);
         }
@@ -615,8 +699,18 @@ public final class RuntimeEngine {
         if (null != fixtureFile) {
             loadSequenceFixture(sequenceName, fixtureFile, loadData(database, fixtureFile));
         } else if (null != sqlFile) {
-            runImportSql(
-                    sequenceName, loadData(database, sqlFile), target.database(), source.database(), declaredFilters);
+            final var logicalFile = logicalResourcePath(database, sqlFile);
+            timing.run(
+                    "sql-file/" + ImportTimingRecorder.component(logicalFile),
+                    "sql_file",
+                    () -> runImportSql(
+                            sequenceName,
+                            loadData(database, sqlFile),
+                            target.database(),
+                            source.database(),
+                            declaredFilters,
+                            sqlFile,
+                            logicalFile));
         } else {
             runImportSql(
                     sequenceName,
@@ -647,6 +741,25 @@ public final class RuntimeEngine {
             final String targetDatabase,
             final String sourceDatabase,
             final Map<String, String> declaredFilters) {
+        final var owner = timing.currentOperationId();
+        runImportSql(
+                tableName,
+                sql,
+                targetDatabase,
+                sourceDatabase,
+                declaredFilters,
+                "inline SQL",
+                null == owner ? "inline-sql" : owner);
+    }
+
+    private void runImportSql(
+            final @Nullable String tableName,
+            final String sql,
+            final String targetDatabase,
+            final String sourceDatabase,
+            final Map<String, String> declaredFilters,
+            final String sourceName,
+            final String timingSource) {
         var effectiveSql = db.supportsAssertMacros() ? SqlServerAssertExpander.expandImportSql(sql) : sql;
         effectiveSql = applyDeclaredFilterProperties(effectiveSql, declaredFilters);
         if (null != tableName) {
@@ -654,7 +767,7 @@ public final class RuntimeEngine {
         }
         effectiveSql = effectiveSql.replace("__SOURCE__", sourceDatabase);
         effectiveSql = effectiveSql.replace("__TARGET__", targetDatabase);
-        runSqlBatch(effectiveSql, true);
+        runSqlBatch(effectiveSql, true, sourceName, timingSource);
     }
 
     private void runSqlFile(
@@ -664,12 +777,16 @@ public final class RuntimeEngine {
             final boolean executeInControlDatabase,
             final Map<String, String> declaredFilters,
             final boolean expandDatabaseVersionAssert) {
-        logSqlFile(label, file);
-        var sql = loadData(database, file);
-        if (expandDatabaseVersionAssert && db.supportsAssertMacros()) {
-            sql = SqlServerAssertExpander.expandCreationSql(sql);
-        }
-        runSqlBatch(applyDeclaredFilterProperties(sql, declaredFilters), executeInControlDatabase, file);
+        final var logicalFile = logicalResourcePath(database, file);
+        timing.run("sql-file/" + ImportTimingRecorder.component(logicalFile), "sql_file", () -> {
+            logSqlFile(label, file);
+            var sql = loadData(database, file);
+            if (expandDatabaseVersionAssert && db.supportsAssertMacros()) {
+                sql = SqlServerAssertExpander.expandCreationSql(sql);
+            }
+            runSqlBatch(
+                    applyDeclaredFilterProperties(sql, declaredFilters), executeInControlDatabase, file, logicalFile);
+        });
     }
 
     private void processImportDirSet(
@@ -678,17 +795,29 @@ public final class RuntimeEngine {
             final DatabaseConnection target,
             final DatabaseConnection source,
             final Map<String, String> declaredFilters) {
-        final var files = fileResolver.collectFiles(
-                database.searchDirs(),
-                dir,
-                "sql",
-                database.indexFileName(),
-                database.postDbArtifacts(),
-                database.preDbArtifacts());
-        for (final var file : files) {
-            logSqlFile(fileLabel("", dir), file);
-            runImportSql(null, loadData(database, file), target.database(), source.database(), declaredFilters);
-        }
+        timing.run("sql-directory/" + ImportTimingRecorder.component(dir), "sql_directory", () -> {
+            final var files = fileResolver.collectFiles(
+                    database.searchDirs(),
+                    dir,
+                    "sql",
+                    database.indexFileName(),
+                    database.postDbArtifacts(),
+                    database.preDbArtifacts());
+            for (final var file : files) {
+                final var logicalFile = logicalResourcePath(database, file);
+                timing.run("sql-file/" + ImportTimingRecorder.component(logicalFile), "sql_file", () -> {
+                    logSqlFile(fileLabel("", dir), file);
+                    runImportSql(
+                            null,
+                            loadData(database, file),
+                            target.database(),
+                            source.database(),
+                            declaredFilters,
+                            file,
+                            logicalFile);
+                });
+            }
+        });
     }
 
     private void logSqlFile(final String label, final String file) {
@@ -770,6 +899,14 @@ public final class RuntimeEngine {
                 .replace(" ", "");
     }
 
+    private static String timingDatabaseObject(final String value) {
+        return value.replace("[", "")
+                .replace("]", "")
+                .replace("\"", "")
+                .replace("'", "")
+                .trim();
+    }
+
     @SuppressWarnings("SameParameterValue")
     private static String basenameWithoutExtension(final String value, final String extension) {
         final var slash = Math.max(value.lastIndexOf('/'), value.lastIndexOf('\\'));
@@ -833,27 +970,32 @@ public final class RuntimeEngine {
             final MigrationAction action,
             final Map<String, String> declaredFilters,
             final boolean expandDatabaseVersionAssert) {
-        final var files = fileResolver.collectFiles(
-                database.searchDirs(),
-                database.migrationsDirName(),
-                "sql",
-                database.indexFileName(),
-                database.postDbArtifacts(),
-                database.preDbArtifacts());
+        final var directory = database.migrationsDirName();
+        timing.run("sql-directory/" + ImportTimingRecorder.component(directory), "sql_directory", () -> {
+            final var files = fileResolver.collectFiles(
+                    database.searchDirs(),
+                    directory,
+                    "sql",
+                    database.indexFileName(),
+                    database.postDbArtifacts(),
+                    database.preDbArtifacts());
 
-        final var versionIndex = releaseVersionIndex(database, files);
-        for (int i = 0; i < files.size(); i++) {
-            final var filename = files.get(i);
-            final var migrationName = basenameWithoutExtension(filename, ".sql");
-            final var shouldCheck = action == MigrationAction.PERFORM;
-            if (!shouldCheck || db.shouldMigrate(database.key(), migrationName)) {
-                final var shouldRun = action != MigrationAction.RECORD && (null == versionIndex || versionIndex < i);
-                if (shouldRun) {
-                    runSqlFile(database, "Migration: ", filename, false, declaredFilters, expandDatabaseVersionAssert);
+            final var versionIndex = releaseVersionIndex(database, files);
+            for (int i = 0; i < files.size(); i++) {
+                final var filename = files.get(i);
+                final var migrationName = basenameWithoutExtension(filename, ".sql");
+                final var shouldCheck = action == MigrationAction.PERFORM;
+                if (!shouldCheck || db.shouldMigrate(database.key(), migrationName)) {
+                    final var shouldRun =
+                            action != MigrationAction.RECORD && (null == versionIndex || versionIndex < i);
+                    if (shouldRun) {
+                        runSqlFile(
+                                database, "Migration: ", filename, false, declaredFilters, expandDatabaseVersionAssert);
+                    }
+                    db.markMigrationAsRun(database.key(), migrationName);
                 }
-                db.markMigrationAsRun(database.key(), migrationName);
             }
-        }
+        });
     }
 
     private static @Nullable Integer releaseVersionIndex(final RuntimeDatabase database, final List<String> files) {
@@ -878,6 +1020,9 @@ public final class RuntimeEngine {
             final DatabaseConnection target, final boolean openControlDatabase, final Runnable action) {
         db.open(target, openControlDatabase);
         try {
+            if (timing.enabled() && !openControlDatabase) {
+                db.enableImportTiming();
+            }
             action.run();
         } finally {
             db.close();
@@ -887,7 +1032,16 @@ public final class RuntimeEngine {
     private void performCreateAction(
             final RuntimeDatabase database, final ModuleMode mode, final Map<String, String> declaredFilters) {
         for (final var moduleName : database.repository().modules()) {
-            createModule(database, moduleName, mode, declaredFilters, true);
+            final var operation =
+                    switch (mode) {
+                        case UP -> "create";
+                        case FINALIZE -> "finalize";
+                        case DOWN -> "down";
+                    };
+            timing.run(
+                    "module/" + operation + "/" + ImportTimingRecorder.component(moduleName),
+                    "module",
+                    () -> createModule(database, moduleName, mode, declaredFilters, true));
         }
     }
 
@@ -952,16 +1106,18 @@ public final class RuntimeEngine {
             final String label,
             final Map<String, String> declaredFilters,
             final boolean expandDatabaseVersionAssert) {
-        final var files = fileResolver.collectFiles(
-                database.searchDirs(),
-                dir,
-                "sql",
-                database.indexFileName(),
-                database.postDbArtifacts(),
-                database.preDbArtifacts());
-        for (final var file : files) {
-            runSqlFile(database, label, file, false, declaredFilters, expandDatabaseVersionAssert);
-        }
+        timing.run("sql-directory/" + ImportTimingRecorder.component(dir), "sql_directory", () -> {
+            final var files = fileResolver.collectFiles(
+                    database.searchDirs(),
+                    dir,
+                    "sql",
+                    database.indexFileName(),
+                    database.postDbArtifacts(),
+                    database.preDbArtifacts());
+            for (final var file : files) {
+                runSqlFile(database, label, file, false, declaredFilters, expandDatabaseVersionAssert);
+            }
+        });
     }
 
     private void performPreDatasetHooks(
@@ -1380,16 +1536,56 @@ public final class RuntimeEngine {
         }
     }
 
+    private static String logicalResourcePath(final RuntimeDatabase database, final String location) {
+        final var artifact = ARTIFACT_FILE_PATTERN.matcher(location);
+        if (artifact.matches()) {
+            return artifact.group(2).replace('\\', '/');
+        }
+        final var path = Path.of(location).toAbsolutePath().normalize();
+        for (final var searchDir : database.searchDirs()) {
+            final var root = searchDir.toAbsolutePath().normalize();
+            if (path.startsWith(root)) {
+                return root.relativize(path).toString().replace('\\', '/');
+            }
+        }
+        throw new RuntimeExecutionException("Unable to derive logical database resource path");
+    }
+
     private void runSqlBatch(final String sql, final boolean executeInControlDatabase) {
-        runSqlBatch(sql, executeInControlDatabase, "inline SQL");
+        final var owner = timing.currentOperationId();
+        runSqlBatch(sql, executeInControlDatabase, "inline SQL", null == owner ? "inline-sql" : owner);
     }
 
     private void runSqlBatch(final String sql, final boolean executeInControlDatabase, final String sourceName) {
+        runSqlBatch(sql, executeInControlDatabase, sourceName, sourceName);
+    }
+
+    private void runSqlBatch(
+            final String sql,
+            final boolean executeInControlDatabase,
+            final String sourceName,
+            final String timingSource) {
         final var normalizedSql = sql.replace("\r", "");
+        var ordinal = 0;
         for (final var batch : GO_SPLIT_PATTERN.splitAsStream(normalizedSql).toList()) {
             if (!batch.trim().isEmpty()) {
+                ordinal++;
+                final var operationId = "sql-batch/" + ImportTimingRecorder.component(timingSource) + '/' + ordinal;
                 try {
-                    db.execute(batch, executeInControlDatabase);
+                    timing.run(operationId, "sql_batch", () -> {
+                        if (timing.enabled()) {
+                            timing.beginSqlBatch();
+                            try {
+                                db.execute(batch, executeInControlDatabase, timing::recordSqlObservation);
+                                timing.completeSqlBatch();
+                            } catch (final RuntimeException | Error primary) {
+                                timing.completeSqlBatchAfterFailure(primary);
+                                throw primary;
+                            }
+                        } else {
+                            db.execute(batch, executeInControlDatabase);
+                        }
+                    });
                 } catch (final RuntimeException e) {
                     throw new RuntimeExecutionException("Failed to execute SQL batch from " + sourceName, e);
                 }

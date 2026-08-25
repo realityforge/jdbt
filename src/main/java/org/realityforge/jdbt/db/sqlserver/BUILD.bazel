@@ -1,0 +1,19 @@
+load("//third_party/java:rules.bzl", "java_library")
+
+package(default_visibility = ["//visibility:public"])
+
+java_library(
+    name = "sqlserver",
+    srcs = [
+        "SqlServerAssertExpander.java",
+        "SqlServerDatabaseStatisticsExporter.java",
+        "SqlServerDbDriver.java",
+        "package-info.java",
+    ],
+    deps = [
+        "//src/main/java/org/realityforge/jdbt/config",
+        "//src/main/java/org/realityforge/jdbt/db:db_core",
+        "//src/main/java/org/realityforge/jdbt/repository",
+        "//third_party/java:mssql_jdbc",
+    ],
+)
