@@ -11,7 +11,6 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.realityforge.jdbt.config.ImportConfig;
-import org.realityforge.jdbt.config.ModuleGroupConfig;
 import org.realityforge.jdbt.files.ArtifactContent;
 import org.realityforge.jdbt.files.FileResolver;
 import org.realityforge.jdbt.repository.RepositoryConfig;
@@ -272,8 +271,7 @@ final class DatabaseDataPackagerTest {
                 true,
                 false,
                 Map.of(),
-                imports,
-                Map.of("group", new ModuleGroupConfig("group", List.of("MyModule"), false)));
+                imports);
     }
 
     private static RepositoryConfig repositoryConfig() {

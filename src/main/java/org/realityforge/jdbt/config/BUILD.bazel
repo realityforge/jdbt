@@ -11,7 +11,6 @@ java_library(
         "ImportConfig.java",
         "JdbtProjectConfig.java",
         "JdbtProjectConfigLoader.java",
-        "ModuleGroupConfig.java",
         "YamlMapSupport.java",
         "package-info.java",
     ],

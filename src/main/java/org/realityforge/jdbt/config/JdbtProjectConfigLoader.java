@@ -32,7 +32,6 @@ public final class JdbtProjectConfigLoader {
             "postDbArtifacts",
             "filterProperties",
             "imports",
-            "moduleGroups",
             "resourceRoot");
     private static final List<String> DEFAULT_UP_DIRS =
             List.of(".", "types", "views", "functions", "stored-procedures", "misc");
@@ -75,7 +74,6 @@ public final class JdbtProjectConfigLoader {
 
         final var filterProperties = loadFilterProperties(body, path);
         final var imports = loadImports(body, repositoryModules, path);
-        final var moduleGroups = loadModuleGroups(body, repositoryModules, path);
 
         return new DatabaseConfig(
                 YamlMapSupport.optionalStringList(body, "upDirs", path, DEFAULT_UP_DIRS),
@@ -105,8 +103,7 @@ public final class JdbtProjectConfigLoader {
                 booleanDefault(body, "reindexOnImport", path, true),
                 booleanDefault(body, "shrinkOnImport", path, false),
                 filterProperties,
-                imports,
-                moduleGroups);
+                imports);
     }
 
     private static boolean booleanDefault(
@@ -250,31 +247,6 @@ public final class JdbtProjectConfigLoader {
                                     importNode, "postImportDirs", path, DEFAULT_POST_IMPORT_DIRS)));
         }
         return Collections.unmodifiableMap(new LinkedHashMap<>(imports));
-    }
-
-    private static Map<String, ModuleGroupConfig> loadModuleGroups(
-            final Map<String, Object> body, final List<String> repositoryModules, final String databasePath) {
-        final var groupsNode = YamlMapSupport.optionalMap(body, "moduleGroups", databasePath);
-        if (groupsNode == null) {
-            return Map.of();
-        }
-
-        final var groups = new LinkedHashMap<String, ModuleGroupConfig>();
-        for (final var entry : groupsNode.entrySet()) {
-            final var groupKey = entry.getKey();
-            if (!(entry.getValue() instanceof Map<?, ?> groupBody)) {
-                throw new ConfigException("Expected map for module group '" + groupKey + "' in " + databasePath + '.');
-            }
-            final var path = databasePath + ".moduleGroups." + groupKey;
-            final var groupNode = YamlMapSupport.toStringMap(groupBody, path);
-            YamlMapSupport.assertKeys(groupNode, Set.of("modules", "importEnabled"), path);
-            final var modules = YamlMapSupport.requireStringList(groupNode, "modules", path);
-            validateModulesExist(modules, repositoryModules, "module group", groupKey, databasePath);
-            final var importEnabledValue = YamlMapSupport.optionalBoolean(groupNode, "importEnabled", path);
-            final var importEnabled = importEnabledValue != null && importEnabledValue;
-            groups.put(groupKey, new ModuleGroupConfig(groupKey, modules, importEnabled));
-        }
-        return Collections.unmodifiableMap(new LinkedHashMap<>(groups));
     }
 
     private static void validateModulesExist(

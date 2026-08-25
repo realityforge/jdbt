@@ -14,7 +14,6 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.realityforge.jdbt.config.ImportConfig;
-import org.realityforge.jdbt.config.ModuleGroupConfig;
 import org.realityforge.jdbt.db.DatabaseConnection;
 import org.realityforge.jdbt.db.DatabaseMetadata;
 import org.realityforge.jdbt.db.DbDriver;
@@ -80,7 +79,7 @@ final class RuntimeFilesystemIntegrationTest {
         final var engine = new RuntimeEngine(firstDriver, new FileResolver());
         final var database = runtimeDatabase(tempDir.resolve("db"), RowSource.IMPORT);
 
-        assertThatThrownBy(() -> engine.databaseImport(database, "custom", null, target, source, null, Map.of()))
+        assertThatThrownBy(() -> engine.databaseImport(database, "custom", target, source, null, Map.of()))
                 .isInstanceOf(RuntimeExecutionException.class)
                 .hasMessageContaining("Problem importing Core.bar")
                 .hasMessageContaining("--resume-at=Core.bar");
@@ -99,7 +98,7 @@ final class RuntimeFilesystemIntegrationTest {
 
         final var resumeDriver = new TranscriptDriver();
         new RuntimeEngine(resumeDriver, new FileResolver())
-                .databaseImport(database, "custom", null, target, source, "Core.bar", Map.of());
+                .databaseImport(database, "custom", target, source, "Core.bar", Map.of());
 
         assertThat(resumeDriver.transcript()).isEqualTo("""
             open target
@@ -155,8 +154,7 @@ final class RuntimeFilesystemIntegrationTest {
                 true,
                 false,
                 Map.of(),
-                Map.of("custom", new ImportConfig("custom", repository.modules(), "load", List.of(), List.of())),
-                Map.of("group", new ModuleGroupConfig("group", repository.modules(), true)));
+                Map.of("custom", new ImportConfig("custom", repository.modules(), "load", List.of(), List.of())));
     }
 
     private static void createFile(final Path root, final String relativePath, final String content)

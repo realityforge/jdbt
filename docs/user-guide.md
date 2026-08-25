@@ -56,7 +56,6 @@ Top-level keys:
 - `postDbArtifacts`
 - `filterProperties`
 - `imports`
-- `moduleGroups`
 - `resourceRoot`
 
 `jdbt.yml` no longer supports a top-level `defaults` key.
@@ -125,13 +124,6 @@ Path categories are deliberately distinct:
 - `postImportDirs`
 
 If `modules` is missing, all Database Modules in Repository Metadata are used.
-
-#### `moduleGroups`
-
-`moduleGroups.<groupKey>` supports:
-
-- `modules` (required)
-- `importEnabled`
 
 #### `filterProperties`
 
@@ -368,20 +360,6 @@ compatibility, and failure contract.
 
 ```bash
 bazel run //src/main/java/org/realityforge/jdbt:jdbt_bin -- load-dataset seed \
-  --target-host localhost --target-port 1433 \
-  --target-database MyDb --target-username sa --password-env DB_PASS
-```
-
-`up-module-group` / `down-module-group`
-
-```bash
-bazel run //src/main/java/org/realityforge/jdbt:jdbt_bin -- up-module-group all \
-  --target-host localhost --target-port 1433 \
-  --target-database MyDb --target-username sa --password-env DB_PASS
-```
-
-```bash
-bazel run //src/main/java/org/realityforge/jdbt:jdbt_bin -- down-module-group all \
   --target-host localhost --target-port 1433 \
   --target-database MyDb --target-username sa --password-env DB_PASS
 ```

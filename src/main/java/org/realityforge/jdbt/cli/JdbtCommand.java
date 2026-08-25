@@ -28,8 +28,6 @@ import picocli.CommandLine.Model.CommandSpec;
             JdbtCommand.ImportCommand.class,
             JdbtCommand.CreateByImportCommand.class,
             JdbtCommand.LoadDatasetCommand.class,
-            JdbtCommand.UpModuleGroupCommand.class,
-            JdbtCommand.DownModuleGroupCommand.class,
             JdbtCommand.PackageDataCommand.class,
             JdbtCommand.EmitStandardImportsCommand.class,
             JdbtCommand.VerifyConstraintsCommand.class,
@@ -321,9 +319,6 @@ public final class JdbtCommand implements Callable<Integer> {
         @CommandLine.Option(names = "--import", description = "Import key from jdbt.yml")
         private @Nullable String importKey;
 
-        @CommandLine.Option(names = "--module-group", description = "Restrict import to module group")
-        private @Nullable String moduleGroup;
-
         @CommandLine.Option(names = "--resume-at", description = "Resume import at table or sequence")
         private @Nullable String resumeAt;
 
@@ -340,7 +335,6 @@ public final class JdbtCommand implements Callable<Integer> {
         public Integer call() {
             runner().databaseImport(
                             importKey,
-                            moduleGroup,
                             target.toConnection(passwordResolver()),
                             source.toConnection(passwordResolver()),
                             resumeAt,
@@ -397,38 +391,6 @@ public final class JdbtCommand implements Callable<Integer> {
         @Override
         public Integer call() {
             runner().loadDataset(dataset, target.toConnection(passwordResolver()), filterProperties());
-            return 0;
-        }
-    }
-
-    @CommandLine.Command(name = "up-module-group", description = "Create objects for module group")
-    @SuppressWarnings("FieldCanBeFinal")
-    static final class UpModuleGroupCommand extends BaseSqlCommand {
-        @CommandLine.Parameters(index = "0", paramLabel = "MODULE_GROUP", description = "Module group key")
-        private String moduleGroup = "";
-
-        @CommandLine.Mixin
-        private TargetConnectionOptions target = new TargetConnectionOptions();
-
-        @Override
-        public Integer call() {
-            runner().upModuleGroup(moduleGroup, target.toConnection(passwordResolver()), filterProperties());
-            return 0;
-        }
-    }
-
-    @CommandLine.Command(name = "down-module-group", description = "Drop objects for module group")
-    @SuppressWarnings("FieldCanBeFinal")
-    static final class DownModuleGroupCommand extends BaseSqlCommand {
-        @CommandLine.Parameters(index = "0", paramLabel = "MODULE_GROUP", description = "Module group key")
-        private String moduleGroup = "";
-
-        @CommandLine.Mixin
-        private TargetConnectionOptions target = new TargetConnectionOptions();
-
-        @Override
-        public Integer call() {
-            runner().downModuleGroup(moduleGroup, target.toConnection(passwordResolver()), filterProperties());
             return 0;
         }
     }

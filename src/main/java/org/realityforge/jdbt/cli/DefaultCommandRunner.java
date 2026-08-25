@@ -82,7 +82,6 @@ final class DefaultCommandRunner implements CommandRunner {
     @Override
     public void databaseImport(
             final @Nullable String importKey,
-            final @Nullable String moduleGroup,
             final DatabaseConnection target,
             final DatabaseConnection source,
             final @Nullable String resumeAt,
@@ -95,13 +94,7 @@ final class DefaultCommandRunner implements CommandRunner {
                 timingOutput,
                 timing -> runtimeEngine(timing)
                         .databaseImport(
-                                runtime.database(),
-                                resolvedImport,
-                                moduleGroup,
-                                target,
-                                source,
-                                resumeAt,
-                                filterProperties));
+                                runtime.database(), resolvedImport, target, source, resumeAt, filterProperties));
     }
 
     @Override
@@ -134,20 +127,6 @@ final class DefaultCommandRunner implements CommandRunner {
             final String dataset, final DatabaseConnection target, final Map<String, String> filterProperties) {
         final var runtime = projectRuntimeLoader.load();
         runtimeEngine().loadDataset(runtime.database(), dataset, target, filterProperties);
-    }
-
-    @Override
-    public void upModuleGroup(
-            final String moduleGroup, final DatabaseConnection target, final Map<String, String> filterProperties) {
-        final var runtime = projectRuntimeLoader.load();
-        runtimeEngine().upModuleGroup(runtime.database(), moduleGroup, target, filterProperties);
-    }
-
-    @Override
-    public void downModuleGroup(
-            final String moduleGroup, final DatabaseConnection target, final Map<String, String> filterProperties) {
-        final var runtime = projectRuntimeLoader.load();
-        runtimeEngine().downModuleGroup(runtime.database(), moduleGroup, target, filterProperties);
     }
 
     @Override

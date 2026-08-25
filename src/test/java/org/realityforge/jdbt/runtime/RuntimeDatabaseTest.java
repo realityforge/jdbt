@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.realityforge.jdbt.config.ImportConfig;
-import org.realityforge.jdbt.config.ModuleGroupConfig;
 import org.realityforge.jdbt.repository.RepositoryConfig;
 import org.realityforge.jdbt.repository.RepositoryTable;
 import org.realityforge.jdbt.repository.RowSource;
@@ -62,7 +61,6 @@ final class RuntimeDatabaseTest {
                 true,
                 false,
                 Map.of(),
-                Map.of("default", new ImportConfig("default", repository.modules(), "import", List.of(), List.of())),
-                Map.of("grp", new ModuleGroupConfig("grp", repository.modules(), false)));
+                Map.of("default", new ImportConfig("default", repository.modules(), "import", List.of(), List.of())));
     }
 }

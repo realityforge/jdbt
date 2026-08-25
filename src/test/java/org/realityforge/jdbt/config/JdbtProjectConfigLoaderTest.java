@@ -17,20 +17,13 @@ final class JdbtProjectConfigLoaderTest {
             imports:
               default:
                 modules: [Core]
-            moduleGroups:
-              reporting:
-                modules: [Geo]
-                importEnabled: true
             """, "jdbt.yml", repositoryModules);
 
         final var database = config.database();
         assertThat(database.upDirs()).containsExactly(".", "types", "views", "functions", "stored-procedures", "misc");
         final var importConfig = Objects.requireNonNull(database.imports().get("default"));
-        final var moduleGroup = Objects.requireNonNull(database.moduleGroups().get("reporting"));
         assertThat(importConfig.modules()).containsExactly("Core");
         assertThat(importConfig.dir()).isEqualTo("import");
-        assertThat(moduleGroup.modules()).containsExactly("Geo");
-        assertThat(moduleGroup.importEnabled()).isTrue();
         assertThat(database.forceDrop()).isFalse();
         assertThat(database.deleteBackupHistory()).isTrue();
         assertThat(database.reindexOnImport()).isTrue();
@@ -108,28 +101,6 @@ final class JdbtProjectConfigLoaderTest {
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("Module 'Missing'")
                 .hasMessageContaining("import 'default'");
-    }
-
-    @Test
-    void loadRejectsModuleGroupWithoutModules() {
-        assertThatThrownBy(() -> load("""
-            moduleGroups:
-              reporting: {}
-            """, "jdbt.yml", repositoryModules))
-                .isInstanceOf(ConfigException.class)
-                .hasMessageContaining("Missing required list key 'modules'");
-    }
-
-    @Test
-    void loadRejectsModuleGroupWithUnknownModule() {
-        assertThatThrownBy(() -> load("""
-            moduleGroups:
-              reporting:
-                modules: [Missing]
-            """, "jdbt.yml", repositoryModules))
-                .isInstanceOf(ConfigException.class)
-                .hasMessageContaining("Module 'Missing'")
-                .hasMessageContaining("module group 'reporting'");
     }
 
     @Test

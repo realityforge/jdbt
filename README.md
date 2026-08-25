@@ -17,8 +17,6 @@ This project keeps parity-first behavior with the Ruby reference while using Jav
   - `import`
   - `create-by-import`
   - `load-dataset`
-  - `up-module-group`
-  - `down-module-group`
   - `package-data`
   - `emit-standard-imports`
   - `verify-constraints`
@@ -86,10 +84,6 @@ datasets: [seed]
 imports:
   default:
     modules: [Core]
-moduleGroups:
-  all:
-    modules: [Core]
-    importEnabled: true
 filterProperties:
   environment:
     pattern: __ENVIRONMENT__

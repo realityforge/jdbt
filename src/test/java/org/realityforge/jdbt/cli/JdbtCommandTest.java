@@ -182,8 +182,6 @@ final class JdbtCommandTest {
                     "import",
                     "--import",
                     "full",
-                    "--module-group",
-                    "core",
                     "--resume-at",
                     "Core.Table",
                     "--timing-output",
@@ -217,7 +215,6 @@ final class JdbtCommandTest {
         assertThat(exitCode).isZero();
         assertThat(runner.lastCall).isEqualTo("import");
         assertThat(runner.importKey).isEqualTo("full");
-        assertThat(runner.moduleGroup).isEqualTo("core");
         assertThat(runner.resumeAt).isEqualTo("Core.Table");
         assertThat(runner.timingOutput).isEqualTo(Path.of("tmp/import-timing.ndjson"));
         assertThat(runner.targetConnection)
@@ -539,7 +536,6 @@ final class JdbtCommandTest {
     private static final class RecordingRunner implements CommandRunner {
         private String lastCall = "";
         private @Nullable String importKey;
-        private @Nullable String moduleGroup;
         private @Nullable String resumeAt;
         private @Nullable String dataset;
         private @Nullable DatabaseConnection targetConnection;
@@ -603,7 +599,6 @@ final class JdbtCommandTest {
         @Override
         public void databaseImport(
                 final @Nullable String importKey,
-                final @Nullable String moduleGroup,
                 final DatabaseConnection target,
                 final DatabaseConnection source,
                 final @Nullable String resumeAt,
@@ -611,7 +606,6 @@ final class JdbtCommandTest {
                 final Map<String, String> filterProperties) {
             this.lastCall = "import";
             this.importKey = importKey;
-            this.moduleGroup = moduleGroup;
             this.targetConnection = target;
             this.sourceConnection = source;
             this.resumeAt = resumeAt;
@@ -642,24 +636,6 @@ final class JdbtCommandTest {
         public void loadDataset(
                 final String dataset, final DatabaseConnection target, final Map<String, String> filterProperties) {
             this.lastCall = "load-dataset";
-            this.targetConnection = target;
-            this.filterProperties = filterProperties;
-        }
-
-        @Override
-        public void upModuleGroup(
-                final String moduleGroup, final DatabaseConnection target, final Map<String, String> filterProperties) {
-            this.lastCall = "up-module-group";
-            this.moduleGroup = moduleGroup;
-            this.targetConnection = target;
-            this.filterProperties = filterProperties;
-        }
-
-        @Override
-        public void downModuleGroup(
-                final String moduleGroup, final DatabaseConnection target, final Map<String, String> filterProperties) {
-            this.lastCall = "down-module-group";
-            this.moduleGroup = moduleGroup;
             this.targetConnection = target;
             this.filterProperties = filterProperties;
         }

@@ -235,7 +235,6 @@ final class StandardImportEmitterTest {
                 true,
                 false,
                 Map.of(),
-                imports,
-                Map.of());
+                imports);
     }
 }

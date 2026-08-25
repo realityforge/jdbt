@@ -22,7 +22,6 @@ interface CommandRunner {
 
     void databaseImport(
             @Nullable String importKey,
-            @Nullable String moduleGroup,
             DatabaseConnection target,
             DatabaseConnection source,
             @Nullable String resumeAt,
@@ -39,10 +38,6 @@ interface CommandRunner {
             Map<String, String> filterProperties);
 
     void loadDataset(String dataset, DatabaseConnection target, Map<String, String> filterProperties);
-
-    void upModuleGroup(String moduleGroup, DatabaseConnection target, Map<String, String> filterProperties);
-
-    void downModuleGroup(String moduleGroup, DatabaseConnection target, Map<String, String> filterProperties);
 
     void packageData(Path outputFile);
 

@@ -8,7 +8,6 @@ import java.util.Map;
 import org.jspecify.annotations.Nullable;
 import org.realityforge.jdbt.config.FilterPropertyConfig;
 import org.realityforge.jdbt.config.ImportConfig;
-import org.realityforge.jdbt.config.ModuleGroupConfig;
 import org.realityforge.jdbt.files.ArtifactContent;
 import org.realityforge.jdbt.repository.RepositoryConfig;
 import org.realityforge.jdbt.repository.RepositoryTable;
@@ -41,8 +40,7 @@ public record RuntimeDatabase(
         boolean reindexOnImport,
         boolean shrinkOnImport,
         Map<String, FilterPropertyConfig> filterProperties,
-        Map<String, ImportConfig> imports,
-        Map<String, ModuleGroupConfig> moduleGroups) {
+        Map<String, ImportConfig> imports) {
 
     public RuntimeDatabase {
         resourceRoot = resourceRoot.toAbsolutePath().normalize();
@@ -58,7 +56,6 @@ public record RuntimeDatabase(
         datasets = List.copyOf(datasets);
         filterProperties = Collections.unmodifiableMap(new LinkedHashMap<>(filterProperties));
         imports = Collections.unmodifiableMap(new LinkedHashMap<>(imports));
-        moduleGroups = Collections.unmodifiableMap(new LinkedHashMap<>(moduleGroups));
     }
 
     public String schemaNameForModule(final String moduleName) {

@@ -30,7 +30,6 @@ import java.util.regex.Pattern;
 import org.jspecify.annotations.Nullable;
 import org.realityforge.jdbt.config.FilterPropertyConfig;
 import org.realityforge.jdbt.config.ImportConfig;
-import org.realityforge.jdbt.config.ModuleGroupConfig;
 import org.realityforge.jdbt.config.YamlMapSupport;
 import org.realityforge.jdbt.db.DatabaseConnection;
 import org.realityforge.jdbt.db.DatabaseMetadata;
@@ -149,47 +148,6 @@ public final class RuntimeEngine {
                 target, false, () -> performMigration(database, MigrationAction.PERFORM, declaredFilters));
     }
 
-    public void upModuleGroup(
-            final RuntimeDatabase database,
-            final String moduleGroupKey,
-            final DatabaseConnection target,
-            final Map<String, String> filterProperties) {
-        final var declaredFilters = resolveDeclaredFilterValues(database, filterProperties);
-        final var moduleGroup = moduleGroup(database, moduleGroupKey);
-        validateInitialFixtures(database);
-        withDatabaseConnection(target, false, () -> {
-            for (final var moduleName : database.repository().modules()) {
-                if (!moduleGroup.modules().contains(moduleName)) {
-                    continue;
-                }
-                createModule(database, moduleName, ModuleMode.UP, declaredFilters, false);
-                createModule(database, moduleName, ModuleMode.FINALIZE, declaredFilters, false);
-            }
-        });
-    }
-
-    public void downModuleGroup(
-            final RuntimeDatabase database,
-            final String moduleGroupKey,
-            final DatabaseConnection target,
-            final Map<String, String> filterProperties) {
-        final var declaredFilters = resolveDeclaredFilterValues(database, filterProperties);
-        final var moduleGroup = moduleGroup(database, moduleGroupKey);
-        withDatabaseConnection(target, false, () -> {
-            final var modules = new ArrayList<>(database.repository().modules());
-            Collections.reverse(modules);
-            for (final var moduleName : modules) {
-                if (!moduleGroup.modules().contains(moduleName)) {
-                    continue;
-                }
-                processModule(database, moduleName, ModuleMode.DOWN, declaredFilters, false);
-                final var tables = new ArrayList<>(database.tableOrdering(moduleName));
-                Collections.reverse(tables);
-                db.dropSchema(database.schemaNameForModule(moduleName), tables);
-            }
-        });
-    }
-
     public void loadDataset(
             final RuntimeDatabase database,
             final String datasetName,
@@ -273,7 +231,6 @@ public final class RuntimeEngine {
     public void databaseImport(
             final RuntimeDatabase database,
             final String importKey,
-            final @Nullable String moduleGroupKey,
             final DatabaseConnection target,
             final DatabaseConnection source,
             final @Nullable String resumeAt,
@@ -281,9 +238,8 @@ public final class RuntimeEngine {
         timing.command("command/import", () -> {
             final var declaredFilters = resolveDeclaredFilterValues(database, filterProperties);
             final var importConfig = importByKey(database, importKey);
-            final var moduleGroup = null == moduleGroupKey ? null : moduleGroup(database, moduleGroupKey);
             validateInitialFixtures(database);
-            final var importPlan = createImportPlan(database, importConfig, moduleGroup, resumeAt);
+            final var importPlan = createImportPlan(database, importConfig, resumeAt);
             final var metadata = databaseMetadata(database);
             withDatabaseConnection(
                     target,
@@ -308,7 +264,7 @@ public final class RuntimeEngine {
             final var declaredFilters = resolveDeclaredFilterValues(database, filterProperties);
             final var importConfig = importByKey(database, importKey);
             validateInitialFixtures(database);
-            final var importPlan = createImportPlan(database, importConfig, null, resumeAt);
+            final var importPlan = createImportPlan(database, importConfig, resumeAt);
             if (null == resumeAt && !noCreate) {
                 timing.run("phase/target-prepare", "phase", () -> createDatabaseIfRequired(database, target, false));
             }
@@ -407,16 +363,10 @@ public final class RuntimeEngine {
         db.postDatabaseImport(metadata, importConfig, this::timeMaintenance);
     }
 
-    private static List<String> selectedImportModules(
-            final RuntimeDatabase database,
-            final ImportConfig importConfig,
-            final @Nullable ModuleGroupConfig moduleGroup) {
+    private static List<String> selectedImportModules(final RuntimeDatabase database, final ImportConfig importConfig) {
         final var selectedModules = new ArrayList<String>();
         for (final var moduleName : importConfig.modules()) {
             if (!database.repository().modules().contains(moduleName)) {
-                continue;
-            }
-            if (null != moduleGroup && !moduleGroup.modules().contains(moduleName)) {
                 continue;
             }
             selectedModules.add(moduleName);
@@ -532,13 +482,10 @@ public final class RuntimeEngine {
     }
 
     private ImportPlan createImportPlan(
-            final RuntimeDatabase database,
-            final ImportConfig importConfig,
-            final @Nullable ModuleGroupConfig moduleGroup,
-            final @Nullable String resumeAt) {
+            final RuntimeDatabase database, final ImportConfig importConfig, final @Nullable String resumeAt) {
         final var modules = new ArrayList<ImportPlan.Module>();
         var resumeFound = null == resumeAt;
-        for (final var moduleName : selectedImportModules(database, importConfig, moduleGroup)) {
+        for (final var moduleName : selectedImportModules(database, importConfig)) {
             verifyNoUnexpectedImportFiles(database, moduleName, importConfig.dir());
             final var tables = new ArrayList<ImportPlan.Element>();
             for (final var table : database.tablesForModule(moduleName)) {
@@ -575,7 +522,7 @@ public final class RuntimeEngine {
             throw new RuntimeExecutionException(
                     "Partial import unable to be completed as bad table name supplied " + resumeAt);
         }
-        return new ImportPlan(importConfig, null == moduleGroup, modules);
+        return new ImportPlan(importConfig, true, modules);
     }
 
     private ImportPlan.Element resolveImportElement(
@@ -1584,15 +1531,6 @@ public final class RuntimeEngine {
             output = output.replace(entry.getKey(), entry.getValue());
         }
         return output;
-    }
-
-    private static ModuleGroupConfig moduleGroup(final RuntimeDatabase database, final String moduleGroupKey) {
-        final var moduleGroup = database.moduleGroups().get(moduleGroupKey);
-        if (null == moduleGroup) {
-            throw new RuntimeExecutionException(
-                    "Unable to locate module group definition by key '" + moduleGroupKey + "'");
-        }
-        return moduleGroup;
     }
 
     private static void ensureDatasetExists(final RuntimeDatabase database, final String datasetName) {

@@ -30,7 +30,7 @@ final class DefaultCommandRunnerTest {
     private final DatabaseConnection source = new DatabaseConnection("127.0.0.1", 1433, "SRC", "sa", "secret");
 
     @Test
-    void statusCreateDropMigrateImportAndGroupCommandsExecute(@TempDir final Path tempDir) throws IOException {
+    void statusCreateDropMigrateAndImportCommandsExecute(@TempDir final Path tempDir) throws IOException {
         writeFile(tempDir, "jdbt.yml", projectConfig(true));
         writeFile(tempDir, "repository.yml", repositoryConfig());
 
@@ -49,11 +49,9 @@ final class DefaultCommandRunnerTest {
         runner.createWithDataset(target, true, "seed", Map.of());
         runner.drop(target, Map.of());
         runner.migrate(target, Map.of());
-        runner.databaseImport(null, null, target, source, null, null, Map.of());
+        runner.databaseImport(null, target, source, null, null, Map.of());
         runner.createByImport(null, target, source, null, true, null, Map.of());
         runner.loadDataset("seed", target, Map.of());
-        runner.upModuleGroup("all", target, Map.of());
-        runner.downModuleGroup("all", target, Map.of());
         runner.verifyConstraints(target, List.of("MyModule"), List.of(), Map.of());
 
         assertThat(output.toString(StandardCharsets.UTF_8))
@@ -122,7 +120,7 @@ final class DefaultCommandRunnerTest {
         final var driver = new RecordingDriver();
         final var runner = new DefaultCommandRunner(new ProjectRuntimeLoader(consumer), driver, new FileResolver());
 
-        runner.databaseImport("default", null, target, source, null, null, Map.of());
+        runner.databaseImport("default", target, source, null, null, Map.of());
 
         assertThat(driver.transcript()).isEqualTo("""
             open target
@@ -188,7 +186,7 @@ final class DefaultCommandRunnerTest {
         writeFile(tempDir, "repository.yml", repositoryConfig());
         final var runner = createRunner(tempDir);
 
-        assertThatThrownBy(() -> runner.databaseImport(null, null, target, source, null, null, Map.of()))
+        assertThatThrownBy(() -> runner.databaseImport(null, target, source, null, null, Map.of()))
                 .isInstanceOf(RuntimeExecutionException.class)
                 .hasMessageContaining("Unable to locate import definition by key");
     }
@@ -201,7 +199,7 @@ final class DefaultCommandRunnerTest {
         final var driver = new RecordingDriver();
         final var runner = new DefaultCommandRunner(new ProjectRuntimeLoader(tempDir), driver, new FileResolver());
 
-        runner.databaseImport(null, null, target, source, null, Path.of("evidence/import.ndjson"), Map.of());
+        runner.databaseImport(null, target, source, null, Path.of("evidence/import.ndjson"), Map.of());
 
         assertThat(tempDir.resolve("evidence/import.ndjson"))
                 .content(StandardCharsets.UTF_8)
@@ -225,8 +223,8 @@ final class DefaultCommandRunnerTest {
         final var driver = new RecordingDriver();
         final var runner = new DefaultCommandRunner(new ProjectRuntimeLoader(tempDir), driver, new FileResolver());
 
-        assertThatThrownBy(() ->
-                        runner.databaseImport(null, null, target, source, null, Path.of("timing-directory"), Map.of()))
+        assertThatThrownBy(
+                        () -> runner.databaseImport(null, target, source, null, Path.of("timing-directory"), Map.of()))
                 .isInstanceOf(RuntimeExecutionException.class)
                 .hasMessage("Unable to open import timing output")
                 .hasNoCause();
@@ -295,9 +293,6 @@ final class DefaultCommandRunnerTest {
             imports:
               default:
                 modules: [MyModule]
-            moduleGroups:
-              all:
-                modules: [MyModule]
             filterProperties:
               tenant:
                 pattern: __TENANT__
@@ -309,9 +304,6 @@ final class DefaultCommandRunnerTest {
         return """
             datasets: [seed]
             imports: {}
-            moduleGroups:
-              all:
-                modules: [MyModule]
             """;
     }
 

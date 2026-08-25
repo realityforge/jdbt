@@ -17,7 +17,6 @@ import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.realityforge.jdbt.config.ImportConfig;
-import org.realityforge.jdbt.config.ModuleGroupConfig;
 import org.realityforge.jdbt.db.DatabaseConnection;
 import org.realityforge.jdbt.db.DatabaseException;
 import org.realityforge.jdbt.db.DatabaseMetadata;
@@ -92,8 +91,7 @@ final class RuntimeH2IntegrationTest {
                 true,
                 false,
                 Map.of(),
-                Map.of("custom", new ImportConfig("custom", repository.modules(), "load", List.of(), List.of())),
-                Map.of("group", new ModuleGroupConfig("group", repository.modules(), true)));
+                Map.of("custom", new ImportConfig("custom", repository.modules(), "load", List.of(), List.of())));
     }
 
     private static void createFile(final Path root, final String relativePath, final String content)
