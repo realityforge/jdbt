@@ -39,10 +39,10 @@ import org.realityforge.jdbt.db.QueryResult;
 import org.realityforge.jdbt.db.SqlTimingObserver;
 import org.realityforge.jdbt.db.sqlserver.SqlServerAssertExpander;
 import org.realityforge.jdbt.files.FileResolver;
+import org.realityforge.jdbt.files.ResourceFile;
 import org.realityforge.jdbt.repository.RowSource;
 
 public final class RuntimeEngine {
-    private static final Pattern ARTIFACT_FILE_PATTERN = Pattern.compile("^zip:([^:]+):(.+)$");
     private static final Pattern GO_SPLIT_PATTERN = Pattern.compile("(?im)^\\s*GO\\s*$");
     private static final DateTimeFormatter FIXTURE_DATE_TIME_FORMAT =
             DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm:ss", Locale.ENGLISH);
@@ -541,7 +541,7 @@ public final class RuntimeEngine {
                     continue;
                 }
                 final var fixture = fileResolver.findFileInModule(
-                        database.searchDirs(),
+                        database.resourceRoot(),
                         moduleName,
                         database.fixtureDirName(),
                         table.name(),
@@ -549,7 +549,7 @@ public final class RuntimeEngine {
                         database.postDbArtifacts(),
                         database.preDbArtifacts());
                 if (null != fixture) {
-                    throw new RuntimeExecutionException("Initial Fixture '" + fixture
+                    throw new RuntimeExecutionException("Initial Fixture '" + fixture.sourceName()
                             + "' targets Import Row Source table '" + cleanObjectName(table.name()) + "'.");
                 }
             }
@@ -565,7 +565,7 @@ public final class RuntimeEngine {
             verifyNoUnexpectedImportFiles(database, moduleName, importConfig.dir());
             for (final var table : database.tablesForModule(moduleName)) {
                 final var fixture = fileResolver.findFileInModule(
-                        database.searchDirs(),
+                        database.resourceRoot(),
                         moduleName,
                         importConfig.dir(),
                         table.name(),
@@ -573,7 +573,7 @@ public final class RuntimeEngine {
                         database.postDbArtifacts(),
                         database.preDbArtifacts());
                 final var sql = fileResolver.findFileInModule(
-                        database.searchDirs(),
+                        database.resourceRoot(),
                         moduleName,
                         importConfig.dir(),
                         table.name(),
@@ -584,7 +584,8 @@ public final class RuntimeEngine {
                     if (null != fixture || null != sql) {
                         final var asset = null != fixture ? fixture : sql;
                         throw new RuntimeExecutionException("Import Definition '" + importConfig.key() + "' asset '"
-                                + asset + "' targets Deployment Row Source table '"
+                                + Objects.requireNonNull(asset).sourceName()
+                                + "' targets Deployment Row Source table '"
                                 + cleanObjectName(table.name()) + "'.");
                     }
                     if (cleanObjectName(table.name()).equals(resumeAt)) {
@@ -593,8 +594,9 @@ public final class RuntimeEngine {
                     }
                 } else if (null != fixture && null != sql) {
                     throw new RuntimeExecutionException("Import Definition '" + importConfig.key()
-                            + "' unexpectedly defines both Import Fixture '" + fixture + "' and Explicit Import SQL '"
-                            + sql + "' for table '" + cleanObjectName(table.name()) + "'.");
+                            + "' unexpectedly defines both Import Fixture '" + fixture.sourceName()
+                            + "' and Explicit Import SQL '" + sql.sourceName() + "' for table '"
+                            + cleanObjectName(table.name()) + "'.");
                 }
             }
         }
@@ -619,7 +621,7 @@ public final class RuntimeEngine {
             final String tableName,
             final Map<String, String> declaredFilters) {
         final var fixtureFile = fileResolver.findFileInModule(
-                database.searchDirs(),
+                database.resourceRoot(),
                 moduleName,
                 importConfig.dir(),
                 tableName,
@@ -627,7 +629,7 @@ public final class RuntimeEngine {
                 database.postDbArtifacts(),
                 database.preDbArtifacts());
         final var sqlFile = fileResolver.findFileInModule(
-                database.searchDirs(),
+                database.resourceRoot(),
                 moduleName,
                 importConfig.dir(),
                 tableName,
@@ -636,25 +638,25 @@ public final class RuntimeEngine {
                 database.preDbArtifacts());
 
         if (null != fixtureFile && null != sqlFile) {
-            throw new RuntimeExecutionException("Unexpectedly found both import fixture (" + fixtureFile
-                    + ") and import sql (" + sqlFile + ") files.");
+            throw new RuntimeExecutionException("Unexpectedly found both import fixture (" + fixtureFile.sourceName()
+                    + ") and import sql (" + sqlFile.sourceName() + ") files.");
         }
 
         logImport(moduleName, tableName, fixtureFile, sqlFile);
         if (null != fixtureFile) {
-            loadFixture(tableName, fixtureFile, loadData(database, fixtureFile));
+            loadFixture(tableName, fixtureFile.sourceName(), fixtureFile.readText());
         } else if (null != sqlFile) {
-            final var logicalFile = logicalResourcePath(database, sqlFile);
+            final var logicalFile = sqlFile.path();
             timing.run(
                     "sql-file/" + ImportTimingRecorder.component(logicalFile),
                     "sql_file",
                     () -> runImportSql(
                             tableName,
-                            loadData(database, sqlFile),
+                            sqlFile.readText(),
                             target.database(),
                             source.database(),
                             declaredFilters,
-                            sqlFile,
+                            sqlFile.sourceName(),
                             logicalFile));
         } else {
             performStandardImport(tableName, target.database(), source.database(), declaredFilters);
@@ -670,7 +672,7 @@ public final class RuntimeEngine {
             final String sequenceName,
             final Map<String, String> declaredFilters) {
         final var fixtureFile = fileResolver.findFileInModule(
-                database.searchDirs(),
+                database.resourceRoot(),
                 moduleName,
                 importConfig.dir(),
                 sequenceName,
@@ -678,7 +680,7 @@ public final class RuntimeEngine {
                 database.postDbArtifacts(),
                 database.preDbArtifacts());
         final var sqlFile = fileResolver.findFileInModule(
-                database.searchDirs(),
+                database.resourceRoot(),
                 moduleName,
                 importConfig.dir(),
                 sequenceName,
@@ -688,9 +690,9 @@ public final class RuntimeEngine {
 
         if (null != fixtureFile && null != sqlFile) {
             throw new RuntimeExecutionException("Unexpectedly found both fixture ("
-                    + fixtureFile
+                    + fixtureFile.sourceName()
                     + ") and sql ("
-                    + sqlFile
+                    + sqlFile.sourceName()
                     + ") files for "
                     + cleanObjectName(sequenceName)
                     + '.');
@@ -698,19 +700,19 @@ public final class RuntimeEngine {
 
         logImport(moduleName, sequenceName, fixtureFile, sqlFile);
         if (null != fixtureFile) {
-            loadSequenceFixture(sequenceName, fixtureFile, loadData(database, fixtureFile));
+            loadSequenceFixture(sequenceName, fixtureFile.sourceName(), fixtureFile.readText());
         } else if (null != sqlFile) {
-            final var logicalFile = logicalResourcePath(database, sqlFile);
+            final var logicalFile = sqlFile.path();
             timing.run(
                     "sql-file/" + ImportTimingRecorder.component(logicalFile),
                     "sql_file",
                     () -> runImportSql(
                             sequenceName,
-                            loadData(database, sqlFile),
+                            sqlFile.readText(),
                             target.database(),
                             source.database(),
                             declaredFilters,
-                            sqlFile,
+                            sqlFile.sourceName(),
                             logicalFile));
         } else {
             runImportSql(
@@ -772,21 +774,23 @@ public final class RuntimeEngine {
     }
 
     private void runSqlFile(
-            final RuntimeDatabase database,
             final String label,
-            final String file,
+            final ResourceFile file,
             final boolean executeInControlDatabase,
             final Map<String, String> declaredFilters,
             final boolean expandDatabaseVersionAssert) {
-        final var logicalFile = logicalResourcePath(database, file);
+        final var logicalFile = file.path();
         timing.run("sql-file/" + ImportTimingRecorder.component(logicalFile), "sql_file", () -> {
             logSqlFile(label, file);
-            var sql = loadData(database, file);
+            var sql = file.readText();
             if (expandDatabaseVersionAssert) {
                 sql = SqlServerAssertExpander.expandCreationSql(sql);
             }
             runSqlBatch(
-                    applyDeclaredFilterProperties(sql, declaredFilters), executeInControlDatabase, file, logicalFile);
+                    applyDeclaredFilterProperties(sql, declaredFilters),
+                    executeInControlDatabase,
+                    file.sourceName(),
+                    logicalFile);
         });
     }
 
@@ -798,38 +802,38 @@ public final class RuntimeEngine {
             final Map<String, String> declaredFilters) {
         timing.run("sql-directory/" + ImportTimingRecorder.component(dir), "sql_directory", () -> {
             final var files = fileResolver.collectFiles(
-                    database.searchDirs(),
+                    database.resourceRoot(),
                     dir,
                     "sql",
                     database.indexFileName(),
                     database.postDbArtifacts(),
                     database.preDbArtifacts());
             for (final var file : files) {
-                final var logicalFile = logicalResourcePath(database, file);
+                final var logicalFile = file.path();
                 timing.run("sql-file/" + ImportTimingRecorder.component(logicalFile), "sql_file", () -> {
                     logSqlFile(fileLabel("", dir), file);
                     runImportSql(
                             null,
-                            loadData(database, file),
+                            file.readText(),
                             target.database(),
                             source.database(),
                             declaredFilters,
-                            file,
+                            file.sourceName(),
                             logicalFile);
                 });
             }
         });
     }
 
-    private void logSqlFile(final String label, final String file) {
-        output.accept(label + basename(file));
+    private void logSqlFile(final String label, final ResourceFile file) {
+        output.accept(label + file.basename());
     }
 
     private void logImport(
             final String moduleName,
             final String objectName,
-            final @Nullable String fixtureFile,
-            final @Nullable String sqlFile) {
+            final @Nullable ResourceFile fixtureFile,
+            final @Nullable ResourceFile sqlFile) {
         final var importType = null != fixtureFile ? "F" : null != sqlFile ? "S" : "D";
         output.accept(
                 paddedLabel(moduleName) + "Importing " + cleanObjectName(objectName) + " (By " + importType + ")");
@@ -847,11 +851,6 @@ public final class RuntimeEngine {
         return ".".equals(dir) ? "" : dir + '/';
     }
 
-    private static String basename(final String value) {
-        final var slash = Math.max(value.lastIndexOf('/'), value.lastIndexOf('\\'));
-        return -1 == slash ? value : value.substring(slash + 1);
-    }
-
     private static void verifyNoUnexpectedImportFiles(
             final RuntimeDatabase database, final String moduleName, final String importDir) {
         final var expected = new ArrayList<>();
@@ -864,11 +863,8 @@ public final class RuntimeEngine {
         }
 
         final var additional = new ArrayList<>();
-        for (final var searchDir : database.searchDirs()) {
-            final var directory = searchDir.resolve(moduleName).resolve(importDir);
-            if (!Files.isDirectory(directory)) {
-                continue;
-            }
+        final var directory = database.resourceRoot().resolve(moduleName).resolve(importDir);
+        if (Files.isDirectory(directory)) {
             try (var stream = Files.list(directory)) {
                 stream.filter(Files::isRegularFile)
                         .filter(file -> {
@@ -909,9 +905,8 @@ public final class RuntimeEngine {
     }
 
     @SuppressWarnings("SameParameterValue")
-    private static String basenameWithoutExtension(final String value, final String extension) {
-        final var slash = Math.max(value.lastIndexOf('/'), value.lastIndexOf('\\'));
-        final var basename = -1 == slash ? value : value.substring(slash + 1);
+    private static String basenameWithoutExtension(final ResourceFile file, final String extension) {
+        final var basename = file.basename();
         return basename.endsWith(extension) ? basename.substring(0, basename.length() - extension.length()) : basename;
     }
 
@@ -973,7 +968,7 @@ public final class RuntimeEngine {
         final var directory = database.migrationsDirName();
         timing.run("sql-directory/" + ImportTimingRecorder.component(directory), "sql_directory", () -> {
             final var files = fileResolver.collectFiles(
-                    database.searchDirs(),
+                    database.resourceRoot(),
                     directory,
                     "sql",
                     database.indexFileName(),
@@ -989,8 +984,7 @@ public final class RuntimeEngine {
                     final var shouldRun =
                             action != MigrationAction.RECORD && (null == versionIndex || versionIndex < i);
                     if (shouldRun) {
-                        runSqlFile(
-                                database, "Migration: ", filename, false, declaredFilters, expandDatabaseVersionAssert);
+                        runSqlFile("Migration: ", filename, false, declaredFilters, expandDatabaseVersionAssert);
                     }
                     db.markMigrationAsRun(migrationName);
                 }
@@ -998,7 +992,8 @@ public final class RuntimeEngine {
         });
     }
 
-    private static @Nullable Integer releaseVersionIndex(final RuntimeDatabase database, final List<String> files) {
+    private static @Nullable Integer releaseVersionIndex(
+            final RuntimeDatabase database, final List<ResourceFile> files) {
         if (null == database.version()) {
             return null;
         }
@@ -1108,14 +1103,14 @@ public final class RuntimeEngine {
             final boolean expandDatabaseVersionAssert) {
         timing.run("sql-directory/" + ImportTimingRecorder.component(dir), "sql_directory", () -> {
             final var files = fileResolver.collectFiles(
-                    database.searchDirs(),
+                    database.resourceRoot(),
                     dir,
                     "sql",
                     database.indexFileName(),
                     database.postDbArtifacts(),
                     database.preDbArtifacts());
             for (final var file : files) {
-                runSqlFile(database, label, file, false, declaredFilters, expandDatabaseVersionAssert);
+                runSqlFile(label, file, false, declaredFilters, expandDatabaseVersionAssert);
             }
         });
     }
@@ -1150,7 +1145,7 @@ public final class RuntimeEngine {
 
     private void performLoadDataset(final RuntimeDatabase database, final String datasetName) {
         final var subdir = database.datasetsDirName() + '/' + datasetName;
-        final var fixtures = new LinkedHashMap<String, String>();
+        final var fixtures = new LinkedHashMap<String, ResourceFile>();
         for (final var moduleName : database.repository().modules()) {
             fixtures.putAll(collectFixtures(database, moduleName, subdir));
         }
@@ -1403,10 +1398,10 @@ public final class RuntimeEngine {
         upFixtures(database, moduleName, fixtures);
     }
 
-    private Map<String, String> collectFixtures(
+    private Map<String, ResourceFile> collectFixtures(
             final RuntimeDatabase database, final String moduleName, final String subdir) {
         return fileResolver.collectFixtures(
-                database.searchDirs(),
+                database.resourceRoot(),
                 moduleName,
                 subdir,
                 database.orderedElementsForModule(moduleName),
@@ -1415,7 +1410,7 @@ public final class RuntimeEngine {
     }
 
     private void downFixtures(
-            final RuntimeDatabase database, final String moduleName, final Map<String, String> fixtures) {
+            final RuntimeDatabase database, final String moduleName, final Map<String, ResourceFile> fixtures) {
         final var tables = new ArrayList<>(database.tableOrdering(moduleName));
         Collections.reverse(tables);
         for (final var tableName : tables) {
@@ -1434,12 +1429,12 @@ public final class RuntimeEngine {
     }
 
     private void upFixtures(
-            final RuntimeDatabase database, final String moduleName, final Map<String, String> fixtures) {
+            final RuntimeDatabase database, final String moduleName, final Map<String, ResourceFile> fixtures) {
         for (final var tableName : database.tableOrdering(moduleName)) {
             final var fixture = fixtures.get(tableName);
             if (null != fixture) {
                 output.accept(paddedLabel("Fixture") + cleanObjectName(tableName));
-                loadFixture(tableName, fixture, loadData(database, fixture));
+                loadFixture(tableName, fixture.sourceName(), fixture.readText());
             }
         }
 
@@ -1447,7 +1442,7 @@ public final class RuntimeEngine {
             final var fixture = fixtures.get(sequenceName);
             if (null != fixture) {
                 output.accept(paddedLabel("Fixture") + cleanObjectName(sequenceName));
-                loadSequenceFixture(sequenceName, fixture, loadData(database, fixture));
+                loadSequenceFixture(sequenceName, fixture.sourceName(), fixture.readText());
             }
         }
     }
@@ -1516,39 +1511,6 @@ public final class RuntimeEngine {
 
     private static @Nullable Object parseYaml(final String content, final String sourceName) {
         return YamlMapSupport.parseDocument(content, sourceName);
-    }
-
-    private static String loadData(final RuntimeDatabase database, final String location) {
-        final var matcher = ARTIFACT_FILE_PATTERN.matcher(location);
-        if (matcher.matches()) {
-            final var artifactId = matcher.group(1);
-            final var path = matcher.group(2);
-            final var artifact = database.artifactById(artifactId);
-            if (null == artifact) {
-                throw new RuntimeExecutionException("Unable to locate artifact with id '" + artifactId + "'.");
-            }
-            return artifact.readText(path);
-        }
-        try {
-            return Files.readString(Path.of(location));
-        } catch (final IOException ioe) {
-            throw new UncheckedIOException("Failed to read file " + location, ioe);
-        }
-    }
-
-    private static String logicalResourcePath(final RuntimeDatabase database, final String location) {
-        final var artifact = ARTIFACT_FILE_PATTERN.matcher(location);
-        if (artifact.matches()) {
-            return artifact.group(2).replace('\\', '/');
-        }
-        final var path = Path.of(location).toAbsolutePath().normalize();
-        for (final var searchDir : database.searchDirs()) {
-            final var root = searchDir.toAbsolutePath().normalize();
-            if (path.startsWith(root)) {
-                return root.relativize(path).toString().replace('\\', '/');
-            }
-        }
-        throw new RuntimeExecutionException("Unable to derive logical database resource path");
     }
 
     private void runSqlBatch(final String sql, final boolean executeInControlDatabase) {

@@ -8,7 +8,6 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.realityforge.jdbt.config.ImportConfig;
 import org.realityforge.jdbt.config.ModuleGroupConfig;
-import org.realityforge.jdbt.files.ArtifactContent;
 import org.realityforge.jdbt.repository.RepositoryConfig;
 import org.realityforge.jdbt.repository.RepositoryTable;
 import org.realityforge.jdbt.repository.RowSource;
@@ -23,7 +22,7 @@ final class RuntimeDatabaseTest {
                         "Core",
                         List.of(new RepositoryTable("[C].[tblA]", List.of("[ID]"), List.of(), RowSource.IMPORT))),
                 Map.of("Core", List.of("[C].[seqA]")));
-        final var database = runtimeDatabase(repository, List.of(), List.of());
+        final var database = runtimeDatabase(repository);
 
         assertThat(database.schemaNameForModule("Core")).isEqualTo("C");
         assertThat(database.tableOrdering("Core")).containsExactly("[C].[tblA]");
@@ -34,29 +33,12 @@ final class RuntimeDatabaseTest {
         assertThat(database.filterProperties()).isEmpty();
     }
 
-    @Test
-    void artifactByIdPrefersPostThenPreAndReturnsNullWhenMissing() {
-        final var pre = new StaticArtifact("pre");
-        final var post = new StaticArtifact("post");
-        final var database = runtimeDatabase(
-                new RepositoryConfig(List.of("Core"), Map.of(), Map.of("Core", List.of()), Map.of("Core", List.of())),
-                List.of(pre),
-                List.of(post));
-
-        assertThat(database.artifactById("post")).isEqualTo(post);
-        assertThat(database.artifactById("pre")).isEqualTo(pre);
-        assertThat(database.artifactById("missing")).isNull();
-    }
-
-    private static RuntimeDatabase runtimeDatabase(
-            final RepositoryConfig repository,
-            final List<ArtifactContent> preArtifacts,
-            final List<ArtifactContent> postArtifacts) {
+    private static RuntimeDatabase runtimeDatabase(final RepositoryConfig repository) {
         return new RuntimeDatabase(
                 repository,
-                List.of(Path.of(".")),
-                preArtifacts,
-                postArtifacts,
+                Path.of("."),
+                List.of(),
+                List.of(),
                 "index.txt",
                 List.of("."),
                 List.of("down"),
@@ -82,17 +64,5 @@ final class RuntimeDatabaseTest {
                 Map.of(),
                 Map.of("default", new ImportConfig("default", repository.modules(), "import", List.of(), List.of())),
                 Map.of("grp", new ModuleGroupConfig("grp", repository.modules(), false)));
-    }
-
-    private record StaticArtifact(String id) implements ArtifactContent {
-        @Override
-        public List<String> files() {
-            return List.of();
-        }
-
-        @Override
-        public String readText(final String path) {
-            throw new UnsupportedOperationException();
-        }
     }
 }

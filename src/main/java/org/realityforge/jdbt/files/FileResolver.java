@@ -14,25 +14,22 @@ import java.util.stream.Collectors;
 import org.jspecify.annotations.Nullable;
 
 public final class FileResolver {
-    public List<String> collectFiles(
-            final List<Path> searchDirs,
+    public List<ResourceFile> collectFiles(
+            final Path resourceRoot,
             final String relativeDir,
             final String extension,
             final String indexFileName,
             final List<ArtifactContent> postArtifacts,
             final List<ArtifactContent> preArtifacts) {
-        final var directories =
-                searchDirs.stream().map(d -> d.resolve(relativeDir)).toList();
+        final var directory = resourceRoot.resolve(relativeDir);
 
         final var index = new ArrayList<String>();
-        final var files = new ArrayList<String>();
+        final var files = new ArrayList<ResourceFile>();
 
-        for (final var directory : directories) {
-            final var indexEntries = readIndexEntries(directory.resolve(indexFileName));
-            validateIndexEntries(indexEntries, directories);
-            index.addAll(indexEntries);
-            files.addAll(readFiles(directory, extension));
-        }
+        final var indexEntries = readIndexEntries(directory.resolve(indexFileName));
+        validateIndexEntries(indexEntries, directory);
+        index.addAll(indexEntries);
+        files.addAll(readFiles(resourceRoot, directory, extension));
 
         final var prefix = normalizeRelativeDir(relativeDir);
         final var indexEntryPath = prefix + '/' + indexFileName;
@@ -47,35 +44,27 @@ public final class FileResolver {
         return List.copyOf(files);
     }
 
-    public Map<String, String> collectFixtures(
-            final List<Path> searchDirs,
+    public Map<String, ResourceFile> collectFixtures(
+            final Path resourceRoot,
             final String moduleName,
             final @Nullable String subdir,
             final List<String> orderedElements,
             final List<ArtifactContent> postArtifacts,
             final List<ArtifactContent> preArtifacts) {
         final var relativeModuleDir = moduleName + (subdir == null ? "" : "/" + subdir);
-        final var directories =
-                searchDirs.stream().map(d -> d.resolve(relativeModuleDir)).toList();
+        final var directory = resourceRoot.resolve(relativeModuleDir);
 
-        final var filesystemYamlFiles = new ArrayList<>(
-                directories.stream().flatMap(d -> readFiles(d, "yml").stream()).toList());
-        final var filesystemSqlFiles = new ArrayList<>(
-                directories.stream().flatMap(d -> readFiles(d, "sql").stream()).toList());
+        final var filesystemYamlFiles = new ArrayList<>(readFiles(resourceRoot, directory, "yml"));
+        final var filesystemSqlFiles = new ArrayList<>(readFiles(resourceRoot, directory, "sql"));
 
-        final var fixtures = new LinkedHashMap<String, String>();
+        final var fixtures = new LinkedHashMap<String, ResourceFile>();
         for (final var element : orderedElements) {
             final var fixtureBasename = cleanObjectName(element) + ".yml";
-            for (final var directory : directories) {
-                final var filename = directory.resolve(fixtureBasename).toString();
-                filesystemYamlFiles.remove(filename);
-                if (Files.exists(Path.of(filename))) {
-                    if (fixtures.containsKey(element)) {
-                        throw new FileCollectionException(
-                                "Duplicate fixture for " + element + " found in database search paths");
-                    }
-                    fixtures.put(element, filename);
-                }
+            final var filename = directory.resolve(fixtureBasename);
+            final var resource = new ResourceFile.OnDisk(resourceRoot, filename);
+            filesystemYamlFiles.remove(resource);
+            if (Files.exists(filename)) {
+                fixtures.put(element, resource);
             }
 
             if (!fixtures.containsKey(element)) {
@@ -100,8 +89,8 @@ public final class FileResolver {
         return Map.copyOf(fixtures);
     }
 
-    public @Nullable String findFileInModule(
-            final List<Path> searchDirs,
+    public @Nullable ResourceFile findFileInModule(
+            final Path resourceRoot,
             final String moduleName,
             final String subdir,
             final String tableName,
@@ -110,36 +99,33 @@ public final class FileResolver {
             final List<ArtifactContent> preArtifacts) {
         final var filename = moduleFilename(moduleName, subdir, tableName, extension);
 
-        for (final var searchDir : searchDirs) {
-            final var file = searchDir.resolve(filename);
-            if (Files.exists(file)) {
-                return file.toString();
-            }
+        final var file = resourceRoot.resolve(filename);
+        if (Files.exists(file)) {
+            return new ResourceFile.OnDisk(resourceRoot, file);
         }
         return findFromArtifacts(filename, postArtifacts, preArtifacts);
     }
 
-    private static @Nullable String findFromArtifacts(
+    private static @Nullable ResourceFile findFromArtifacts(
             final String filename,
             final List<ArtifactContent> postArtifacts,
             final List<ArtifactContent> preArtifacts) {
         for (final var artifact : postArtifacts) {
             if (artifact.files().contains(filename)) {
-                return toArtifactLocation(artifact, filename);
+                return new ResourceFile.InArtifact(artifact, filename);
             }
         }
         for (final var artifact : preArtifacts) {
             if (artifact.files().contains(filename)) {
-                return toArtifactLocation(artifact, filename);
+                return new ResourceFile.InArtifact(artifact, filename);
             }
         }
         return null;
     }
 
-    private static void validateIndexEntries(final List<String> entries, final List<Path> directories) {
+    private static void validateIndexEntries(final List<String> entries, final Path directory) {
         for (final var entry : entries) {
-            final var exists = directories.stream().anyMatch(dir -> Files.exists(dir.resolve(entry)));
-            if (!exists) {
+            if (!Files.exists(directory.resolve(entry))) {
                 throw new FileCollectionException("A specified index entry does not exist on the disk " + entry);
             }
         }
@@ -157,7 +143,7 @@ public final class FileResolver {
         }
     }
 
-    private static List<String> readFiles(final Path directory, final String extension) {
+    private static List<ResourceFile> readFiles(final Path resourceRoot, final Path directory, final String extension) {
         if (!Files.isDirectory(directory)) {
             return List.of();
         }
@@ -165,7 +151,7 @@ public final class FileResolver {
         try (var stream = Files.list(directory)) {
             return stream.filter(Files::isRegularFile)
                     .filter(file -> file.getFileName().toString().endsWith('.' + extension))
-                    .map(Path::toString)
+                    .map(file -> (ResourceFile) new ResourceFile.OnDisk(resourceRoot, file))
                     .toList();
         } catch (final IOException ioe) {
             throw new UncheckedIOException("Failed to read files in " + directory, ioe);
@@ -173,7 +159,7 @@ public final class FileResolver {
     }
 
     private static void addArtifactFiles(
-            final List<String> files,
+            final List<ResourceFile> files,
             final List<String> index,
             final List<ArtifactContent> artifacts,
             final String indexEntryPath,
@@ -187,18 +173,18 @@ public final class FileResolver {
                     .filter(file -> matcher.matcher(file).matches())
                     .toList();
             for (final var candidate : candidates) {
-                final var location = toArtifactLocation(artifact, candidate);
-                if (!containsBasename(files, basename(location))) {
-                    files.add(location);
+                final var resource = new ResourceFile.InArtifact(artifact, candidate);
+                if (!containsBasename(files, resource.basename())) {
+                    files.add(resource);
                 }
             }
         }
     }
 
-    private static Comparator<String> indexComparator(final List<String> index) {
+    private static Comparator<ResourceFile> indexComparator(final List<String> index) {
         return (left, right) -> {
-            final var leftBasename = basename(left);
-            final var rightBasename = basename(right);
+            final var leftBasename = left.basename();
+            final var rightBasename = right.basename();
             final var leftIndex = index.indexOf(leftBasename);
             final var rightIndex = index.indexOf(rightBasename);
             if (-1 == leftIndex && -1 == rightIndex) {
@@ -214,26 +200,21 @@ public final class FileResolver {
         };
     }
 
-    private static void failIfDuplicateBasenames(final List<String> files) {
+    private static void failIfDuplicateBasenames(final List<ResourceFile> files) {
         final var groups = files.stream()
-                .collect(Collectors.groupingBy(FileResolver::basename, LinkedHashMap::new, Collectors.toList()));
+                .collect(Collectors.groupingBy(ResourceFile::basename, LinkedHashMap::new, Collectors.toList()));
         final var duplicates =
                 groups.values().stream().filter(values -> values.size() > 1).toList();
         if (!duplicates.isEmpty()) {
             final var detail = duplicates.stream()
-                    .map(values -> String.join("\n\t", values))
+                    .map(values -> values.stream().map(ResourceFile::sourceName).collect(Collectors.joining("\n\t")))
                     .collect(Collectors.joining("\n\t"));
             throw new FileCollectionException("Files with duplicate basename not allowed.\n\t" + detail);
         }
     }
 
-    private static boolean containsBasename(final List<String> files, final String basename) {
-        return files.stream().anyMatch(file -> basename(file).equals(basename));
-    }
-
-    private static String basename(final String value) {
-        final var slash = Math.max(value.lastIndexOf('/'), value.lastIndexOf('\\'));
-        return slash == -1 ? value : value.substring(slash + 1);
+    private static boolean containsBasename(final List<ResourceFile> files, final String basename) {
+        return files.stream().anyMatch(file -> file.basename().equals(basename));
     }
 
     private static String moduleFilename(
@@ -263,9 +244,5 @@ public final class FileResolver {
                 .splitAsStream(content)
                 .filter(token -> !token.isEmpty())
                 .toList();
-    }
-
-    private static String toArtifactLocation(final ArtifactContent artifact, final String candidate) {
-        return "zip:" + artifact.id() + ':' + candidate;
     }
 }

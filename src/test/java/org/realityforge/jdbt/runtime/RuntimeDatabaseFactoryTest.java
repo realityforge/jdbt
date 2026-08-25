@@ -52,7 +52,7 @@ final class RuntimeDatabaseFactoryTest {
 
         final var runtimeDatabase = factory.from(database, repository, List.of(), List.of(), "hash", Path.of("dbRoot"));
 
-        assertThat(runtimeDatabase.searchDirs()).containsExactly(Path.of("dbRoot"));
+        assertThat(runtimeDatabase.resourceRoot()).isEqualTo(Path.of("dbRoot").toAbsolutePath());
         assertThat(runtimeDatabase.indexFileName()).isEqualTo("index.txt");
         assertThat(runtimeDatabase.schemaHash()).isEqualTo("hash");
         assertThat(runtimeDatabase.migrationsAppliedAtCreate()).isTrue();

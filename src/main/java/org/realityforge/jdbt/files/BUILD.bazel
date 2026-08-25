@@ -8,6 +8,7 @@ java_library(
         "ArtifactContent.java",
         "FileCollectionException.java",
         "FileResolver.java",
+        "ResourceFile.java",
         "ZipArtifactContent.java",
         "package-info.java",
     ],

@@ -131,8 +131,8 @@ modules:
 - Configuration file name is fixed: `jdbt.yml`.
 - `jdbt.yml` defines a single implicit database at top-level keys.
 - Top-level `defaults` and `databases` are not supported in `jdbt.yml`; runtime defaults are hardcoded.
-- `resourceRoot` selects one resource tree relative to the project directory and defaults to `.`; `searchDirs` remains
-  unsupported.
+- `resourceRoot` selects the one local resource tree relative to the project directory and defaults to `.`;
+  `searchDirs` is unsupported.
 - `jdbt --project-dir PATH validate-project` validates manifests and selected resources without connecting to a
   database.
 - `resourcePrefix` is not supported; Java runtime does not load database assets from classpath resources.

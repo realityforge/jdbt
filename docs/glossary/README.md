@@ -24,6 +24,14 @@ A named, ordered unit of database ownership containing an optional schema overri
 
 A deterministic zip consumed through `preDbArtifacts` or `postDbArtifacts`. It contains `data/repository.yml` and the database assets owned by its [Database Modules](#database-module).
 
+### Resource Root
+
+The single local filesystem tree selected by `resourceRoot`. Jdbt resolves project-owned database assets beneath this root and combines them with configured [Database Artifacts](#database-artifact).
+
+### Database Resource
+
+A resolved database asset backed either by a file beneath the [Resource Root](#resource-root) or an entry in a [Database Artifact](#database-artifact). Its origin, logical path, display name, and content remain typed runtime data rather than an encoded path string.
+
 ### Database Statistics Export
 
 A deterministic CSV observation of approximate row counts and physical used-page counts for every table and physical index declared by [Repository Metadata](#repository-metadata). It validates the live database against the modeled identities and excludes database-only objects.

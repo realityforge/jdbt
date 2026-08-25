@@ -15,7 +15,7 @@ import org.realityforge.jdbt.repository.RepositoryTable;
 
 public record RuntimeDatabase(
         RepositoryConfig repository,
-        List<Path> searchDirs,
+        Path resourceRoot,
         List<ArtifactContent> preDbArtifacts,
         List<ArtifactContent> postDbArtifacts,
         String indexFileName,
@@ -45,7 +45,7 @@ public record RuntimeDatabase(
         Map<String, ModuleGroupConfig> moduleGroups) {
 
     public RuntimeDatabase {
-        searchDirs = List.copyOf(searchDirs);
+        resourceRoot = resourceRoot.toAbsolutePath().normalize();
         preDbArtifacts = List.copyOf(preDbArtifacts);
         postDbArtifacts = List.copyOf(postDbArtifacts);
         upDirs = List.copyOf(upDirs);
@@ -79,19 +79,5 @@ public record RuntimeDatabase(
 
     public List<String> orderedElementsForModule(final String moduleName) {
         return repository.orderedElementsForModule(moduleName);
-    }
-
-    public @Nullable ArtifactContent artifactById(final String id) {
-        for (final var artifact : postDbArtifacts) {
-            if (artifact.id().equals(id)) {
-                return artifact;
-            }
-        }
-        for (final var artifact : preDbArtifacts) {
-            if (artifact.id().equals(id)) {
-                return artifact;
-            }
-        }
-        return null;
     }
 }

@@ -209,7 +209,7 @@ final class StandardImportEmitterTest {
             final Path project, final RepositoryConfig repository, final Map<String, ImportConfig> imports) {
         return new RuntimeDatabase(
                 repository,
-                List.of(project),
+                project,
                 List.of(),
                 List.of(),
                 "index.txt",

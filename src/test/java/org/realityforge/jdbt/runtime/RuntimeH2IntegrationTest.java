@@ -66,7 +66,7 @@ final class RuntimeH2IntegrationTest {
                 Map.of("Core", List.of()));
         return new RuntimeDatabase(
                 repository,
-                List.of(searchDir),
+                searchDir,
                 List.of(),
                 List.of(),
                 "index.txt",

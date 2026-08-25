@@ -18,6 +18,7 @@ import org.realityforge.jdbt.config.YamlMapSupport;
 import org.realityforge.jdbt.files.ArtifactContent;
 import org.realityforge.jdbt.files.FileCollectionException;
 import org.realityforge.jdbt.files.FileResolver;
+import org.realityforge.jdbt.files.ResourceFile;
 import org.realityforge.jdbt.files.ZipArtifactContent;
 import org.realityforge.jdbt.repository.RepositoryConfig;
 import org.realityforge.jdbt.repository.RepositoryConfigLoader;
@@ -165,24 +166,12 @@ final class ProjectRuntimeLoader {
     private String schemaHash(final RuntimeDatabase database) {
         final var buffer = new StringBuilder();
         for (final var path : collectFilesetForHash(database)) {
-            buffer.append(logicalResourcePath(database, path))
+            buffer.append(path.identity())
                     .append(" : ")
-                    .append(md5(loadData(database, path)))
+                    .append(md5(path.readText()))
                     .append('\n');
         }
         return md5(buffer.toString());
-    }
-
-    private static String logicalResourcePath(final RuntimeDatabase database, final String location) {
-        if (location.startsWith("zip:")) {
-            return location;
-        }
-        final var path = Path.of(location).toAbsolutePath().normalize();
-        final var resourceRoot = database.searchDirs().get(0).toAbsolutePath().normalize();
-        if (!path.startsWith(resourceRoot)) {
-            throw new ConfigException("Resolved resource is outside resourceRoot: " + path);
-        }
-        return resourceRoot.relativize(path).toString().replace('\\', '/');
     }
 
     private static void validateLogicalResourcePaths(final RuntimeDatabase database) {
@@ -212,8 +201,8 @@ final class ProjectRuntimeLoader {
         }
     }
 
-    private List<String> collectFilesetForHash(final RuntimeDatabase database) {
-        final var files = new ArrayList<String>();
+    private List<ResourceFile> collectFilesetForHash(final RuntimeDatabase database) {
+        final var files = new ArrayList<ResourceFile>();
         for (final var dir : database.preCreateDirs()) {
             files.addAll(collectDirSet(database, dir));
         }
@@ -226,7 +215,7 @@ final class ProjectRuntimeLoader {
             }
 
             final var fixtures = fileResolver.collectFixtures(
-                    database.searchDirs(),
+                    database.resourceRoot(),
                     moduleName,
                     database.fixtureDirName(),
                     database.orderedElementsForModule(moduleName),
@@ -241,7 +230,7 @@ final class ProjectRuntimeLoader {
 
             for (final var dataset : database.datasets()) {
                 final var datasetFixtures = fileResolver.collectFixtures(
-                        database.searchDirs(),
+                        database.resourceRoot(),
                         moduleName,
                         database.datasetsDirName() + '/' + dataset,
                         database.orderedElementsForModule(moduleName),
@@ -290,10 +279,10 @@ final class ProjectRuntimeLoader {
         return List.copyOf(files);
     }
 
-    private List<String> collectElementFiles(
+    private List<ResourceFile> collectElementFiles(
             final RuntimeDatabase database, final String moduleName, final String relativeDir, final String extension) {
         final var files = fileResolver.collectFiles(
-                database.searchDirs(),
+                database.resourceRoot(),
                 moduleName + '/' + relativeDir,
                 extension,
                 database.indexFileName(),
@@ -316,9 +305,9 @@ final class ProjectRuntimeLoader {
         return files;
     }
 
-    private List<String> collectDirSet(final RuntimeDatabase database, final String dir) {
+    private List<ResourceFile> collectDirSet(final RuntimeDatabase database, final String dir) {
         return fileResolver.collectFiles(
-                database.searchDirs(),
+                database.resourceRoot(),
                 dir,
                 "sql",
                 database.indexFileName(),
@@ -326,9 +315,8 @@ final class ProjectRuntimeLoader {
                 database.preDbArtifacts());
     }
 
-    private static String basenameWithoutExtension(final String location) {
-        final var slash = Math.max(location.lastIndexOf('/'), location.lastIndexOf('\\'));
-        final var basename = -1 == slash ? location : location.substring(slash + 1);
+    private static String basenameWithoutExtension(final ResourceFile resource) {
+        final var basename = resource.basename();
         final var dot = basename.lastIndexOf('.');
         return -1 == dot ? basename : basename.substring(0, dot);
     }
@@ -339,23 +327,6 @@ final class ProjectRuntimeLoader {
                 .replace("\"", "")
                 .replace("'", "")
                 .replace(" ", "");
-    }
-
-    private static String loadData(final RuntimeDatabase database, final String location) {
-        if (location.startsWith("zip:")) {
-            final var separator = location.indexOf(':', 4);
-            if (-1 == separator) {
-                throw new ConfigException("Invalid artifact location " + location);
-            }
-            final var artifactId = location.substring(4, separator);
-            final var path = location.substring(separator + 1);
-            final var artifact = database.artifactById(artifactId);
-            if (null == artifact) {
-                throw new ConfigException("Unable to locate artifact with id '" + artifactId + "'.");
-            }
-            return artifact.readText(path);
-        }
-        return readFile(Path.of(location));
     }
 
     private static String md5(final String content) {

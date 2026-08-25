@@ -41,7 +41,7 @@ final class ProjectRuntimeLoaderTest {
         final var runtime = new ProjectRuntimeLoader(projectDirectory).load();
 
         assertThat(runtime.database().repository().modules()).containsExactly("Mail");
-        assertThat(runtime.database().searchDirs()).containsExactly(resourceRoot);
+        assertThat(runtime.database().resourceRoot()).isEqualTo(resourceRoot);
         assertThat(runtime.projectDirectory()).isEqualTo(projectDirectory);
         assertThat(runtime.database().schemaHash()).isNotBlank();
     }
@@ -208,7 +208,7 @@ final class ProjectRuntimeLoaderTest {
             """);
 
         final var runtime = new ProjectRuntimeLoader(tempDir).load();
-        assertThat(runtime.database().searchDirs()).containsExactly(tempDir);
+        assertThat(runtime.database().resourceRoot()).isEqualTo(tempDir);
     }
 
     @Test

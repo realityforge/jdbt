@@ -13,6 +13,10 @@ Each table in a [Repository Descriptor](../glossary/README.md#repository-descrip
 
 [Database Module](../glossary/README.md#database-module), table, column, and sequence order are significant. [Repository Metadata](../glossary/README.md#repository-metadata) is composed module-atomically in pre-artifact, local-project, then post-artifact order. [Database Artifact](../glossary/README.md#database-artifact) packaging must preserve the complete merged model.
 
+## Resource resolution
+
+Jdbt has one local [Resource Root](../glossary/README.md#resource-root). For a given logical path, local files take precedence over post-artifacts, which take precedence over pre-artifacts. Resolution produces a typed [Database Resource](../glossary/README.md#database-resource); downstream operations must not infer its origin by parsing a path string. Artifact indexes participate in ordering without changing that precedence.
+
 ## Row Source behavior
 
 An [Import Row Source](../glossary/README.md#import-row-source) table participates in Database Import. Within the selected [Import Definition](../glossary/README.md#import-definition) its row input precedence is:

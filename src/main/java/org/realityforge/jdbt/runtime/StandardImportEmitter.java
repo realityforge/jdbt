@@ -35,7 +35,7 @@ public final class StandardImportEmitter {
         }
 
         final var scripts = generateScripts(database, importConfig.modules());
-        final var projectDirectory = database.searchDirs().get(0);
+        final var projectDirectory = database.resourceRoot();
         final var requestedDestination = null == outputDirectory
                 ? projectDirectory.resolve("tmp/imports")
                 : outputDirectory.isAbsolute() ? outputDirectory : projectDirectory.resolve(outputDirectory);

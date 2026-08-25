@@ -10,6 +10,7 @@ import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import org.junit.jupiter.api.Test;
@@ -26,8 +27,8 @@ final class FileResolverTest {
         createFile(tempDir, "db/MyModule/Dir1/e.sql", "");
         createFile(tempDir, "db/MyModule/Dir1/f.sql", "");
 
-        final var files = resolver.collectFiles(
-                List.of(tempDir.resolve("db")), "MyModule/Dir1", "sql", "index.txt", List.of(), List.of());
+        final var files =
+                resolver.collectFiles(tempDir.resolve("db"), "MyModule/Dir1", "sql", "index.txt", List.of(), List.of());
 
         assertThat(basenames(files)).containsExactly("d.sql", "e.sql", "c.sql", "f.sql");
     }
@@ -38,25 +39,9 @@ final class FileResolverTest {
         createFile(tempDir, "db/MyModule/Dir1/d.sql", "");
 
         assertThatThrownBy(() -> resolver.collectFiles(
-                        List.of(tempDir.resolve("db")), "MyModule/Dir1", "sql", "index.txt", List.of(), List.of()))
+                        tempDir.resolve("db"), "MyModule/Dir1", "sql", "index.txt", List.of(), List.of()))
                 .isInstanceOf(FileCollectionException.class)
                 .hasMessageContaining("index entry does not exist");
-    }
-
-    @Test
-    void collectFilesRejectsDuplicateBasenamesAcrossSearchDirs(@TempDir final Path tempDir) throws IOException {
-        createFile(tempDir, "db1/MyModule/base.sql", "");
-        createFile(tempDir, "db2/MyModule/base.sql", "");
-
-        assertThatThrownBy(() -> resolver.collectFiles(
-                        List.of(tempDir.resolve("db1"), tempDir.resolve("db2")),
-                        "MyModule",
-                        "sql",
-                        "index.txt",
-                        List.of(),
-                        List.of()))
-                .isInstanceOf(FileCollectionException.class)
-                .hasMessageContaining("duplicate basename");
     }
 
     @Test
@@ -65,9 +50,9 @@ final class FileResolverTest {
         final var pre = artifact(tempDir, "pre", Map.of("MyModule/base.sql", "--pre"));
 
         final var files = resolver.collectFiles(
-                List.of(tempDir.resolve("db")), "MyModule", "sql", "index.txt", List.of(post), List.of(pre));
+                tempDir.resolve("db"), "MyModule", "sql", "index.txt", List.of(post), List.of(pre));
 
-        assertThat(files).containsExactly("zip:post:MyModule/base.sql");
+        assertThat(files).containsExactly(new ResourceFile.InArtifact(post, "MyModule/base.sql"));
     }
 
     @Test
@@ -75,11 +60,11 @@ final class FileResolverTest {
         createFile(tempDir, "db/MyModule/base.sql", "--disk");
         final var post = artifact(tempDir, "post", Map.of("MyModule/base.sql", "--post"));
 
-        final var files = resolver.collectFiles(
-                List.of(tempDir.resolve("db")), "MyModule", "sql", "index.txt", List.of(post), List.of());
+        final var files =
+                resolver.collectFiles(tempDir.resolve("db"), "MyModule", "sql", "index.txt", List.of(post), List.of());
 
         assertThat(basenames(files)).containsExactly("base.sql");
-        assertThat(files.get(0)).doesNotContain("zip:");
+        assertThat(files.get(0)).isInstanceOf(ResourceFile.OnDisk.class);
     }
 
     @Test
@@ -91,8 +76,8 @@ final class FileResolverTest {
         entries.put("MyModule/c.sql", "");
         final var post = artifact(tempDir, "post", entries);
 
-        final var files = resolver.collectFiles(
-                List.of(tempDir.resolve("db")), "MyModule", "sql", "index.txt", List.of(post), List.of());
+        final var files =
+                resolver.collectFiles(tempDir.resolve("db"), "MyModule", "sql", "index.txt", List.of(post), List.of());
 
         assertThat(basenames(files)).containsExactly("b.sql", "a.sql", "c.sql");
     }
@@ -103,7 +88,7 @@ final class FileResolverTest {
         createFile(tempDir, "db/MyModule/fixtures/baz.yml", "x");
 
         assertThatThrownBy(() -> resolver.collectFixtures(
-                        List.of(tempDir.resolve("db")),
+                        tempDir.resolve("db"),
                         "MyModule",
                         "fixtures",
                         List.of("[MyModule].[foo]"),
@@ -118,7 +103,7 @@ final class FileResolverTest {
         createFile(tempDir, "db/MyModule/fixtures/foo.sql", "x");
 
         assertThatThrownBy(() -> resolver.collectFixtures(
-                        List.of(tempDir.resolve("db")),
+                        tempDir.resolve("db"),
                         "MyModule",
                         "fixtures",
                         List.of("[MyModule].[foo]"),
@@ -134,14 +119,15 @@ final class FileResolverTest {
         final var pre = artifact(tempDir, "pre", Map.of("MyModule/fixtures/MyModule.foo.yml", "x"));
 
         final var fixtures = resolver.collectFixtures(
-                List.of(tempDir.resolve("db")),
+                tempDir.resolve("db"),
                 "MyModule",
                 "fixtures",
                 List.of("[MyModule].[foo]"),
                 List.of(post),
                 List.of(pre));
 
-        assertThat(fixtures.get("[MyModule].[foo]")).isEqualTo("zip:post:MyModule/fixtures/MyModule.foo.yml");
+        assertThat(fixtures.get("[MyModule].[foo]"))
+                .isEqualTo(new ResourceFile.InArtifact(post, "MyModule/fixtures/MyModule.foo.yml"));
     }
 
     @Test
@@ -150,32 +136,18 @@ final class FileResolverTest {
         final var pre = artifact(tempDir, "pre", Map.of("MyModule/import/MyModule.foo.sql", "x"));
 
         final var fromPost = resolver.findFileInModule(
-                List.of(tempDir.resolve("db")),
-                "MyModule",
-                "import",
-                "[MyModule].[foo]",
-                "sql",
-                List.of(post),
-                List.of(pre));
-        assertThat(fromPost).isEqualTo("zip:post:MyModule/import/MyModule.foo.sql");
+                tempDir.resolve("db"), "MyModule", "import", "[MyModule].[foo]", "sql", List.of(post), List.of(pre));
+        assertThat(fromPost).isEqualTo(new ResourceFile.InArtifact(post, "MyModule/import/MyModule.foo.sql"));
 
         createFile(tempDir, "db/MyModule/import/MyModule.foo.sql", "x");
         final var fromDisk = resolver.findFileInModule(
-                List.of(tempDir.resolve("db")),
-                "MyModule",
-                "import",
-                "[MyModule].[foo]",
-                "sql",
-                List.of(post),
-                List.of(pre));
-        assertThat(fromDisk).endsWith("MyModule.foo.sql");
-        assertThat(fromDisk).doesNotContain("zip:");
+                tempDir.resolve("db"), "MyModule", "import", "[MyModule].[foo]", "sql", List.of(post), List.of(pre));
+        assertThat(fromDisk).isInstanceOf(ResourceFile.OnDisk.class);
+        assertThat(Objects.requireNonNull(fromDisk).path()).isEqualTo("MyModule/import/MyModule.foo.sql");
     }
 
-    private static List<String> basenames(final List<String> files) {
-        return files.stream()
-                .map(file -> file.substring(file.lastIndexOf('/') + 1))
-                .toList();
+    private static List<String> basenames(final List<ResourceFile> files) {
+        return files.stream().map(ResourceFile::basename).toList();
     }
 
     private static void createFile(final Path root, final String relativePath, final String content)

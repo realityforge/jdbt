@@ -45,7 +45,7 @@ final class DatabaseDataPackagerTest {
         createFile(tempDir, "db/migrations/001_a.sql", "M1");
 
         final var database = runtimeDatabase(
-                List.of(tempDir.resolve("db")),
+                tempDir.resolve("db"),
                 List.of(),
                 List.of(),
                 true,
@@ -103,7 +103,7 @@ final class DatabaseDataPackagerTest {
                         "migrations/index.txt", "001_a.sql"));
 
         final var database = runtimeDatabase(
-                List.of(tempDir.resolve("db")),
+                tempDir.resolve("db"),
                 List.of(),
                 List.of(artifact),
                 true,
@@ -129,7 +129,7 @@ final class DatabaseDataPackagerTest {
 
         final var database = runtimeDatabase(
                 repositoryConfig(),
-                List.of(tempDir.resolve("db")),
+                tempDir.resolve("db"),
                 List.of(),
                 List.of(),
                 false,
@@ -156,14 +156,14 @@ final class DatabaseDataPackagerTest {
 
         final var first = runtimeDatabase(
                 repositoryConfig(),
-                List.of(tempDir.resolve("db")),
+                tempDir.resolve("db"),
                 List.of(),
                 List.of(),
                 true,
                 Map.of("alpha", alpha, "beta", beta));
         final var second = runtimeDatabase(
                 repositoryConfig(),
-                List.of(tempDir.resolve("db")),
+                tempDir.resolve("db"),
                 List.of(),
                 List.of(),
                 true,
@@ -200,7 +200,7 @@ final class DatabaseDataPackagerTest {
                 Map.of("MyModule", List.of("[CustomSchema].[foo_seq]")));
         final var database = runtimeDatabase(
                 repository,
-                List.of(tempDir.resolve("db")),
+                tempDir.resolve("db"),
                 List.of(),
                 List.of(),
                 false,
@@ -223,14 +223,14 @@ final class DatabaseDataPackagerTest {
     }
 
     private static RuntimeDatabase runtimeDatabase(
-            final List<Path> searchDirs,
+            final Path resourceRoot,
             final List<ArtifactContent> preArtifacts,
             final List<ArtifactContent> postArtifacts,
             final boolean migrationsEnabled,
             final ImportConfig importConfig) {
         return runtimeDatabase(
                 repositoryConfig(),
-                searchDirs,
+                resourceRoot,
                 preArtifacts,
                 postArtifacts,
                 migrationsEnabled,
@@ -239,14 +239,14 @@ final class DatabaseDataPackagerTest {
 
     private static RuntimeDatabase runtimeDatabase(
             final RepositoryConfig repository,
-            final List<Path> searchDirs,
+            final Path resourceRoot,
             final List<ArtifactContent> preArtifacts,
             final List<ArtifactContent> postArtifacts,
             final boolean migrationsEnabled,
             final Map<String, ImportConfig> imports) {
         return new RuntimeDatabase(
                 repository,
-                searchDirs,
+                resourceRoot,
                 preArtifacts,
                 postArtifacts,
                 "index.txt",

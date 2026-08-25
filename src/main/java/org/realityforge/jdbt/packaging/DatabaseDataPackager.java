@@ -8,18 +8,15 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.jspecify.annotations.Nullable;
 import org.realityforge.jdbt.files.FileResolver;
+import org.realityforge.jdbt.files.ResourceFile;
 import org.realityforge.jdbt.repository.RepositoryTable;
 import org.realityforge.jdbt.repository.RowSource;
 import org.realityforge.jdbt.runtime.RuntimeDatabase;
-import org.realityforge.jdbt.runtime.RuntimeExecutionException;
 
 public final class DatabaseDataPackager {
-    private static final Pattern ARTIFACT_FILE_PATTERN = Pattern.compile("^zip:([^:]+):(.+)$");
-
     private final FileResolver fileResolver;
 
     public DatabaseDataPackager(final FileResolver fileResolver) {
@@ -56,39 +53,39 @@ public final class DatabaseDataPackager {
                 final var targetDir = packageDir.resolve(relativeModuleDir);
                 if (fixtureStyleDirs.contains(relativeDirName)) {
                     final var files = fileResolver.collectFiles(
-                            database.searchDirs(),
+                            database.resourceRoot(),
                             relativeModuleDir,
                             "yml",
                             database.indexFileName(),
                             database.postDbArtifacts(),
                             database.preDbArtifacts());
-                    copyFilesToDir(database, filesForKnownElements(database, moduleName, files, "yml"), targetDir);
+                    copyFilesToDir(filesForKnownElements(database, moduleName, files, "yml"), targetDir);
                 } else if (importDirs.contains(relativeDirName)) {
-                    final var files = new ArrayList<String>();
+                    final var files = new ArrayList<ResourceFile>();
                     files.addAll(fileResolver.collectFiles(
-                            database.searchDirs(),
+                            database.resourceRoot(),
                             relativeModuleDir,
                             "yml",
                             database.indexFileName(),
                             database.postDbArtifacts(),
                             database.preDbArtifacts()));
                     files.addAll(fileResolver.collectFiles(
-                            database.searchDirs(),
+                            database.resourceRoot(),
                             relativeModuleDir,
                             "sql",
                             database.indexFileName(),
                             database.postDbArtifacts(),
                             database.preDbArtifacts()));
-                    copyFilesToDir(database, filesForKnownElements(database, moduleName, files, null), targetDir);
+                    copyFilesToDir(filesForKnownElements(database, moduleName, files, null), targetDir);
                 } else {
                     final var files = fileResolver.collectFiles(
-                            database.searchDirs(),
+                            database.resourceRoot(),
                             relativeModuleDir,
                             "sql",
                             database.indexFileName(),
                             database.postDbArtifacts(),
                             database.preDbArtifacts());
-                    copyFilesToDir(database, files, targetDir);
+                    copyFilesToDir(files, targetDir);
                     generateIndex(database.indexFileName(), targetDir, files);
                 }
             }
@@ -97,13 +94,13 @@ public final class DatabaseDataPackager {
         for (final var databaseWideDir : databaseWideDirs(database)) {
             final var targetDir = packageDir.resolve(databaseWideDir);
             final var files = fileResolver.collectFiles(
-                    database.searchDirs(),
+                    database.resourceRoot(),
                     databaseWideDir,
                     "sql",
                     database.indexFileName(),
                     database.postDbArtifacts(),
                     database.preDbArtifacts());
-            copyFilesToDir(database, files, targetDir);
+            copyFilesToDir(files, targetDir);
             generateIndex(database.indexFileName(), targetDir, files);
         }
 
@@ -111,14 +108,14 @@ public final class DatabaseDataPackager {
 
         if (database.migrationsEnabled()) {
             final var files = fileResolver.collectFiles(
-                    database.searchDirs(),
+                    database.resourceRoot(),
                     database.migrationsDirName(),
                     "sql",
                     database.indexFileName(),
                     database.postDbArtifacts(),
                     database.preDbArtifacts());
             final var targetDir = packageDir.resolve(database.migrationsDirName());
-            copyFilesToDir(database, files, targetDir);
+            copyFilesToDir(files, targetDir);
             generateIndex(database.indexFileName(), targetDir, files);
         }
     }
@@ -150,17 +147,17 @@ public final class DatabaseDataPackager {
         return List.copyOf(directories);
     }
 
-    private static List<String> filesForKnownElements(
+    private static List<ResourceFile> filesForKnownElements(
             final RuntimeDatabase database,
             final String moduleName,
-            final List<String> files,
+            final List<ResourceFile> files,
             final @Nullable String fixedExtension) {
         final var knownElementNames = database.orderedElementsForModule(moduleName).stream()
                 .map(DatabaseDataPackager::cleanObjectName)
                 .collect(Collectors.toUnmodifiableSet());
-        final var output = new ArrayList<String>();
+        final var output = new ArrayList<ResourceFile>();
         for (final var file : files) {
-            final var basename = basename(file);
+            final var basename = file.basename();
             final var extension = fileExtension(basename);
             if (null != fixedExtension && !fixedExtension.equals(extension)) {
                 continue;
@@ -173,22 +170,23 @@ public final class DatabaseDataPackager {
         return List.copyOf(output);
     }
 
-    private static void copyFilesToDir(final RuntimeDatabase database, final List<String> files, final Path targetDir) {
+    private static void copyFilesToDir(final List<ResourceFile> files, final Path targetDir) {
         if (files.isEmpty()) {
             return;
         }
         createDirectories(targetDir);
         for (final var file : files) {
-            writeText(targetDir.resolve(basename(file)), readText(database, file));
+            writeText(targetDir.resolve(file.basename()), file.readText());
         }
     }
 
-    private static void generateIndex(final String indexFileName, final Path targetDir, final List<String> files) {
+    private static void generateIndex(
+            final String indexFileName, final Path targetDir, final List<ResourceFile> files) {
         if (files.isEmpty()) {
             return;
         }
-        final var index = String.join(
-                "\n", files.stream().map(DatabaseDataPackager::basename).toList());
+        final var index =
+                String.join("\n", files.stream().map(ResourceFile::basename).toList());
         writeText(targetDir.resolve(indexFileName), index);
     }
 
@@ -246,24 +244,6 @@ public final class DatabaseDataPackager {
         }
     }
 
-    private static String readText(final RuntimeDatabase database, final String location) {
-        final var matcher = ARTIFACT_FILE_PATTERN.matcher(location);
-        if (matcher.matches()) {
-            final var artifactId = matcher.group(1);
-            final var file = matcher.group(2);
-            final var artifact = database.artifactById(artifactId);
-            if (null == artifact) {
-                throw new RuntimeExecutionException("Unable to locate artifact with id '" + artifactId + "'.");
-            }
-            return artifact.readText(file);
-        }
-        try {
-            return Files.readString(Path.of(location));
-        } catch (final IOException ioe) {
-            throw new UncheckedIOException("Failed to read file " + location, ioe);
-        }
-    }
-
     private static String toYamlScalar(final String value) {
         return '\'' + value.replace("'", "''") + '\'';
     }
@@ -274,13 +254,6 @@ public final class DatabaseDataPackager {
                 .replace("\"", "")
                 .replace("'", "")
                 .replace(" ", "");
-    }
-
-    private static String basename(final String value) {
-        final var matcher = ARTIFACT_FILE_PATTERN.matcher(value);
-        final var candidate = matcher.matches() ? matcher.group(2) : value;
-        final var slash = Math.max(candidate.lastIndexOf('/'), candidate.lastIndexOf('\\'));
-        return -1 == slash ? candidate : candidate.substring(slash + 1);
     }
 
     private static String fileExtension(final String filename) {

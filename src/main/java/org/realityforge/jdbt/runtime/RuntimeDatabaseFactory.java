@@ -16,10 +16,10 @@ public final class RuntimeDatabaseFactory {
             final List<ArtifactContent> preDbArtifacts,
             final List<ArtifactContent> postDbArtifacts,
             final @Nullable String schemaHash,
-            final Path searchDirectory) {
+            final Path resourceRoot) {
         return new RuntimeDatabase(
                 repository,
-                List.of(searchDirectory),
+                resourceRoot,
                 preDbArtifacts,
                 postDbArtifacts,
                 INDEX_FILE_NAME,
