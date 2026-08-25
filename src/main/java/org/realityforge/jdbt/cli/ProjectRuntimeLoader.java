@@ -13,7 +13,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-import org.jspecify.annotations.Nullable;
 import org.realityforge.jdbt.config.ConfigException;
 import org.realityforge.jdbt.config.DefaultsConfig;
 import org.realityforge.jdbt.config.JdbtProjectConfigLoader;
@@ -43,7 +42,7 @@ final class ProjectRuntimeLoader {
         this.projectDirectory = projectDirectory.toAbsolutePath().normalize();
     }
 
-    LoadedRuntime load(final @Nullable String selectedDatabaseKey) {
+    LoadedRuntime load() {
         if (!Files.isDirectory(projectDirectory)) {
             throw new ConfigException("Project directory does not exist: " + projectDirectory);
         }
@@ -52,13 +51,7 @@ final class ProjectRuntimeLoader {
             throw new ConfigException(PROJECT_CONFIG_FILE + " not found in project directory " + projectDirectory);
         }
         final var projectYaml = readFile(projectConfigFile);
-        final var bootstrap = loadBootstrap(projectYaml);
-        final var databaseKey = resolveDatabaseKey(selectedDatabaseKey, bootstrap);
-        if (!bootstrap.defaultDatabase().equals(databaseKey)) {
-            throw new ConfigException(
-                    "Unable to locate database '" + databaseKey + "' in " + PROJECT_CONFIG_FILE + '.');
-        }
-        final var bootstrapDatabase = bootstrap.database();
+        final var bootstrapDatabase = loadBootstrap(projectYaml);
 
         final var preDbArtifacts = loadArtifacts(bootstrapDatabase.preDbArtifacts());
         final var postDbArtifacts = loadArtifacts(bootstrapDatabase.postDbArtifacts());
@@ -89,11 +82,11 @@ final class ProjectRuntimeLoader {
         return new LoadedRuntime(runtimeDatabase, projectConfig.defaults(), projectDirectory);
     }
 
-    void validate(final @Nullable String selectedDatabaseKey) {
-        load(selectedDatabaseKey);
+    void validate() {
+        load();
     }
 
-    private static BootstrapProject loadBootstrap(final String yaml) {
+    private static BootstrapDatabase loadBootstrap(final String yaml) {
         final var root = YamlMapSupport.parseRoot(yaml, PROJECT_CONFIG_FILE);
         YamlMapSupport.assertKeys(
                 root,
@@ -126,19 +119,12 @@ final class ProjectRuntimeLoader {
                         "resourceRoot"),
                 PROJECT_CONFIG_FILE);
 
-        final var defaults = DefaultsConfig.rubyCompatibleDefaults();
-
         final var preDbArtifacts =
                 YamlMapSupport.optionalStringList(root, "preDbArtifacts", PROJECT_CONFIG_FILE, List.of());
         final var postDbArtifacts =
                 YamlMapSupport.optionalStringList(root, "postDbArtifacts", PROJECT_CONFIG_FILE, List.of());
 
-        return new BootstrapProject(defaults.defaultDatabase(), new BootstrapDatabase(preDbArtifacts, postDbArtifacts));
-    }
-
-    private static String resolveDatabaseKey(
-            final @Nullable String selectedDatabaseKey, final BootstrapProject bootstrap) {
-        return null != selectedDatabaseKey ? selectedDatabaseKey : bootstrap.defaultDatabase();
+        return new BootstrapDatabase(preDbArtifacts, postDbArtifacts);
     }
 
     private RepositoryConfig loadRepository(
@@ -423,8 +409,6 @@ final class ProjectRuntimeLoader {
             throw new IllegalStateException("Unable to create MD5 digest", nsae);
         }
     }
-
-    private record BootstrapProject(String defaultDatabase, BootstrapDatabase database) {}
 
     private record BootstrapDatabase(List<String> preDbArtifacts, List<String> postDbArtifacts) {
         private BootstrapDatabase {

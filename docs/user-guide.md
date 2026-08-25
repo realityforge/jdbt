@@ -232,11 +232,8 @@ All module and hook paths are resolved relative to the directory containing `jdb
 
 Options available on database-executing subcommands:
 
-- `--database <databaseKey>` (optional compatibility flag; only `default` is accepted)
 - `--driver <sqlserver|postgres>` (default: `sqlserver`)
 - `--property <key=value>` (repeatable; available on SQL-executing commands)
-
-If `--database` is omitted, `default` is used.
 
 The offline `emit-standard-imports` command has its own credential-free option set documented below.
 
@@ -520,7 +517,6 @@ This SQL Server-only command writes approximate row counts and physical used-pag
 
 ## Troubleshooting
 
-- `Unable to locate database '<key>' ...`: only `default` is supported as the database key; omit `--database` or pass `--database default`.
 - `Unable to locate import definition by key ...`: pass `--import`, or define an import named `default` in `jdbt.yml`.
 - `Unknown key 'searchDirs'`: remove `searchDirs` and configure the singular `resourceRoot` instead.
 - `resourceRoot ... is not a directory`: correct the path relative to the selected project directory.
