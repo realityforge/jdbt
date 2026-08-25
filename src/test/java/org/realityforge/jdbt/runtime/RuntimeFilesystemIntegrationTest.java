@@ -126,6 +126,7 @@ final class RuntimeFilesystemIntegrationTest {
                                 new RepositoryTable("[Core].[baz]", List.of("[ID]")))),
                 Map.of("Core", List.of()));
         return new RuntimeDatabase(
+                "default",
                 repository,
                 List.of(searchDir),
                 List.of(),
@@ -185,12 +186,12 @@ final class RuntimeFilesystemIntegrationTest {
 
         @Override
         public void drop(final DatabaseMetadata database, final DatabaseConnection connection) {
-            events.add("drop");
+            events.add("drop:" + database.key());
         }
 
         @Override
         public void createDatabase(final DatabaseMetadata database, final DatabaseConnection connection) {
-            events.add("create-database");
+            events.add("create-database:" + database.key());
         }
 
         @Override
@@ -287,14 +288,14 @@ final class RuntimeFilesystemIntegrationTest {
         }
 
         @Override
-        public boolean shouldMigrate(final String migrationName) {
-            events.add("should-migrate:" + migrationName);
+        public boolean shouldMigrate(final String namespace, final String migrationName) {
+            events.add("should-migrate:" + namespace + ':' + migrationName);
             return true;
         }
 
         @Override
-        public void markMigrationAsRun(final String migrationName) {
-            events.add("mark-migration:" + migrationName);
+        public void markMigrationAsRun(final String namespace, final String migrationName) {
+            events.add("mark-migration:" + namespace + ':' + migrationName);
         }
 
         @Override

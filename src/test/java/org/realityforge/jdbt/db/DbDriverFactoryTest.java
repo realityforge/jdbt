@@ -48,7 +48,7 @@ final class DbDriverFactoryTest {
         final var connection = new DatabaseConnection("127.0.0.1", 1433, "db", "sa", "secret");
 
         driver.open(connection, false);
-        final var metadata = new DatabaseMetadata("1", "hash");
+        final var metadata = new DatabaseMetadata("default", "1", "hash");
         driver.drop(metadata, connection);
         driver.createDatabase(metadata, connection);
         driver.createSchema("schema");
@@ -71,8 +71,8 @@ final class DbDriverFactoryTest {
                 metadata, new ImportConfig("default", List.of("MyModule"), "import", List.of(), List.of()));
         assertThat(driver.columnNamesForTable("t")).isEmpty();
         driver.setupMigrations();
-        assertThat(driver.shouldMigrate("m")).isTrue();
-        driver.markMigrationAsRun("m");
+        assertThat(driver.shouldMigrate("ns", "m")).isTrue();
+        driver.markMigrationAsRun("ns", "m");
         driver.close();
     }
 }

@@ -1,6 +1,6 @@
 # Database Imports
 
-This specification defines jdbt's durable row-ownership, [Database Import](../glossary/README.md#database-import), and [Standard Import Script](../glossary/README.md#standard-import-script) behavior.
+This specification defines jdbt's durable row-ownership, [Database Import](../glossary/README.md#database-import), and [Standard Import Script](../glossary/README.md#standard-import-script) behavior. Opt-in timing is defined by the [Database Import Timing Specification](database-import-timing.md).
 
 ## Repository contract
 
@@ -41,73 +41,6 @@ Diagnostics identify the Import Definition or asset and the affected table.
 Identity preservation is runtime behavior, not Standard Import Script content. SQL Server queries live target metadata for each imported table. When that table has an identity column, jdbt enables `IDENTITY_INSERT` before insertion and disables it after a successful table import; a failed Database Import closes the target session.
 
 The identity statements and imported rows execute on the same target JDBC session. Explicit Import SQL and Standard Import temporarily select the SQL Server control catalog on that session and restore the original target catalog after success or failure. Operations that cannot assume an existing target database retain a dedicated control connection.
-
-## Structured import timing
-
-The `import` and `create-by-import` commands accept optional `--timing-output <path>` timing. Without this option, jdbt
-must not create timing output or change its existing human-readable output. An absolute output path is used directly;
-a relative path resolves from the [Database Project](../glossary/README.md#database-project). Jdbt creates missing
-parent directories and opens or truncates the output before database mutation.
-
-The output is one UTF-8 newline-delimited JSON document per terminal operation. One file represents one invocation,
-and each completed line must be flushed so a failed invocation retains a valid prefix. Every version 1 document has
-these required fields in deterministic order:
-
-- integer `schema_version` with value `1`;
-- one-based integer `sequence` in terminal-observation order;
-- string `operation_id`;
-- string or null `parent_operation_id`;
-- string `kind`;
-- `status` with value `succeeded` or `failed`; and
-- nonnegative integer `elapsed_microseconds`.
-
-Consumers of a supported schema version must tolerate additional fields. Removing a required field or changing its
-meaning, units, identity semantics, or enum semantics requires a schema-version increment.
-
-Operation identities are stable across equivalent executions and use typed paths composed from canonical logical
-names. Components that would conflict with path syntax are percent-encoded. Identities must not contain runtime
-parameters, connection metadata, physical filesystem paths, or SQL values. Parentage is defined only by
-`parent_operation_id`; consumers must not infer it by splitting `operation_id`.
-
-The stable operation kinds are `command`, `phase`, `module`, `table_clear`, `table_transfer`, `sequence_transfer`,
-`maintenance`, `sql_directory`, `sql_file`, `sql_batch`, `analysis_corruption_check`, and
-`analysis_constraint_check`. Timing covers only executed operations. A resumed Database Import emits its executed
-suffix with the same operation identities and emits no synthetic skipped observations.
-
-Elapsed time uses a monotonic clock and integer microseconds. Observation sequence is deterministic terminal order,
-not a wall-clock timeline, and parent elapsed time may include child time and incidental overhead. Consumers must not
-sum nested elapsed times.
-
-Timing output must contain no credentials, connection metadata, SQL text, parameters, source or target data, exception
-messages, or physical filesystem paths. A timing failure must fail an otherwise successful timed command. When the
-database operation already failed, that failure remains primary and timing failures may be attached only as secondary
-diagnostic context. After a timed SQL Server execution failure, jdbt must attempt to recover database-local timing on
-the same target session before release. An unusable session or secondary drain, validation, output, or cleanup failure
-must not prevent failed Java operations from being observed or replace the primary database error. A nested SQL
-operation that fails before returning its result is represented by its enclosing failed observations rather than a
-synthetic leaf observation.
-
-For a timed SQL Server import, jdbt sets the read-only session-context key `jdbt.import.timing` to the internal protocol
-value `jdbt.timing.v1` on the target connection before import SQL runs. It installs `[dbo].[tblImportTiming]` in the
-target database and rejects a concurrent timed operation against that database. Successful timing is drained and
-cleared while the table remains installed; timing recovered after a database failure remains available for diagnosis.
-SQL may return terminal timing rows only with the exact ordered columns `Protocol`, `Ordinal`, `OperationId`,
-`ParentOperationId`, `Kind`, `Status`, and `ElapsedMicroseconds` and their version 1 JDBC types. The internal protocol
-version is independent of the public NDJSON schema version.
-
-Jdbt traverses every JDBC result and update count during timed SQL Server execution. A result is considered timing only
-when its first column is the `Protocol` marker; jdbt then requires the complete allowlisted shape and
-`jdbt.timing.v1` value. Other result sets are closed without advancing their cursor or reading any row value. Missing
-timing results are valid for database projects that do not implement this protocol. An unsupported version, malformed
-shape or value, duplicate identity, non-contiguous ordinal, invalid kind, status, elapsed time, identity, or parent
-fails the timed command.
-
-SQL timing rows are terminal postorder. Their ordinals start at one within the emitting SQL batch. The sole Analysis
-root is `phase/final-validation`; its internal parent token `__JDBT_ACTIVE_SQL_BATCH__` is replaced with the active
-`sql_batch` identity before NDJSON is written and must never appear in public output. The accepted Analysis identities
-are `phase/final-validation`, `phase/corruption-checks`, `analysis-corruption/<owner>/<check-key>`,
-`phase/constraint-checks`, `module/constraint-check/<schema>`, and `analysis-constraint/<direct-key>`, with canonical
-percent encoding and the parentage defined by those phases.
 
 ## Offline Standard Import Scripts
 

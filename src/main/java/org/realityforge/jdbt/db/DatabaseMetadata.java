@@ -3,6 +3,7 @@ package org.realityforge.jdbt.db;
 import org.jspecify.annotations.Nullable;
 
 public record DatabaseMetadata(
+        String key,
         @Nullable String version,
         @Nullable String schemaHash,
         @Nullable String dataPath,
@@ -11,7 +12,7 @@ public record DatabaseMetadata(
         boolean deleteBackupHistory,
         boolean reindexOnImport,
         boolean shrinkOnImport) {
-    public DatabaseMetadata(final @Nullable String version, final @Nullable String schemaHash) {
-        this(version, schemaHash, null, null, false, true, true, false);
+    public DatabaseMetadata(final String key, final @Nullable String version, final @Nullable String schemaHash) {
+        this(key, version, schemaHash, null, null, false, true, true, false);
     }
 }

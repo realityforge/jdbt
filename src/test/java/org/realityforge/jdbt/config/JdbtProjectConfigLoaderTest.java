@@ -13,7 +13,7 @@ final class JdbtProjectConfigLoaderTest {
 
     @Test
     void loadAppliesHardcodedDefaultsAndBuildsDatabaseConfig() {
-        final var config = load("""
+        final var config = loader.load("""
             imports:
               default:
                 modules: [Core]
@@ -39,7 +39,7 @@ final class JdbtProjectConfigLoaderTest {
 
     @Test
     void loadParsesSqlServerRuntimeOptions() {
-        final var config = load("""
+        final var config = loader.load("""
             dataPath: C:\\data
             logPath: C:\\log
             forceDrop: true
@@ -59,7 +59,7 @@ final class JdbtProjectConfigLoaderTest {
 
     @Test
     void loadUsesRepositoryModulesWhenImportModulesMissing() {
-        final var config = load("""
+        final var config = loader.load("""
             imports:
               default: {}
             """, "jdbt.yml", repositoryModules);
@@ -72,7 +72,7 @@ final class JdbtProjectConfigLoaderTest {
 
     @Test
     void loadDefaultsMigrationsAppliedAtCreateToMigrationsValue() {
-        final var config = load("""
+        final var config = loader.load("""
             migrations: true
             """, "jdbt.yml", repositoryModules);
 
@@ -82,7 +82,7 @@ final class JdbtProjectConfigLoaderTest {
 
     @Test
     void loadRejectsUnknownDatabaseKey() {
-        assertThatThrownBy(() -> load("""
+        assertThatThrownBy(() -> loader.load("""
             unsupported: true
             """, "jdbt.yml", repositoryModules))
                 .isInstanceOf(ConfigException.class)
@@ -91,7 +91,7 @@ final class JdbtProjectConfigLoaderTest {
 
     @Test
     void loadRejectsDefaultsTopLevelKey() {
-        assertThatThrownBy(() -> load("""
+        assertThatThrownBy(() -> loader.load("""
             defaults:
             """, "jdbt.yml", repositoryModules))
                 .isInstanceOf(ConfigException.class)
@@ -100,7 +100,7 @@ final class JdbtProjectConfigLoaderTest {
 
     @Test
     void loadRejectsUnknownImportModule() {
-        assertThatThrownBy(() -> load("""
+        assertThatThrownBy(() -> loader.load("""
             imports:
               default:
                 modules: [Missing]
@@ -112,7 +112,7 @@ final class JdbtProjectConfigLoaderTest {
 
     @Test
     void loadRejectsModuleGroupWithoutModules() {
-        assertThatThrownBy(() -> load("""
+        assertThatThrownBy(() -> loader.load("""
             moduleGroups:
               reporting: {}
             """, "jdbt.yml", repositoryModules))
@@ -122,7 +122,7 @@ final class JdbtProjectConfigLoaderTest {
 
     @Test
     void loadRejectsModuleGroupWithUnknownModule() {
-        assertThatThrownBy(() -> load("""
+        assertThatThrownBy(() -> loader.load("""
             moduleGroups:
               reporting:
                 modules: [Missing]
@@ -134,20 +134,21 @@ final class JdbtProjectConfigLoaderTest {
 
     @Test
     void loadAllowsEmptyConfigWithHardcodedDefaults() {
-        final var config = load("{}", "jdbt.yml", repositoryModules);
+        final var config = loader.load("{}", "jdbt.yml", repositoryModules);
+        assertThat(config.database().key()).isEqualTo("default");
         assertThat(config.resourceRoot()).isEqualTo(".");
     }
 
     @Test
     void loadParsesSingularResourceRoot() {
-        final var config = load("resourceRoot: ../../database\n", "jdbt.yml", repositoryModules);
+        final var config = loader.load("resourceRoot: ../../database\n", "jdbt.yml", repositoryModules);
 
         assertThat(config.resourceRoot()).isEqualTo("../../database");
     }
 
     @Test
     void loadRejectsLegacyDatabasesKey() {
-        assertThatThrownBy(() -> load("""
+        assertThatThrownBy(() -> loader.load("""
             databases:
               default: {}
             """, "jdbt.yml", repositoryModules))
@@ -157,7 +158,7 @@ final class JdbtProjectConfigLoaderTest {
 
     @Test
     void loadRejectsSearchDirsKey() {
-        assertThatThrownBy(() -> load("""
+        assertThatThrownBy(() -> loader.load("""
             searchDirs: [db]
             """, "jdbt.yml", repositoryModules))
                 .isInstanceOf(ConfigException.class)
@@ -166,7 +167,7 @@ final class JdbtProjectConfigLoaderTest {
 
     @Test
     void loadRejectsResourcePrefixKey() {
-        assertThatThrownBy(() -> load("""
+        assertThatThrownBy(() -> loader.load("""
             resourcePrefix: data
             """, "jdbt.yml", repositoryModules))
                 .isInstanceOf(ConfigException.class)
@@ -175,7 +176,7 @@ final class JdbtProjectConfigLoaderTest {
 
     @Test
     void loadParsesFilterPropertiesWithDefaultAndSupportedValues() {
-        final var config = load("""
+        final var config = loader.load("""
             filterProperties:
               mode:
                 pattern: __MODE__
@@ -194,7 +195,7 @@ final class JdbtProjectConfigLoaderTest {
 
     @Test
     void loadRejectsReservedFilterPropertyKeys() {
-        assertThatThrownBy(() -> load("""
+        assertThatThrownBy(() -> loader.load("""
             filterProperties:
               sourceDatabase:
                 pattern: __SRC_DB__
@@ -205,7 +206,7 @@ final class JdbtProjectConfigLoaderTest {
 
     @Test
     void loadRejectsReservedFilterPropertyPatterns() {
-        assertThatThrownBy(() -> load("""
+        assertThatThrownBy(() -> loader.load("""
             filterProperties:
               mode:
                 pattern: __SOURCE__
@@ -216,7 +217,7 @@ final class JdbtProjectConfigLoaderTest {
 
     @Test
     void loadRejectsEmptySupportedValuesWhenSpecified() {
-        assertThatThrownBy(() -> load("""
+        assertThatThrownBy(() -> loader.load("""
             filterProperties:
               mode:
                 pattern: __MODE__
@@ -228,7 +229,7 @@ final class JdbtProjectConfigLoaderTest {
 
     @Test
     void loadRejectsDefaultOutsideSupportedValues() {
-        assertThatThrownBy(() -> load("""
+        assertThatThrownBy(() -> loader.load("""
             filterProperties:
               mode:
                 pattern: __MODE__
@@ -241,7 +242,7 @@ final class JdbtProjectConfigLoaderTest {
 
     @Test
     void loadRejectsDuplicateFilterPatterns() {
-        assertThatThrownBy(() -> load("""
+        assertThatThrownBy(() -> loader.load("""
             filterProperties:
               first:
                 pattern: __MODE__
@@ -254,16 +255,12 @@ final class JdbtProjectConfigLoaderTest {
 
     @Test
     void loadRejectsBlankFilterPattern() {
-        assertThatThrownBy(() -> load("""
+        assertThatThrownBy(() -> loader.load("""
             filterProperties:
               mode:
                 pattern: "   "
             """, "jdbt.yml", repositoryModules))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("must define a non-empty pattern");
-    }
-
-    private JdbtProjectConfig load(final String yaml, final String sourceName, final List<String> repositoryModules) {
-        return loader.load(loader.parse(yaml, sourceName), repositoryModules);
     }
 }

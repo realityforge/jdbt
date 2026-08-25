@@ -63,6 +63,7 @@ final class RuntimeH2IntegrationTest {
                                 "\"PUBLIC\".\"FOO\"", List.of("\"ID\"", "\"NAME\""), RowSource.DEPLOYMENT))),
                 Map.of("Core", List.of()));
         return new RuntimeDatabase(
+                "default",
                 repository,
                 List.of(searchDir),
                 List.of(),
@@ -225,12 +226,12 @@ final class RuntimeH2IntegrationTest {
         public void setupMigrations() {}
 
         @Override
-        public boolean shouldMigrate(final String migrationName) {
+        public boolean shouldMigrate(final String namespace, final String migrationName) {
             return true;
         }
 
         @Override
-        public void markMigrationAsRun(final String migrationName) {}
+        public void markMigrationAsRun(final String namespace, final String migrationName) {}
 
         @Override
         public String generateStandardImportSql(

@@ -245,6 +245,7 @@ final class DatabaseDataPackagerTest {
             final boolean migrationsEnabled,
             final Map<String, ImportConfig> imports) {
         return new RuntimeDatabase(
+                "default",
                 repository,
                 searchDirs,
                 preArtifacts,

@@ -50,6 +50,7 @@ final class RuntimeDatabaseTest {
             final List<ArtifactContent> preArtifacts,
             final List<ArtifactContent> postArtifacts) {
         return new RuntimeDatabase(
+                "default",
                 repository,
                 List.of(Path.of(".")),
                 preArtifacts,

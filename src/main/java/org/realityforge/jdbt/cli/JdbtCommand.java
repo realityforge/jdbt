@@ -111,6 +111,10 @@ public final class JdbtCommand implements Callable<Integer> {
             return Objects.requireNonNull(parent).passwordResolver;
         }
 
+        protected final @Nullable String databaseKey() {
+            return Objects.requireNonNull(executionOptions).databaseKey;
+        }
+
         protected final String driver() {
             return Objects.requireNonNull(executionOptions).driver;
         }
@@ -142,6 +146,9 @@ public final class JdbtCommand implements Callable<Integer> {
     }
 
     private static final class ExecutionOptions {
+        @CommandLine.Option(names = "--database", description = "Database key (only 'default' is supported)")
+        private @Nullable String databaseKey;
+
         @CommandLine.Option(
                 names = "--driver",
                 defaultValue = "sqlserver",
@@ -255,7 +262,7 @@ public final class JdbtCommand implements Callable<Integer> {
     static final class StatusCommand extends BaseCommand {
         @Override
         public Integer call() {
-            runner().status(driver());
+            runner().status(databaseKey(), driver());
             return 0;
         }
     }
@@ -264,7 +271,7 @@ public final class JdbtCommand implements Callable<Integer> {
     static final class ValidateProjectCommand extends BaseCommand {
         @Override
         public Integer call() {
-            runner().validateProject();
+            runner().validateProject(databaseKey());
             return 0;
         }
     }
@@ -280,7 +287,12 @@ public final class JdbtCommand implements Callable<Integer> {
 
         @Override
         public Integer call() {
-            runner().create(driver(), target.toConnection(passwordResolver()), noCreate, filterProperties());
+            runner().create(
+                            databaseKey(),
+                            driver(),
+                            target.toConnection(passwordResolver()),
+                            noCreate,
+                            filterProperties());
             return 0;
         }
     }
@@ -300,7 +312,12 @@ public final class JdbtCommand implements Callable<Integer> {
         @Override
         public Integer call() {
             runner().createWithDataset(
-                            driver(), target.toConnection(passwordResolver()), noCreate, dataset, filterProperties());
+                            databaseKey(),
+                            driver(),
+                            target.toConnection(passwordResolver()),
+                            noCreate,
+                            dataset,
+                            filterProperties());
             return 0;
         }
     }
@@ -313,7 +330,7 @@ public final class JdbtCommand implements Callable<Integer> {
 
         @Override
         public Integer call() {
-            runner().drop(driver(), target.toConnection(passwordResolver()), filterProperties());
+            runner().drop(databaseKey(), driver(), target.toConnection(passwordResolver()), filterProperties());
             return 0;
         }
     }
@@ -326,7 +343,7 @@ public final class JdbtCommand implements Callable<Integer> {
 
         @Override
         public Integer call() {
-            runner().migrate(driver(), target.toConnection(passwordResolver()), filterProperties());
+            runner().migrate(databaseKey(), driver(), target.toConnection(passwordResolver()), filterProperties());
             return 0;
         }
     }
@@ -355,6 +372,7 @@ public final class JdbtCommand implements Callable<Integer> {
         @Override
         public Integer call() {
             runner().databaseImport(
+                            databaseKey(),
                             driver(),
                             importKey,
                             moduleGroup,
@@ -391,6 +409,7 @@ public final class JdbtCommand implements Callable<Integer> {
         @Override
         public Integer call() {
             runner().createByImport(
+                            databaseKey(),
                             driver(),
                             importKey,
                             target.toConnection(passwordResolver()),
@@ -414,7 +433,12 @@ public final class JdbtCommand implements Callable<Integer> {
 
         @Override
         public Integer call() {
-            runner().loadDataset(driver(), dataset, target.toConnection(passwordResolver()), filterProperties());
+            runner().loadDataset(
+                            databaseKey(),
+                            driver(),
+                            dataset,
+                            target.toConnection(passwordResolver()),
+                            filterProperties());
             return 0;
         }
     }
@@ -430,7 +454,12 @@ public final class JdbtCommand implements Callable<Integer> {
 
         @Override
         public Integer call() {
-            runner().upModuleGroup(driver(), moduleGroup, target.toConnection(passwordResolver()), filterProperties());
+            runner().upModuleGroup(
+                            databaseKey(),
+                            driver(),
+                            moduleGroup,
+                            target.toConnection(passwordResolver()),
+                            filterProperties());
             return 0;
         }
     }
@@ -447,7 +476,11 @@ public final class JdbtCommand implements Callable<Integer> {
         @Override
         public Integer call() {
             runner().downModuleGroup(
-                            driver(), moduleGroup, target.toConnection(passwordResolver()), filterProperties());
+                            databaseKey(),
+                            driver(),
+                            moduleGroup,
+                            target.toConnection(passwordResolver()),
+                            filterProperties());
             return 0;
         }
     }
@@ -459,7 +492,7 @@ public final class JdbtCommand implements Callable<Integer> {
 
         @Override
         public Integer call() {
-            runner().packageData(outputFile);
+            runner().packageData(databaseKey(), outputFile);
             return 0;
         }
     }
@@ -516,6 +549,7 @@ public final class JdbtCommand implements Callable<Integer> {
                         "At least one --schema or --check-query must be specified.");
             }
             runner().verifyConstraints(
+                            databaseKey(),
                             driver(),
                             target.toConnection(passwordResolver()),
                             List.copyOf(schemas),
@@ -547,6 +581,7 @@ public final class JdbtCommand implements Callable<Integer> {
         @Override
         public Integer call() {
             runner().exportFixtures(
+                            databaseKey(),
                             driver(),
                             target.toConnection(passwordResolver()),
                             propertiesFile,
@@ -571,7 +606,8 @@ public final class JdbtCommand implements Callable<Integer> {
 
         @Override
         public Integer call() {
-            runner().exportDatabaseStatistics(driver(), target.toConnection(passwordResolver()), outputFile);
+            runner().exportDatabaseStatistics(
+                            databaseKey(), driver(), target.toConnection(passwordResolver()), outputFile);
             return 0;
         }
     }

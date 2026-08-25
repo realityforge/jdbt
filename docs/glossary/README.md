@@ -78,4 +78,6 @@ A per-table or per-sequence YAML file in an [Import Definition](#import-definiti
 
 A table or sequence YAML file under a named dataset. It is loaded only by an explicit dataset command and may target either [Row Source](#row-source) because datasets are operator-requested data, not lifecycle ownership.
 
-The durable behavior behind these terms is specified in [Database Imports](../specs/database-imports.md) and [Database Statistics Export](../specs/database-statistics.md).
+The durable behavior behind these terms is specified in [Database Imports](../specs/database-imports.md),
+[Database Import Timing](../specs/database-import-timing.md), and
+[Database Statistics Export](../specs/database-statistics.md).

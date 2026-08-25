@@ -5,6 +5,7 @@ package(default_visibility = ["//visibility:public"])
 junit5_test(
     name = "config_tests",
     srcs = [
+        "DefaultsConfigTest.java",
         "JdbtProjectConfigLoaderTest.java",
         "YamlMapSupportTest.java",
         "package-info.java",

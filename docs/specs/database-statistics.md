@@ -10,7 +10,8 @@ Every table in a [Repository Descriptor](../glossary/README.md#repository-descri
 
 `export-database-statistics` accepts the standard database key, driver, target connection, and target password-source options plus a required `--output` file. SQL Server is supported; other drivers fail before connecting. The target principal needs database-level `VIEW DEFINITION`.
 
-The command issues one SQL Server catalog query. It independently sums `sys.partitions.rows` and `sys.allocation_units.used_pages` by object and index before combining the aggregates. Used pages include active in-row, LOB, and row-overflow allocation units; dropped allocation units are excluded.
+The `approximate_row_count` metric counts rows in the selected table or index. The `used_page_count` metric includes
+active in-row, LOB, and row-overflow allocation pages and excludes dropped allocation units.
 
 The heap or clustered storage aggregate supplies the table metrics, and each named index's own aggregate supplies its index metrics. A named clustered index and its table therefore describe the same physical storage and must not be summed as independent space. Row counts are approximate and may have small cross-index skew during concurrent database activity. A filtered index reports only its qualifying entries.
 

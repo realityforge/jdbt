@@ -7,7 +7,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Objects;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import org.junit.jupiter.api.Test;
@@ -18,7 +17,7 @@ import org.realityforge.jdbt.files.FileCollectionException;
 final class ProjectRuntimeLoaderTest {
     @Test
     void loadRejectsProjectWithoutConfiguration(@TempDir final Path tempDir) {
-        assertThatThrownBy(() -> new ProjectRuntimeLoader(tempDir).validate())
+        assertThatThrownBy(() -> new ProjectRuntimeLoader(tempDir).validate(null))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("jdbt.yml not found")
                 .hasMessageContaining(tempDir.toString());
@@ -38,7 +37,7 @@ final class ProjectRuntimeLoaderTest {
         writeFile(resourceRoot, "Mail/schema.sql", "SELECT 1");
         writeFile(resourceRoot, "Payments/schema.sql", "SELECT 2");
 
-        final var runtime = new ProjectRuntimeLoader(projectDirectory).load();
+        final var runtime = new ProjectRuntimeLoader(projectDirectory).load(null);
 
         assertThat(runtime.database().repository().modules()).containsExactly("Mail");
         assertThat(runtime.database().searchDirs()).containsExactly(resourceRoot);
@@ -56,7 +55,7 @@ final class ProjectRuntimeLoaderTest {
                 sequences: []
             """);
 
-        assertThatThrownBy(() -> new ProjectRuntimeLoader(tempDir).validate())
+        assertThatThrownBy(() -> new ProjectRuntimeLoader(tempDir).validate(null))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("resourceRoot")
                 .hasMessageContaining("is not a directory");
@@ -80,7 +79,7 @@ final class ProjectRuntimeLoaderTest {
             """);
         writeFile(tempDir, "A/import/A.Unknown.yml", "id: {}\n");
 
-        assertThatThrownBy(() -> new ProjectRuntimeLoader(tempDir).validate())
+        assertThatThrownBy(() -> new ProjectRuntimeLoader(tempDir).validate(null))
                 .isInstanceOf(FileCollectionException.class)
                 .hasMessageContaining("Unexpected yml files")
                 .hasMessageContaining("A.Unknown.yml");
@@ -96,7 +95,7 @@ final class ProjectRuntimeLoaderTest {
                 sequences: []
             """);
 
-        assertThatThrownBy(() -> new ProjectRuntimeLoader(tempDir).validate())
+        assertThatThrownBy(() -> new ProjectRuntimeLoader(tempDir).validate(null))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("must remain beneath resourceRoot")
                 .hasMessageContaining("../shared-hooks");
@@ -117,10 +116,10 @@ final class ProjectRuntimeLoaderTest {
         writeFile(tempDir, "A/datasets/sample/A.Known.yml", "id: {value: 1}\n");
 
         final var firstHash =
-                new ProjectRuntimeLoader(tempDir).load().database().schemaHash();
+                new ProjectRuntimeLoader(tempDir).load(null).database().schemaHash();
         writeFile(tempDir, "A/datasets/sample/A.Known.yml", "id: {value: 2}\n");
         final var secondHash =
-                new ProjectRuntimeLoader(tempDir).load().database().schemaHash();
+                new ProjectRuntimeLoader(tempDir).load(null).database().schemaHash();
 
         assertThat(secondHash).isNotEqualTo(firstHash);
     }
@@ -130,8 +129,6 @@ final class ProjectRuntimeLoaderTest {
         writeFile(tempDir, "jdbt.yml", """
             preDbArtifacts: [pre.zip]
             postDbArtifacts: [post.zip]
-            imports:
-              default: {}
             """);
         writeFile(tempDir, "repository.yml", """
             modules:
@@ -152,12 +149,9 @@ final class ProjectRuntimeLoaderTest {
                 sequences: []
             """);
 
-        final var runtime = new ProjectRuntimeLoader(tempDir).load();
+        final var runtime = new ProjectRuntimeLoader(tempDir).load(null);
 
         assertThat(runtime.database().repository().modules()).containsExactly("Pre", "Local", "Post");
-        assertThat(Objects.requireNonNull(runtime.database().imports().get("default"))
-                        .modules())
-                .containsExactly("Pre", "Local", "Post");
         assertThat(runtime.database().preDbArtifacts()).hasSize(1);
         assertThat(runtime.database().postDbArtifacts()).hasSize(1);
         assertThat(runtime.database().schemaHash()).isNotBlank();
@@ -175,7 +169,7 @@ final class ProjectRuntimeLoaderTest {
                 sequences: []
             """);
 
-        assertThatThrownBy(() -> new ProjectRuntimeLoader(tempDir).load())
+        assertThatThrownBy(() -> new ProjectRuntimeLoader(tempDir).load(null))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("Unknown key 'searchDirs'");
     }
@@ -192,7 +186,7 @@ final class ProjectRuntimeLoaderTest {
                 sequences: []
             """);
 
-        assertThatThrownBy(() -> new ProjectRuntimeLoader(tempDir).load())
+        assertThatThrownBy(() -> new ProjectRuntimeLoader(tempDir).load(null))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("Unknown key 'resourcePrefix'");
     }
@@ -207,7 +201,8 @@ final class ProjectRuntimeLoaderTest {
                 sequences: []
             """);
 
-        final var runtime = new ProjectRuntimeLoader(tempDir).load();
+        final var runtime = new ProjectRuntimeLoader(tempDir).load(null);
+        assertThat(runtime.database().key()).isEqualTo("default");
         assertThat(runtime.database().searchDirs()).containsExactly(tempDir);
     }
 
@@ -223,12 +218,12 @@ final class ProjectRuntimeLoaderTest {
         writeFile(tempDir, "MyModule/a.sql", "SELECT 1");
 
         final var firstHash =
-                new ProjectRuntimeLoader(tempDir).load().database().schemaHash();
+                new ProjectRuntimeLoader(tempDir).load(null).database().schemaHash();
 
         writeFile(tempDir, "MyModule/a.sql", "SELECT 2");
 
         final var secondHash =
-                new ProjectRuntimeLoader(tempDir).load().database().schemaHash();
+                new ProjectRuntimeLoader(tempDir).load(null).database().schemaHash();
         assertThat(firstHash).hasSize(32);
         assertThat(secondHash).hasSize(32).isNotEqualTo(firstHash);
     }
@@ -248,8 +243,24 @@ final class ProjectRuntimeLoaderTest {
             writeFile(project, "MyModule/a.sql", "SELECT 1");
         }
 
-        assertThat(new ProjectRuntimeLoader(first).load().database().schemaHash())
-                .isEqualTo(new ProjectRuntimeLoader(second).load().database().schemaHash());
+        assertThat(new ProjectRuntimeLoader(first).load(null).database().schemaHash())
+                .isEqualTo(
+                        new ProjectRuntimeLoader(second).load(null).database().schemaHash());
+    }
+
+    @Test
+    void loadRejectsSelectedDatabaseWhenNotHardcodedDefault(@TempDir final Path tempDir) throws IOException {
+        writeFile(tempDir, "jdbt.yml", "{}\n");
+        writeFile(tempDir, "repository.yml", """
+            modules:
+              A:
+                tables: []
+                sequences: []
+            """);
+
+        assertThatThrownBy(() -> new ProjectRuntimeLoader(tempDir).load("custom"))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("Unable to locate database 'custom'");
     }
 
     @Test
@@ -265,7 +276,7 @@ final class ProjectRuntimeLoaderTest {
             """);
         writeArtifact(tempDir.resolve("pre.zip"), "data/not-repository.yml", "x");
 
-        assertThatThrownBy(() -> new ProjectRuntimeLoader(tempDir).load())
+        assertThatThrownBy(() -> new ProjectRuntimeLoader(tempDir).load("default"))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("does not contain data/repository.yml");
     }
