@@ -64,13 +64,27 @@ final class JdbtProjectConfigLoaderTest {
     }
 
     @Test
-    void loadDefaultsMigrationsAppliedAtCreateToMigrationsValue() {
-        final var config = load("""
-            migrations: true
-            """, "jdbt.yml", repositoryModules);
+    void loadDefaultsMigrationDirectory() {
+        final var config = load("{}\n", "jdbt.yml", repositoryModules);
 
-        assertThat(config.database().migrations()).isTrue();
-        assertThat(config.database().migrationsAppliedAtCreate()).isTrue();
+        assertThat(config.database().migrationDir()).isEqualTo("migrations");
+    }
+
+    @Test
+    void loadAcceptsCustomMigrationDirectory() {
+        final var config = load("migrationDir: upgrades\n", "jdbt.yml", repositoryModules);
+
+        assertThat(config.database().migrationDir()).isEqualTo("upgrades");
+    }
+
+    @Test
+    void loadRejectsRemovedMigrationFlags() {
+        assertThatThrownBy(() -> load("migrations: true\n", "jdbt.yml", repositoryModules))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("Unknown key 'migrations'");
+        assertThatThrownBy(() -> load("migrationsAppliedAtCreate: true\n", "jdbt.yml", repositoryModules))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("Unknown key 'migrationsAppliedAtCreate'");
     }
 
     @Test

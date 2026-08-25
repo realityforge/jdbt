@@ -185,9 +185,7 @@ final class ProjectRuntimeLoader {
         paths.add(database.datasetsDirName());
         paths.addAll(database.preDatasetDirs());
         paths.addAll(database.postDatasetDirs());
-        if (database.migrationsEnabled()) {
-            paths.add(database.migrationsDirName());
-        }
+        paths.add(database.migrationDir());
         for (final var importConfig : database.imports().values()) {
             paths.add(importConfig.dir());
             paths.addAll(importConfig.preImportDirs());
@@ -272,9 +270,7 @@ final class ProjectRuntimeLoader {
             }
         }
 
-        if (database.migrationsEnabled()) {
-            files.addAll(collectDirSet(database, database.migrationsDirName()));
-        }
+        files.addAll(collectDirSet(database, database.migrationDir()));
 
         return List.copyOf(files);
     }

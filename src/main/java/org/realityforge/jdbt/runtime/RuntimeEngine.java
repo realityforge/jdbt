@@ -80,7 +80,7 @@ public final class RuntimeEngine {
                 + database.schemaHash()
                 + '\n'
                 + "Migration Support: "
-                + (database.migrationsEnabled() ? "Yes" : "No")
+                + (collectMigrationFiles(database).isEmpty() ? "No" : "Yes")
                 + '\n';
     }
 
@@ -295,12 +295,10 @@ public final class RuntimeEngine {
                         processCreationDirSet(database, dir, declaredFilters);
                     }
                 });
-                if (database.migrationsEnabled()) {
-                    timing.run(
-                            "phase/migration-setup",
-                            "phase",
-                            () -> performPostCreateMigrationsSetup(database, declaredFilters));
-                }
+                timing.run(
+                        "phase/migration-setup",
+                        "phase",
+                        () -> performPostCreateMigrationsSetup(database, declaredFilters));
             });
         });
     }
@@ -856,15 +854,12 @@ public final class RuntimeEngine {
 
     private void performPostCreateMigrationsSetup(
             final RuntimeDatabase database, final Map<String, String> declaredFilters) {
-        if (!database.migrationsEnabled()) {
+        final var files = collectMigrationFiles(database);
+        if (files.isEmpty()) {
             return;
         }
         db.setupMigrations();
-        performMigration(
-                database,
-                database.migrationsAppliedAtCreate() ? MigrationAction.RECORD : MigrationAction.FORCE,
-                declaredFilters,
-                true);
+        performMigration(database, files, MigrationAction.RECORD, declaredFilters, true);
     }
 
     private void performMigration(
@@ -877,16 +872,18 @@ public final class RuntimeEngine {
             final MigrationAction action,
             final Map<String, String> declaredFilters,
             final boolean expandDatabaseVersionAssert) {
-        final var directory = database.migrationsDirName();
-        timing.run("sql-directory/" + ImportTimingRecorder.component(directory), "sql_directory", () -> {
-            final var files = fileResolver.collectFiles(
-                    database.resourceRoot(),
-                    directory,
-                    "sql",
-                    database.indexFileName(),
-                    database.postDbArtifacts(),
-                    database.preDbArtifacts());
+        performMigration(
+                database, collectMigrationFiles(database), action, declaredFilters, expandDatabaseVersionAssert);
+    }
 
+    private void performMigration(
+            final RuntimeDatabase database,
+            final List<ResourceFile> files,
+            final MigrationAction action,
+            final Map<String, String> declaredFilters,
+            final boolean expandDatabaseVersionAssert) {
+        final var directory = database.migrationDir();
+        timing.run("sql-directory/" + ImportTimingRecorder.component(directory), "sql_directory", () -> {
             final var versionIndex = releaseVersionIndex(database, files);
             for (int i = 0; i < files.size(); i++) {
                 final var filename = files.get(i);
@@ -902,6 +899,16 @@ public final class RuntimeEngine {
                 }
             }
         });
+    }
+
+    private List<ResourceFile> collectMigrationFiles(final RuntimeDatabase database) {
+        return fileResolver.collectFiles(
+                database.resourceRoot(),
+                database.migrationDir(),
+                "sql",
+                database.indexFileName(),
+                database.postDbArtifacts(),
+                database.preDbArtifacts());
     }
 
     private static @Nullable Integer releaseVersionIndex(
@@ -1547,8 +1554,7 @@ public final class RuntimeEngine {
 
     private enum MigrationAction {
         PERFORM,
-        RECORD,
-        FORCE
+        RECORD
     }
 
     private record ExportObject(String moduleName, String objectName, boolean sequence, String cleanName) {}

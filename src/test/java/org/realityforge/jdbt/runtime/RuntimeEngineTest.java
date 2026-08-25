@@ -44,11 +44,12 @@ final class RuntimeEngineTest {
             new DatabaseConnection("127.0.0.1", 1433, "IMPORT_DB", "sa", "secret");
 
     @Test
-    void statusReportsVersionHashAndMigrationFlag() {
-        final var migrationsOn = runtimeDatabase(RepositoryConfigTestData.singleModule(), Path.of("."));
+    void statusReportsVersionHashAndMigrationFiles(@TempDir final Path tempDir) throws IOException {
+        createFile(tempDir, "on/migrations/001_a.sql", "M1");
+        final var migrationsOn = runtimeDatabase(RepositoryConfigTestData.singleModule(), tempDir.resolve("on"));
         final var migrationsOff = new RuntimeDatabase(
                 migrationsOn.repository(),
-                migrationsOn.resourceRoot(),
+                tempDir.resolve("off"),
                 migrationsOn.preDbArtifacts(),
                 migrationsOn.postDbArtifacts(),
                 migrationsOn.indexFileName(),
@@ -62,8 +63,6 @@ final class RuntimeEngineTest {
                 migrationsOn.preDatasetDirs(),
                 migrationsOn.postDatasetDirs(),
                 migrationsOn.datasets(),
-                false,
-                false,
                 "migrations",
                 "2",
                 "abc",
@@ -117,7 +116,6 @@ final class RuntimeEngineTest {
                         "postFixtureImport([MyModule].[foo])",
                         "execute(false):FINAL",
                         "execute(false):POST",
-                        "setupMigrations",
                         "close");
         assertThat(output)
                 .containsExactly(
@@ -1012,8 +1010,6 @@ final class RuntimeEngineTest {
                 List.of("pre"),
                 List.of("post"),
                 List.of("defaultDataset"),
-                true,
-                false,
                 "migrations",
                 "1",
                 "hash",
@@ -1215,8 +1211,6 @@ final class RuntimeEngineTest {
                 List.of("defaultDataset"),
                 Map.of("default", new ImportConfig("default", List.of("MyModule"), "import", List.of(), List.of())),
                 Map.of(),
-                true,
-                false,
                 "Version_1");
 
         engine.migrate(database, connection, Map.of());
@@ -1245,8 +1239,6 @@ final class RuntimeEngineTest {
                 List.of("defaultDataset"),
                 Map.of("default", new ImportConfig("default", List.of("MyModule"), "import", List.of(), List.of())),
                 Map.of(),
-                true,
-                true,
                 "1");
 
         engine.create(database, connection, false, Map.of());
@@ -1274,7 +1266,7 @@ final class RuntimeEngineTest {
             final Path resourceRoot,
             final List<String> datasets,
             final Map<String, ImportConfig> imports) {
-        return runtimeDatabase(repository, resourceRoot, datasets, imports, Map.of(), true, false, "1");
+        return runtimeDatabase(repository, resourceRoot, datasets, imports, Map.of(), "1");
     }
 
     private static RuntimeDatabase runtimeDatabase(
@@ -1283,7 +1275,7 @@ final class RuntimeEngineTest {
             final List<String> datasets,
             final Map<String, ImportConfig> imports,
             final Map<String, FilterPropertyConfig> filterProperties) {
-        return runtimeDatabase(repository, resourceRoot, datasets, imports, filterProperties, true, false, "1");
+        return runtimeDatabase(repository, resourceRoot, datasets, imports, filterProperties, "1");
     }
 
     @SuppressWarnings("SameParameterValue")
@@ -1293,8 +1285,6 @@ final class RuntimeEngineTest {
             final List<String> datasets,
             final Map<String, ImportConfig> imports,
             final Map<String, FilterPropertyConfig> filterProperties,
-            final boolean migrationsEnabled,
-            final boolean migrationsAppliedAtCreate,
             final String version) {
         return new RuntimeDatabase(
                 repository,
@@ -1312,8 +1302,6 @@ final class RuntimeEngineTest {
                 List.of("pre"),
                 List.of("post"),
                 datasets,
-                migrationsEnabled,
-                migrationsAppliedAtCreate,
                 "migrations",
                 version,
                 "hash",
@@ -1386,9 +1374,7 @@ final class RuntimeEngineTest {
                 database.preDatasetDirs(),
                 database.postDatasetDirs(),
                 database.datasets(),
-                database.migrationsEnabled(),
-                database.migrationsAppliedAtCreate(),
-                database.migrationsDirName(),
+                database.migrationDir(),
                 database.version(),
                 database.schemaHash(),
                 database.dataPath(),

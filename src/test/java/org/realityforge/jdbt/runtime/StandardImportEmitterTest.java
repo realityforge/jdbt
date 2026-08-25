@@ -223,8 +223,6 @@ final class StandardImportEmitterTest {
                 List.of(),
                 List.of(),
                 List.of(),
-                false,
-                false,
                 "migrations",
                 null,
                 null,

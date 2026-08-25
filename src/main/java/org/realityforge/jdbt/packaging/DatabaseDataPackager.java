@@ -106,18 +106,16 @@ public final class DatabaseDataPackager {
 
         writeRepository(database, packageDir.resolve("repository.yml"));
 
-        if (database.migrationsEnabled()) {
-            final var files = fileResolver.collectFiles(
-                    database.resourceRoot(),
-                    database.migrationsDirName(),
-                    "sql",
-                    database.indexFileName(),
-                    database.postDbArtifacts(),
-                    database.preDbArtifacts());
-            final var targetDir = packageDir.resolve(database.migrationsDirName());
-            copyFilesToDir(files, targetDir);
-            generateIndex(database.indexFileName(), targetDir, files);
-        }
+        final var files = fileResolver.collectFiles(
+                database.resourceRoot(),
+                database.migrationDir(),
+                "sql",
+                database.indexFileName(),
+                database.postDbArtifacts(),
+                database.preDbArtifacts());
+        final var targetDir = packageDir.resolve(database.migrationDir());
+        copyFilesToDir(files, targetDir);
+        generateIndex(database.indexFileName(), targetDir, files);
     }
 
     private static List<String> databaseWideDirs(final RuntimeDatabase database) {

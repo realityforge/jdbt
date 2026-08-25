@@ -31,7 +31,7 @@ final class DefaultCommandRunnerTest {
 
     @Test
     void statusCreateDropMigrateAndImportCommandsExecute(@TempDir final Path tempDir) throws IOException {
-        writeFile(tempDir, "jdbt.yml", projectConfig(true));
+        writeFile(tempDir, "jdbt.yml", projectConfig());
         writeFile(tempDir, "repository.yml", repositoryConfig());
 
         final var runner = createRunner(tempDir);
@@ -61,7 +61,7 @@ final class DefaultCommandRunnerTest {
 
     @Test
     void packageDataWritesZipOutput(@TempDir final Path tempDir) throws IOException {
-        writeFile(tempDir, "jdbt.yml", projectConfig(false));
+        writeFile(tempDir, "jdbt.yml", projectConfig());
         writeFile(tempDir, "repository.yml", repositoryConfig());
         writeFile(tempDir, "MyModule/a.sql", "SELECT 1");
 
@@ -103,7 +103,7 @@ final class DefaultCommandRunnerTest {
 
     @Test
     void packageDataArtifactExecutesThroughRuntime(@TempDir final Path tempDir) throws IOException {
-        writeFile(tempDir, "jdbt.yml", projectConfig(false));
+        writeFile(tempDir, "jdbt.yml", projectConfig());
         writeFile(tempDir, "repository.yml", repositoryConfig());
         writeFile(tempDir, "import-hooks/pre/001.sql", "artifact pre");
         writeFile(tempDir, "MyModule/import/MyModule.foo.sql", "artifact import __SOURCE__ __TARGET__ __TABLE__");
@@ -139,7 +139,7 @@ final class DefaultCommandRunnerTest {
     @Test
     void exportFixturesExecutesThroughRuntimeWithDefaultOutputDirectory(@TempDir final Path tempDir)
             throws IOException {
-        writeFile(tempDir, "jdbt.yml", projectConfig(false));
+        writeFile(tempDir, "jdbt.yml", projectConfig());
         writeFile(tempDir, "repository.yml", repositoryConfig());
         writeFile(tempDir, "fixtures.properties", "MyModule.foo=SELECT __TENANT__ AS ID, 'A' AS NAME\n");
         final var driver = new RecordingDriver();
@@ -165,7 +165,7 @@ final class DefaultCommandRunnerTest {
             throws IOException {
         final var projectDirectory = tempDir.resolve("profile");
         final var resourceRoot = tempDir.resolve("resources");
-        writeFile(projectDirectory, "jdbt.yml", "resourceRoot: ../resources\n" + projectConfig(false));
+        writeFile(projectDirectory, "jdbt.yml", "resourceRoot: ../resources\n" + projectConfig());
         writeFile(projectDirectory, "repository.yml", repositoryConfig());
         writeFile(projectDirectory, "fixtures.properties", "MyModule.foo=SELECT 1 AS ID\n");
         Files.createDirectories(resourceRoot);
@@ -193,7 +193,7 @@ final class DefaultCommandRunnerTest {
 
     @Test
     void importTimingPathsResolveFromProjectAndTruncateBeforeExecution(@TempDir final Path tempDir) throws IOException {
-        writeFile(tempDir, "jdbt.yml", projectConfig(false));
+        writeFile(tempDir, "jdbt.yml", projectConfig());
         writeFile(tempDir, "repository.yml", repositoryConfig());
         writeFile(tempDir, "evidence/import.ndjson", "stale timing\n");
         final var driver = new RecordingDriver();
@@ -217,7 +217,7 @@ final class DefaultCommandRunnerTest {
 
     @Test
     void timingOutputSetupFailureOccursBeforeDatabaseMutation(@TempDir final Path tempDir) throws IOException {
-        writeFile(tempDir, "jdbt.yml", projectConfig(false));
+        writeFile(tempDir, "jdbt.yml", projectConfig());
         writeFile(tempDir, "repository.yml", repositoryConfig());
         Files.createDirectories(tempDir.resolve("timing-directory"));
         final var driver = new RecordingDriver();
@@ -286,10 +286,9 @@ final class DefaultCommandRunnerTest {
                 .contains("([ID], [Code])", "SELECT [ID], [Code]");
     }
 
-    private static String projectConfig(final boolean withMigrations) {
+    private static String projectConfig() {
         return """
             datasets: [seed]
-            migrations: %s
             imports:
               default:
                 modules: [MyModule]
@@ -297,7 +296,7 @@ final class DefaultCommandRunnerTest {
               tenant:
                 pattern: __TENANT__
                 default: "0"
-            """.formatted(withMigrations);
+            """;
     }
 
     private static String projectConfigWithoutImports() {

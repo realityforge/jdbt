@@ -35,8 +35,6 @@ final class RuntimeDatabaseFactoryTest {
                 List.of("pre"),
                 List.of("post"),
                 "fixtures",
-                true,
-                true,
                 "migrations",
                 "v1",
                 null,
@@ -53,8 +51,7 @@ final class RuntimeDatabaseFactoryTest {
         assertThat(runtimeDatabase.resourceRoot()).isEqualTo(Path.of("dbRoot").toAbsolutePath());
         assertThat(runtimeDatabase.indexFileName()).isEqualTo("index.txt");
         assertThat(runtimeDatabase.schemaHash()).isEqualTo("hash");
-        assertThat(runtimeDatabase.migrationsAppliedAtCreate()).isTrue();
-        assertThat(runtimeDatabase.migrationsDirName()).isEqualTo("migrations");
+        assertThat(runtimeDatabase.migrationDir()).isEqualTo("migrations");
         assertThat(runtimeDatabase.filterProperties()).containsKey("mode");
         assertThat(runtimeDatabase.imports()).containsKey("default");
     }

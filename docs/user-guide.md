@@ -42,9 +42,7 @@ Top-level keys:
 - `preDatasetDirs`
 - `postDatasetDirs`
 - `fixtureDirName`
-- `migrations`
-- `migrationsAppliedAtCreate`
-- `migrationsDirName`
+- `migrationDir`
 - `version`
 - `dataPath`
 - `logPath`
@@ -76,7 +74,7 @@ Runtime defaults are hardcoded and currently match Ruby-compatible defaults for:
 - `preDatasetDirs`
 - `postDatasetDirs`
 - `fixtureDirName`
-- `migrationsDirName`
+- `migrationDir`
 - `indexFileName`
 - default import key (`default`)
 
@@ -195,6 +193,9 @@ The default logical directories (unless overridden) are:
 - index file: `index.txt`
 
 `index.txt` controls ordering when present.
+
+Migration support is inferred from ordered `.sql` files beneath `migrationDir`; no separate enablement flag is
+required. Set `migrationDir` only when the project uses a directory other than `migrations`.
 
 All module and hook paths are resolved relative to the directory containing `jdbt.yml`.
 

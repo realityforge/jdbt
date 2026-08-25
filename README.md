@@ -79,7 +79,6 @@ bazel run //src/main/java/org/realityforge/jdbt:jdbt_bin -- status
 `jdbt.yml`
 
 ```yaml
-migrations: true
 datasets: [seed]
 imports:
   default:

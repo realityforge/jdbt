@@ -18,9 +18,7 @@ public final class JdbtProjectConfigLoader {
             "preDatasetDirs",
             "postDatasetDirs",
             "fixtureDirName",
-            "migrations",
-            "migrationsAppliedAtCreate",
-            "migrationsDirName",
+            "migrationDir",
             "version",
             "dataPath",
             "logPath",
@@ -46,7 +44,7 @@ public final class JdbtProjectConfigLoader {
     private static final List<String> DEFAULT_PRE_DATASET_DIRS = List.of("pre");
     private static final List<String> DEFAULT_POST_DATASET_DIRS = List.of("post");
     private static final String DEFAULT_FIXTURE_DIR_NAME = "fixtures";
-    private static final String DEFAULT_MIGRATIONS_DIR_NAME = "migrations";
+    private static final String DEFAULT_MIGRATION_DIR = "migrations";
     private static final Set<String> RESERVED_FILTER_PROPERTY_KEYS =
             Set.of("sourceDatabase", "targetDatabase", "table");
     private static final Set<String> RESERVED_FILTER_PATTERNS = Set.of("__SOURCE__", "__TARGET__", "__TABLE__");
@@ -68,10 +66,6 @@ public final class JdbtProjectConfigLoader {
     private static DatabaseConfig loadDatabase(
             final Map<String, Object> body, final List<String> repositoryModules, final String sourceName) {
         final var path = sourceName;
-        final var migrationsValue = YamlMapSupport.optionalBoolean(body, "migrations", path);
-        final var migrations = migrationsValue != null && migrationsValue;
-        final var migrationsAppliedAtCreate = YamlMapSupport.optionalBoolean(body, "migrationsAppliedAtCreate", path);
-
         final var filterProperties = loadFilterProperties(body, path);
         final var imports = loadImports(body, repositoryModules, path);
 
@@ -90,11 +84,9 @@ public final class JdbtProjectConfigLoader {
                 YamlMapSupport.optionalString(body, "fixtureDirName", path) == null
                         ? DEFAULT_FIXTURE_DIR_NAME
                         : YamlMapSupport.requireString(body, "fixtureDirName", path),
-                migrations,
-                migrationsAppliedAtCreate == null ? migrations : migrationsAppliedAtCreate,
-                YamlMapSupport.optionalString(body, "migrationsDirName", path) == null
-                        ? DEFAULT_MIGRATIONS_DIR_NAME
-                        : YamlMapSupport.requireString(body, "migrationsDirName", path),
+                YamlMapSupport.optionalString(body, "migrationDir", path) == null
+                        ? DEFAULT_MIGRATION_DIR
+                        : YamlMapSupport.requireString(body, "migrationDir", path),
                 YamlMapSupport.optionalString(body, "version", path),
                 YamlMapSupport.optionalString(body, "dataPath", path),
                 YamlMapSupport.optionalString(body, "logPath", path),

@@ -49,8 +49,6 @@ final class RuntimeDatabaseTest {
                 List.of("pre"),
                 List.of("post"),
                 List.of("seed"),
-                true,
-                false,
                 "migrations",
                 "1",
                 "hash",

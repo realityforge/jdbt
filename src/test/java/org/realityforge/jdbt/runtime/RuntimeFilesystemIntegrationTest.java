@@ -142,8 +142,6 @@ final class RuntimeFilesystemIntegrationTest {
                 List.of("before"),
                 List.of("after"),
                 List.of("snapshot"),
-                false,
-                false,
                 "migrations",
                 "1",
                 "hash",

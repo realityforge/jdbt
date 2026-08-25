@@ -47,7 +47,6 @@ final class DatabaseDataPackagerTest {
                 tempDir.resolve("db"),
                 List.of(),
                 List.of(),
-                true,
                 new ImportConfig(
                         "default",
                         List.of("MyModule"),
@@ -105,7 +104,6 @@ final class DatabaseDataPackagerTest {
                 tempDir.resolve("db"),
                 List.of(),
                 List.of(artifact),
-                true,
                 new ImportConfig(
                         "default",
                         List.of("MyModule"),
@@ -122,25 +120,6 @@ final class DatabaseDataPackagerTest {
     }
 
     @Test
-    void packageDatabaseDataSkipsMigrationsWhenDisabled(@TempDir final Path tempDir) throws IOException {
-        createFile(tempDir, "db/MyModule/a.sql", "A");
-        createFile(tempDir, "db/migrations/001_a.sql", "M1");
-
-        final var database = runtimeDatabase(
-                repositoryConfig(),
-                tempDir.resolve("db"),
-                List.of(),
-                List.of(),
-                false,
-                Map.of("default", new ImportConfig("default", List.of("MyModule"), "import", List.of(), List.of())));
-
-        final var output = tempDir.resolve("package");
-        new DatabaseDataPackager(new FileResolver()).packageDatabaseData(database, output);
-
-        assertThat(output.resolve("migrations")).doesNotExist();
-    }
-
-    @Test
     void packageDatabaseDataWritesDeterministicOutputAcrossImportMapOrder(@TempDir final Path tempDir)
             throws IOException {
         createFile(tempDir, "db/MyModule/a.sql", "A");
@@ -154,19 +133,9 @@ final class DatabaseDataPackagerTest {
                 new ImportConfig("beta", List.of("MyModule"), "import", List.of("import-hooks/pre"), List.of());
 
         final var first = runtimeDatabase(
-                repositoryConfig(),
-                tempDir.resolve("db"),
-                List.of(),
-                List.of(),
-                true,
-                Map.of("alpha", alpha, "beta", beta));
+                repositoryConfig(), tempDir.resolve("db"), List.of(), List.of(), Map.of("alpha", alpha, "beta", beta));
         final var second = runtimeDatabase(
-                repositoryConfig(),
-                tempDir.resolve("db"),
-                List.of(),
-                List.of(),
-                true,
-                Map.of("beta", beta, "alpha", alpha));
+                repositoryConfig(), tempDir.resolve("db"), List.of(), List.of(), Map.of("beta", beta, "alpha", alpha));
 
         final var output1 = tempDir.resolve("package-a");
         final var output2 = tempDir.resolve("package-b");
@@ -202,7 +171,6 @@ final class DatabaseDataPackagerTest {
                 tempDir.resolve("db"),
                 List.of(),
                 List.of(),
-                false,
                 Map.of("default", new ImportConfig("default", List.of("MyModule"), "import", List.of(), List.of())));
 
         final var output = tempDir.resolve("package");
@@ -225,15 +193,9 @@ final class DatabaseDataPackagerTest {
             final Path resourceRoot,
             final List<ArtifactContent> preArtifacts,
             final List<ArtifactContent> postArtifacts,
-            final boolean migrationsEnabled,
             final ImportConfig importConfig) {
         return runtimeDatabase(
-                repositoryConfig(),
-                resourceRoot,
-                preArtifacts,
-                postArtifacts,
-                migrationsEnabled,
-                Map.of("default", importConfig));
+                repositoryConfig(), resourceRoot, preArtifacts, postArtifacts, Map.of("default", importConfig));
     }
 
     private static RuntimeDatabase runtimeDatabase(
@@ -241,7 +203,6 @@ final class DatabaseDataPackagerTest {
             final Path resourceRoot,
             final List<ArtifactContent> preArtifacts,
             final List<ArtifactContent> postArtifacts,
-            final boolean migrationsEnabled,
             final Map<String, ImportConfig> imports) {
         return new RuntimeDatabase(
                 repository,
@@ -259,8 +220,6 @@ final class DatabaseDataPackagerTest {
                 List.of("pre"),
                 List.of("post"),
                 List.of("seed"),
-                migrationsEnabled,
-                false,
                 "migrations",
                 "1",
                 "hash",
