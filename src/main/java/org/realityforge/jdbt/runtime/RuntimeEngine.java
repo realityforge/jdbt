@@ -76,11 +76,16 @@ public final class RuntimeEngine {
     }
 
     public String status(final RuntimeDatabase database) {
+        return status(database, Map.of());
+    }
+
+    public String status(final RuntimeDatabase database, final Map<String, String> filterProperties) {
+        final var declaredFilters = resolveDeclaredFilterValues(database, filterProperties);
         return "Database Version: "
                 + database.version()
                 + '\n'
                 + "Database Schema Hash: "
-                + database.schemaHash()
+                + effectiveSchemaHash(database.schemaHash(), declaredFilters)
                 + '\n'
                 + "Migration Support: "
                 + (collectMigrationFiles(database).isEmpty() ? "No" : "Yes")
@@ -94,7 +99,7 @@ public final class RuntimeEngine {
             final Map<String, String> filterProperties) {
         final var declaredFilters = resolveDeclaredFilterValues(database, filterProperties);
         validateInitialFixtures(database);
-        createDatabaseIfRequired(database, target, noCreate);
+        createDatabaseIfRequired(database, target, noCreate, declaredFilters);
         withDatabaseConnection(target, false, () -> {
             for (final var dir : database.preCreateDirs()) {
                 processCreationDirSet(database, dir, declaredFilters);
@@ -117,7 +122,7 @@ public final class RuntimeEngine {
         final var declaredFilters = resolveDeclaredFilterValues(database, filterProperties);
         ensureDatasetExists(database, datasetName);
         validateInitialFixtures(database);
-        createDatabaseIfRequired(database, target, noCreate);
+        createDatabaseIfRequired(database, target, noCreate, declaredFilters);
         withDatabaseConnection(target, false, () -> {
             for (final var dir : database.preCreateDirs()) {
                 processCreationDirSet(database, dir, declaredFilters);
@@ -246,7 +251,7 @@ public final class RuntimeEngine {
             final var importConfig = importByKey(database, importKey);
             validateInitialFixtures(database);
             final var importPlan = createImportPlan(database, importConfig, resumeAt);
-            final var metadata = databaseMetadata(database);
+            final var metadata = databaseMetadata(database, declaredFilters);
             withDatabaseConnection(
                     target,
                     false,
@@ -272,9 +277,12 @@ public final class RuntimeEngine {
             validateInitialFixtures(database);
             final var importPlan = createImportPlan(database, importConfig, resumeAt);
             if (null == resumeAt && !noCreate) {
-                timing.run("phase/target-prepare", "phase", () -> createDatabaseIfRequired(database, target, false));
+                timing.run(
+                        "phase/target-prepare",
+                        "phase",
+                        () -> createDatabaseIfRequired(database, target, false, declaredFilters));
             }
-            final var metadata = databaseMetadata(database);
+            final var metadata = databaseMetadata(database, declaredFilters);
             withDatabaseConnection(target, false, () -> {
                 if (null == resumeAt) {
                     timing.run("phase/pre-create", "phase", () -> {
@@ -832,12 +840,15 @@ public final class RuntimeEngine {
     }
 
     private void createDatabaseIfRequired(
-            final RuntimeDatabase database, final DatabaseConnection target, final boolean noCreate) {
+            final RuntimeDatabase database,
+            final DatabaseConnection target,
+            final boolean noCreate,
+            final Map<String, String> declaredFilters) {
         if (noCreate) {
             return;
         }
         withDatabaseConnection(target, true, () -> {
-            final var metadata = databaseMetadata(database);
+            final var metadata = databaseMetadata(database, declaredFilters);
             db.drop(metadata, target);
             db.createDatabase(metadata, target);
         });
@@ -853,6 +864,34 @@ public final class RuntimeEngine {
                 database.deleteBackupHistory(),
                 database.reindexOnImport(),
                 database.shrinkOnImport());
+    }
+
+    private static DatabaseMetadata databaseMetadata(
+            final RuntimeDatabase database, final Map<String, String> declaredFilters) {
+        final var metadata = databaseMetadata(database);
+        return new DatabaseMetadata(
+                metadata.version(),
+                effectiveSchemaHash(database.schemaHash(), declaredFilters),
+                metadata.dataPath(),
+                metadata.logPath(),
+                metadata.forceDrop(),
+                metadata.deleteBackupHistory(),
+                metadata.reindexOnImport(),
+                metadata.shrinkOnImport());
+    }
+
+    private static String effectiveSchemaHash(
+            final @Nullable String schemaHash, final Map<String, String> declaredFilters) {
+        final var value = new StringBuilder(null == schemaHash ? "" : schemaHash).append('\n');
+        declaredFilters.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .forEach(entry -> value.append(entry.getKey()).append('=').append(entry.getValue()).append('\n'));
+        try {
+            return HexFormat.of()
+                    .formatHex(MessageDigest.getInstance("SHA-256").digest(value.toString().getBytes(StandardCharsets.UTF_8)));
+        } catch (final NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 is unavailable", e);
+        }
     }
 
     private void performPostCreateMigrationsSetup(final RuntimeDatabase database) {

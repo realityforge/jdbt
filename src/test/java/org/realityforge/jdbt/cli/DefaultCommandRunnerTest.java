@@ -42,7 +42,7 @@ final class DefaultCommandRunnerTest {
         final var output = new ByteArrayOutputStream();
         try {
             System.setOut(new PrintStream(output, true, StandardCharsets.UTF_8));
-            runner.status();
+            runner.status(Map.of());
         } finally {
             System.setOut(originalOut);
         }

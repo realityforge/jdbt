@@ -105,6 +105,13 @@ public final class SqlServerDbDriver implements DbDriver {
                             + "'",
                     false);
         }
+        if (null != database.schemaHash()) {
+            execute(
+                    "EXEC sys.sp_addextendedproperty @name = N'DatabaseSchemaHash', @value = N'"
+                            + sqlString(database.schemaHash())
+                            + "'",
+                    false);
+        }
     }
 
     @Override

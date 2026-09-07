@@ -101,7 +101,7 @@ Run `validate-project` to load the manifests, resolve and hash the selected reso
 without opening a database connection:
 
 ```bash
-jdbt --project-dir database/test-profiles/Mail validate-project
+jdbt --project-dir test-profiles/profiles/mail_persistence validate-project
 ```
 
 Path categories are deliberately distinct:

@@ -9,7 +9,7 @@ import org.realityforge.jdbt.db.DatabaseConnection;
 interface CommandRunner {
     void validateProject();
 
-    void status();
+    void status(Map<String, String> filterProperties);
 
     void create(DatabaseConnection target, boolean noCreate, Map<String, String> filterProperties);
 

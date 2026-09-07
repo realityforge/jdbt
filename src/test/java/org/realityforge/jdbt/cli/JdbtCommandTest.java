@@ -556,8 +556,9 @@ final class JdbtCommandTest {
         }
 
         @Override
-        public void status() {
+        public void status(final Map<String, String> filterProperties) {
             this.lastCall = "status";
+            this.filterProperties = filterProperties;
         }
 
         @Override

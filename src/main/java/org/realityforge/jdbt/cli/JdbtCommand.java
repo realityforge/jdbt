@@ -235,10 +235,10 @@ public final class JdbtCommand implements Callable<Integer> {
     }
 
     @CommandLine.Command(name = "status", description = "Show configured runtime status")
-    static final class StatusCommand extends BaseCommand {
+    static final class StatusCommand extends BaseSqlCommand {
         @Override
         public Integer call() {
-            runner().status();
+            runner().status(filterProperties());
             return 0;
         }
     }

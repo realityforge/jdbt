@@ -46,7 +46,7 @@ bazel build //src/main/java/org/realityforge/jdbt:jdbt_bin_deploy.jar
 
 ### Consuming JDBT as a Bazel module
 
-JDBT patches `rules_java` 9.8.0 so its deploy JARs can omit Bazel build metadata. Bazel applies module overrides only
+JDBT patches `rules_java` 9.9.0 so its deploy JARs can omit Bazel build metadata. Bazel applies module overrides only
 from the root module. Until `rules_java` releases this support, repositories that consume JDBT must copy
 `third_party/java/rules_java_exclude_build_data.patch` into their own source tree and apply it from their root
 `MODULE.bazel`:
@@ -56,7 +56,7 @@ single_version_override(
     module_name = "rules_java",
     patch_strip = 1,
     patches = ["//third_party:rules_java_exclude_build_data.patch"],
-    version = "9.8.0",
+    version = "9.9.0",
 )
 ```
 

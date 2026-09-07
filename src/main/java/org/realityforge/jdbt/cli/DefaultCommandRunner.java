@@ -44,10 +44,10 @@ final class DefaultCommandRunner implements CommandRunner {
     }
 
     @Override
-    public void status() {
+    public void status(final Map<String, String> filterProperties) {
         final var runtime = projectRuntimeLoader.load();
         final var runtimeEngine = runtimeEngine();
-        System.out.print(runtimeEngine.status(runtime.database()));
+        System.out.print(runtimeEngine.status(runtime.database(), filterProperties));
     }
 
     @Override

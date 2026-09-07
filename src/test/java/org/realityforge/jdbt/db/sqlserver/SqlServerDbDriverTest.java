@@ -432,6 +432,8 @@ final class SqlServerDbDriverTest {
                         + " FILENAME='C:\\log\\DB_Version_1.ldf')");
         verify(targetStatement)
                 .execute("EXEC sys.sp_addextendedproperty @name = N'DatabaseSchemaVersion', @value = N'Version.1'");
+        verify(targetStatement)
+                .execute("EXEC sys.sp_addextendedproperty @name = N'DatabaseSchemaHash', @value = N'hash'");
     }
 
     @Test

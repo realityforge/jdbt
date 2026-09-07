@@ -82,7 +82,8 @@ final class RuntimeEngineTest {
         assertThat(engine.status(migrationsOff))
                 .contains("Migration Support: No")
                 .contains("Database Version: 2")
-                .contains("Database Schema Hash: abc");
+                .contains("Database Schema Hash: ")
+                .doesNotContain("Database Schema Hash: abc\n");
     }
 
     @Test
