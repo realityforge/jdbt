@@ -38,7 +38,8 @@ public record RuntimeDatabase(
         boolean reindexOnImport,
         boolean shrinkOnImport,
         Map<String, FilterPropertyConfig> filterProperties,
-        Map<String, ImportConfig> imports) {
+        Map<String, ImportConfig> imports,
+        List<String> contributionDirs) {
 
     public RuntimeDatabase {
         resourceRoot = resourceRoot.toAbsolutePath().normalize();
@@ -54,6 +55,7 @@ public record RuntimeDatabase(
         datasets = List.copyOf(datasets);
         filterProperties = Collections.unmodifiableMap(new LinkedHashMap<>(filterProperties));
         imports = Collections.unmodifiableMap(new LinkedHashMap<>(imports));
+        contributionDirs = List.copyOf(contributionDirs);
     }
 
     public String schemaNameForModule(final String moduleName) {

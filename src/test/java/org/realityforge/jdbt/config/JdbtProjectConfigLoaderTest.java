@@ -28,6 +28,29 @@ final class JdbtProjectConfigLoaderTest {
         assertThat(database.deleteBackupHistory()).isTrue();
         assertThat(database.reindexOnImport()).isTrue();
         assertThat(database.shrinkOnImport()).isFalse();
+        assertThat(database.contributionDirs()).isEmpty();
+        assertThat(importConfig.preLateImportDirs()).isEmpty();
+        assertThat(importConfig.lateImportDir()).isNull();
+    }
+
+    @Test
+    void loadParsesContributionAndLateImportConfiguration() {
+        final var config = load("""
+            contributionDirs: [Action/contributions, Admin/contributions]
+            imports:
+              default:
+                preLateImportDirs: [import-hooks/pre-late, import-hooks/reconcile]
+                lateImportDir: late-import
+                requiredFiles: [import-hooks/post/metadata.sql, Core/late-import/Core.item.sql]
+            """, "jdbt.yml", repositoryModules);
+
+        final var database = config.database();
+        final var importConfig = Objects.requireNonNull(database.imports().get("default"));
+        assertThat(database.contributionDirs()).containsExactly("Action/contributions", "Admin/contributions");
+        assertThat(importConfig.preLateImportDirs()).containsExactly("import-hooks/pre-late", "import-hooks/reconcile");
+        assertThat(importConfig.lateImportDir()).isEqualTo("late-import");
+        assertThat(importConfig.requiredFiles())
+                .containsExactly("import-hooks/post/metadata.sql", "Core/late-import/Core.item.sql");
     }
 
     @Test

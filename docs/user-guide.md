@@ -37,6 +37,7 @@ Top-level keys:
 - `finalizeDirs`
 - `preCreateDirs`
 - `postCreateDirs`
+- `contributionDirs`
 - `datasets`
 - `datasetsDirName`
 - `preDatasetDirs`
@@ -78,6 +79,8 @@ Runtime defaults are hardcoded and currently match Ruby-compatible defaults for:
 - `indexFileName`
 - default import key (`default`)
 
+The additive lifecycle keys default to no selected contributions, no pre-late hooks, no late-import directory, and no required import files.
+
 `jdbt.yml` defines configuration for one database.
 
 Unknown keys are rejected.
@@ -88,6 +91,7 @@ Resource-root behavior is fixed:
 - `resourceRoot` selects that directory and defaults to `.`
 - a relative `resourceRoot` is resolved against the project directory
 - module SQL, fixtures, imports, migrations, and configured hook directories resolve beneath `resourceRoot`
+- contribution directories are resource-root-relative and may name paths outside Repository Metadata modules
 - `searchDirs` is not a supported key in `jdbt.yml`
 
 This permits small generated projects to keep `jdbt.yml` and a closure-only `repository.yml` together while reading
@@ -120,8 +124,17 @@ Path categories are deliberately distinct:
 - `dir`
 - `preImportDirs`
 - `postImportDirs`
+- `preLateImportDirs`
+- `lateImportDir`
+- `requiredFiles`
 
 If `modules` is missing, all Database Modules in Repository Metadata are used.
+
+`contributionDirs` is a top-level ordered list of SQL directories. It runs once after data establishment and before
+module finalization for create commands, and after ordinary import hooks but before pre-late hooks for create-by-import.
+It is not run by `migrate` or replayed when resuming at a late table.
+
+`preLateImportDirs` is an ordered list of import-only SQL hook directories. `lateImportDir` names a per-module directory containing explicit table SQL or YAML assets. A table selected there is imported once in the late phase and must not also have an ordinary explicit asset. Late tables must form a suffix of the Import Row Source tables in each selected Database Module. `requiredFiles` optionally names hook, fixture, or SQL paths that must all occur in the resolved plan; a missing required file rejects the import before database mutation. Use it when project-specific metadata and table transfers form one indivisible import unit.
 
 #### `filterProperties`
 
@@ -275,18 +288,6 @@ bazel run //src/main/java/org/realityforge/jdbt:jdbt_bin -- migrate \
   --target-database MyDb --target-username sa --password-env DB_PASS
 ```
 
-`import`
-
-```bash
-bazel run //src/main/java/org/realityforge/jdbt:jdbt_bin -- import \
-  --import default \
-  --resume-at Core.tblA \
-  --target-host localhost --target-port 1433 \
-  --target-database TargetDb --target-username sa --password-env TARGET_PASS \
-  --source-host localhost --source-port 1433 \
-  --source-database SourceDb --source-username sa --source-password-env SOURCE_PASS
-```
-
 Optional: `--module-group <groupKey>`.
 
 Import-only reserved SQL tokens:
@@ -305,7 +306,7 @@ Import SQL supports these SQL Server assert macros:
 - `ASSERT_DATABASE_VERSION(<expression>)`
 - `ASSERT_UNCHANGED_ROW_COUNT()`
 
-During `import` and the import phase of `create-by-import`, the database-version assertion requires the source database not to equal the expression and the target database to equal it. Row-count assertions remain import-only. All assert macros require the active driver to be `sqlserver`.
+During the import phase of `create-by-import`, the database-version assertion requires the source database not to equal the expression and the target database to equal it. Row-count assertions remain import-only. All assert macros require the active driver to be `sqlserver`.
 
 Database Import processes only Import Row Source tables. It selects an Import Fixture before Explicit Import SQL, then falls back to Standard Import. Deployment Row Source tables are not deleted, imported, or valid `--resume-at` targets. SQL Server determines identity handling from live target metadata and performs the identity toggle and import on the same JDBC session.
 
@@ -322,9 +323,16 @@ bazel run //src/main/java/org/realityforge/jdbt:jdbt_bin -- create-by-import \
 
 Optional: `--resume-at <tableOrSequence>`, `--no-create`.
 
+`--no-create` keeps the target database instead of dropping and recreating it; the command still runs the schema,
+import, contribution, finalization, and post-create phases. `--resume-at` is recovery for the actual failed object, not a
+partial-import selector. Use it only with the same source, target, Database Artifacts, configuration, and filters, after
+all earlier work completed. An ordinary resume runs the remaining lifecycle, including contributions and pre-late
+hooks. A late-table resume skips those already completed phases, clears the named late table, and continues through the
+remaining late suffix and finalization.
+
 ### Structured import timing
 
-`import` and `create-by-import` alone accept `--timing-output PATH`. Relative paths resolve from the Database Project;
+`create-by-import` accepts `--timing-output PATH`. Relative paths resolve from the Database Project;
 absolute paths are used directly. The output file is created or truncated before database mutation, missing parent
 directories are created, and omitting the option preserves the ordinary command output and execution path.
 
@@ -341,7 +349,7 @@ connection details, credentials, filter values, exception text, or physical path
 Example:
 
 ```bash
-bazel run //src/main/java/org/realityforge/jdbt:jdbt_bin -- import \
+bazel run //src/main/java/org/realityforge/jdbt:jdbt_bin -- create-by-import \
   --timing-output timings/production-import.ndjson \
   --import default \
   --target-host localhost --target-database TargetDb --target-username sa --password-env TARGET_PASS \

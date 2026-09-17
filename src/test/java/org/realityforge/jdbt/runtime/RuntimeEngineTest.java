@@ -74,7 +74,8 @@ final class RuntimeEngineTest {
                 true,
                 false,
                 Map.of(),
-                migrationsOn.imports());
+                migrationsOn.imports(),
+                List.of());
 
         final var engine = new RuntimeEngine(new RecordingDriver(), new FileResolver());
 
@@ -178,7 +179,7 @@ final class RuntimeEngineTest {
     }
 
     @Test
-    void importExecutesDeleteThenDefaultTableImportAndHooks(@TempDir final Path tempDir) throws IOException {
+    void createByImportCreatesSchemaThenImportsTablesAndRunsHooks(@TempDir final Path tempDir) throws IOException {
         createFile(tempDir, "db/import-hooks/pre/pre.sql", "PRE __SOURCE__ __TARGET__");
         createFile(tempDir, "db/import-hooks/post/post.sql", "POST __SOURCE__ __TARGET__");
 
@@ -191,18 +192,24 @@ final class RuntimeEngineTest {
                 Map.of("MyModule", tables("[MyModule].[foo]", "[MyModule].[bar]")),
                 Map.of("MyModule", List.of()));
         final var importConfig = new ImportConfig(
-                "default", List.of("MyModule"), "import", List.of("import-hooks/pre"), List.of("import-hooks/post"));
+                "default",
+                List.of("MyModule"),
+                "import",
+                List.of("import-hooks/pre"),
+                List.of("import-hooks/post"),
+                List.of(),
+                null,
+                List.of());
         final var database = runtimeDatabase(
                 repository, tempDir.resolve("db"), List.of("defaultDataset"), Map.of("default", importConfig));
 
-        engine.databaseImport(database, "default", connection, sourceConnection, null, Map.of());
+        engine.createByImport(database, "default", connection, sourceConnection, null, true, Map.of());
 
         assertThat(driver.calls)
                 .containsExactly(
                         "open(false)",
+                        "createSchema(MyModule)",
                         "execute(true):PRE IMPORT_DB DBT_TEST",
-                        "execute(false):DELETE FROM [MyModule].[bar]",
-                        "execute(false):DELETE FROM [MyModule].[foo]",
                         "preTableImport(default,[MyModule].[foo])",
                         "columnNamesForTable([MyModule].[foo])",
                         "execute(true):INSERT INTO [DBT_TEST].[MyModule].[foo]([ID])\n"
@@ -226,7 +233,268 @@ final class RuntimeEngineTest {
     }
 
     @Test
-    void timedImportWritesCanonicalNestedLifecycleAndSqlOperations(@TempDir final Path tempDir) throws IOException {
+    void contributionsRunAtTheCreateLifecycleSeamAndMigrationOmitsThem(@TempDir final Path tempDir) throws IOException {
+        createFile(tempDir, "db/MyModule/./up.sql", "UP");
+        createFile(tempDir, "db/MyModule/finalize/final.sql", "FINAL");
+        createFile(tempDir, "db/datasets/seed/post/post.sql", "DATASET POST");
+        createFile(tempDir, "db/import-hooks/post/post.sql", "IMPORT POST");
+        createFile(tempDir, "db/selected/contributions/action.sql", "CONTRIBUTION");
+        createFile(tempDir, "db/db-hooks/post/post.sql", "POST");
+        createFile(tempDir, "db/migrations/001_test.sql", "MIGRATION");
+        final var repository = singleModuleRepository(table("[MyModule].[foo]", RowSource.IMPORT));
+        final var importConfig = new ImportConfig(
+                "default",
+                List.of("MyModule"),
+                "import",
+                List.of(),
+                List.of("import-hooks/post"),
+                List.of(),
+                null,
+                List.of());
+        final var database = withContributions(
+                runtimeDatabase(repository, tempDir.resolve("db"), List.of("seed"), Map.of("default", importConfig)),
+                List.of("selected/contributions"));
+
+        final var createDriver = new RecordingDriver();
+        new RuntimeEngine(createDriver, new FileResolver()).create(database, connection, false, Map.of());
+        assertThat(createDriver.calls)
+                .containsSubsequence(
+                        "execute(false):UP",
+                        "execute(false):CONTRIBUTION",
+                        "execute(false):FINAL",
+                        "prepareMigrations",
+                        "shouldMigrate(001_test)",
+                        "recordMigration(001_test)",
+                        "execute(false):POST");
+
+        final var datasetDriver = new RecordingDriver();
+        new RuntimeEngine(datasetDriver, new FileResolver())
+                .createWithDataset(database, connection, false, "seed", Map.of());
+        assertThat(datasetDriver.calls)
+                .containsSubsequence(
+                        "execute(false):UP",
+                        "execute(false):DATASET POST",
+                        "execute(false):CONTRIBUTION",
+                        "execute(false):FINAL",
+                        "prepareMigrations",
+                        "shouldMigrate(001_test)",
+                        "recordMigration(001_test)",
+                        "execute(false):POST");
+
+        final var importDriver = new RecordingDriver();
+        new RuntimeEngine(importDriver, new FileResolver())
+                .createByImport(database, "default", connection, sourceConnection, null, false, Map.of());
+        assertThat(importDriver.calls)
+                .containsSubsequence(
+                        "execute(false):UP",
+                        "execute(true):IMPORT POST",
+                        "execute(false):CONTRIBUTION",
+                        "execute(false):FINAL",
+                        "prepareMigrations",
+                        "shouldMigrate(001_test)",
+                        "recordMigration(001_test)",
+                        "execute(false):POST");
+
+        final var migrationDriver = new RecordingDriver();
+        migrationDriver.migrationStatus = new MigrationStatus(true, "1");
+        new RuntimeEngine(migrationDriver, new FileResolver()).migrate(database, connection, Map.of());
+        assertThat(migrationDriver.calls)
+                .contains("execute(false):MIGRATION")
+                .doesNotContain("execute(false):CONTRIBUTION");
+    }
+
+    @Test
+    void lateImportsRunAfterContributionsAndCanResumeWithoutNormalImports(@TempDir final Path tempDir)
+            throws IOException {
+        createFile(tempDir, "db/import-hooks/post/post.sql", "EARLY POST __SOURCE__ __TARGET__");
+        createFile(tempDir, "db/selected/contributions/action.sql", "CONTRIBUTION");
+        createFile(tempDir, "db/import-hooks/pre-late/reconcile.sql", "RECONCILE __SOURCE__ __TARGET__");
+        createFile(tempDir, "db/MyModule/late-import/MyModule.bar.sql", "LATE BAR __SOURCE__ __TARGET__");
+        createFile(tempDir, "db/MyModule/late-import/MyModule.baz.sql", "LATE BAZ __SOURCE__ __TARGET__");
+        createFile(tempDir, "db/MyModule/late-import/MyModule.qux.sql", "LATE QUX __SOURCE__ __TARGET__");
+        final var repository = new RepositoryConfig(
+                List.of("MyModule"),
+                Map.of(),
+                Map.of(
+                        "MyModule",
+                        tables("[MyModule].[foo]", "[MyModule].[bar]", "[MyModule].[baz]", "[MyModule].[qux]")),
+                Map.of("MyModule", List.of()));
+        final var importConfig = new ImportConfig(
+                "default",
+                List.of("MyModule"),
+                "import",
+                List.of(),
+                List.of("import-hooks/post"),
+                List.of("import-hooks/pre-late"),
+                "late-import",
+                List.of());
+        final var database = withContributions(
+                runtimeDatabase(repository, tempDir.resolve("db"), List.of(), Map.of("default", importConfig)),
+                List.of("selected/contributions"));
+
+        final var driver = new RecordingDriver();
+        new RuntimeEngine(driver, new FileResolver())
+                .createByImport(database, "default", connection, sourceConnection, null, true, Map.of());
+
+        assertThat(driver.calls)
+                .containsSubsequence(
+                        "preTableImport(default,[MyModule].[foo])",
+                        "execute(true):EARLY POST IMPORT_DB DBT_TEST",
+                        "execute(false):CONTRIBUTION",
+                        "execute(true):RECONCILE IMPORT_DB DBT_TEST",
+                        "preTableImport(default,[MyModule].[bar])",
+                        "execute(true):LATE BAR IMPORT_DB DBT_TEST",
+                        "preTableImport(default,[MyModule].[baz])",
+                        "execute(true):LATE BAZ IMPORT_DB DBT_TEST",
+                        "preTableImport(default,[MyModule].[qux])",
+                        "execute(true):LATE QUX IMPORT_DB DBT_TEST",
+                        "postDataModuleImport(default,MyModule)");
+
+        final var lateTables = List.of("bar", "baz", "qux");
+        for (var i = 0; i < lateTables.size(); i++) {
+            final var resumeDriver = new RecordingDriver();
+            final var resumeTable = lateTables.get(i);
+            new RuntimeEngine(resumeDriver, new FileResolver())
+                    .createByImport(
+                            database,
+                            "default",
+                            connection,
+                            sourceConnection,
+                            "MyModule." + resumeTable,
+                            false,
+                            Map.of());
+            assertThat(resumeDriver.calls)
+                    .contains("execute(false):DELETE FROM [MyModule].[" + resumeTable + "]")
+                    .noneMatch(call -> call.contains("CONTRIBUTION")
+                            || call.contains("RECONCILE")
+                            || call.contains("MyModule.foo")
+                            || call.contains("EARLY POST"));
+            for (var j = 0; j < lateTables.size(); j++) {
+                final var importCall = "execute(true):LATE " + lateTables.get(j).toUpperCase() + " IMPORT_DB DBT_TEST";
+                if (j < i) {
+                    assertThat(resumeDriver.calls).doesNotContain(importCall);
+                } else {
+                    assertThat(resumeDriver.calls).contains(importCall);
+                }
+            }
+        }
+    }
+
+    @Test
+    void lateImportPlanRejectsOverlapAndNormalTablesAfterLateSuffix(@TempDir final Path tempDir) throws IOException {
+        createFile(tempDir, "overlap/MyModule/import/MyModule.bar.sql", "NORMAL");
+        createFile(tempDir, "overlap/MyModule/late-import/MyModule.bar.sql", "LATE");
+        createFile(tempDir, "overlap/MyModule/late-import/MyModule.baz.sql", "LATE");
+        createFile(tempDir, "interleaved/MyModule/late-import/MyModule.bar.sql", "LATE");
+        final var repository = new RepositoryConfig(
+                List.of("MyModule"),
+                Map.of(),
+                Map.of("MyModule", tables("[MyModule].[foo]", "[MyModule].[bar]", "[MyModule].[baz]")),
+                Map.of("MyModule", List.of()));
+        final var importConfig = new ImportConfig(
+                "default", List.of("MyModule"), "import", List.of(), List.of(), List.of(), "late-import", List.of());
+        final var driver = new RecordingDriver();
+        final var engine = new RuntimeEngine(driver, new FileResolver());
+
+        assertThatThrownBy(() -> engine.createByImport(
+                        runtimeDatabase(
+                                repository, tempDir.resolve("overlap"), List.of(), Map.of("default", importConfig)),
+                        "default",
+                        connection,
+                        sourceConnection,
+                        null,
+                        true,
+                        Map.of()))
+                .isInstanceOf(RuntimeExecutionException.class)
+                .hasMessageContaining("both normal and late import assets")
+                .hasMessageContaining("MyModule.bar");
+        assertThat(driver.calls).isEmpty();
+
+        assertThatThrownBy(() -> engine.createByImport(
+                        runtimeDatabase(
+                                repository, tempDir.resolve("interleaved"), List.of(), Map.of("default", importConfig)),
+                        "default",
+                        connection,
+                        sourceConnection,
+                        null,
+                        true,
+                        Map.of()))
+                .isInstanceOf(RuntimeExecutionException.class)
+                .hasMessageContaining("late Import Row Source tables as a suffix")
+                .hasMessageContaining("MyModule.baz");
+        assertThat(driver.calls).isEmpty();
+    }
+
+    @Test
+    void requiredImportFilesRejectAnIncompleteImportUnitBeforeMutation(@TempDir final Path tempDir) throws IOException {
+        createFile(tempDir, "db/import-hooks/post/metadata.sql", "METADATA");
+        createFile(tempDir, "db/Action/late-import/Action.history.sql", "LATE");
+        final var repository = new RepositoryConfig(
+                List.of("Selected", "Action"),
+                Map.of(),
+                Map.of(
+                        "Selected", tables("[Selected].[item]"),
+                        "Action", tables("[Action].[history]")),
+                Map.of("Selected", List.of(), "Action", List.of()));
+        final var importConfig = new ImportConfig(
+                "default",
+                List.of("Selected"),
+                "import",
+                List.of(),
+                List.of("import-hooks/post"),
+                List.of(),
+                null,
+                List.of("import-hooks/post/metadata.sql", "Action/late-import/Action.history.sql"));
+        final var driver = new RecordingDriver();
+
+        assertThatThrownBy(() -> new RuntimeEngine(driver, new FileResolver())
+                        .createByImport(
+                                runtimeDatabase(
+                                        repository, tempDir.resolve("db"), List.of(), Map.of("default", importConfig)),
+                                "default",
+                                connection,
+                                sourceConnection,
+                                null,
+                                true,
+                                Map.of()))
+                .isInstanceOf(RuntimeExecutionException.class)
+                .hasMessageContaining("does not plan required import files")
+                .hasMessageContaining("Action.history.sql");
+        assertThat(driver.calls).isEmpty();
+    }
+
+    @Test
+    void subsetImportCanShareALateDirectoryWhenNoUnitRequiresItsAssets(@TempDir final Path tempDir) throws IOException {
+        createFile(tempDir, "db/Action/late-import/Action.history.sql", "LATE");
+        final var repository = new RepositoryConfig(
+                List.of("Selected", "Action"),
+                Map.of(),
+                Map.of(
+                        "Selected", tables("[Selected].[item]"),
+                        "Action", tables("[Action].[history]")),
+                Map.of("Selected", List.of(), "Action", List.of()));
+        final var importConfig = new ImportConfig(
+                "default", List.of("Selected"), "import", List.of(), List.of(), List.of(), "late-import", List.of());
+        final var driver = new RecordingDriver();
+
+        new RuntimeEngine(driver, new FileResolver())
+                .createByImport(
+                        runtimeDatabase(repository, tempDir.resolve("db"), List.of(), Map.of("default", importConfig)),
+                        "default",
+                        connection,
+                        sourceConnection,
+                        null,
+                        true,
+                        Map.of());
+
+        assertThat(driver.calls)
+                .anyMatch(call -> call.contains("[Selected].[item]"))
+                .noneMatch(call -> call.contains("LATE") || call.contains("Action.history"));
+    }
+
+    @Test
+    void timedCreateByImportWritesCanonicalNestedLifecycleAndSqlOperations(@TempDir final Path tempDir)
+            throws IOException {
         createFile(tempDir, "db/import-hooks/pre/pre.sql", "PRE\nGO\n\nGO\nPRE2");
         createFile(tempDir, "db/MyModule/import/MyModule.foo.sql", "EXPLICIT\nGO\nEXPLICIT2");
         createFile(tempDir, "db/import-hooks/post/post.sql", "POST");
@@ -236,7 +504,14 @@ final class RuntimeEngineTest {
                 Map.of("MyModule", tables("[MyModule].[foo]", "[MyModule].[bar]")),
                 Map.of("MyModule", List.of("[MyModule].[seq]")));
         final var importConfig = new ImportConfig(
-                "default", List.of("MyModule"), "import", List.of("import-hooks/pre"), List.of("import-hooks/post"));
+                "default",
+                List.of("MyModule"),
+                "import",
+                List.of("import-hooks/pre"),
+                List.of("import-hooks/post"),
+                List.of(),
+                null,
+                List.of());
         final var database = withShrinkOnImport(runtimeDatabase(
                 repository, tempDir.resolve("db"), List.of("defaultDataset"), Map.of("default", importConfig)));
         final var driver = new RecordingDriver(true);
@@ -245,7 +520,7 @@ final class RuntimeEngineTest {
         final var timing = new ImportTimingRecorder(output, () -> clock.getAndAdd(1_000L));
         final var engine = new RuntimeEngine(driver, new FileResolver(), ignored -> {}, timing);
 
-        engine.databaseImport(database, "default", connection, sourceConnection, null, Map.of());
+        engine.createByImport(database, "default", connection, sourceConnection, null, true, Map.of());
 
         assertThat(output.toString())
                 .contains(
@@ -255,7 +530,6 @@ final class RuntimeEngineTest {
                                 "sql-batch/import-hooks%2Fpre%2Fpre.sql/1", "sql-file/import-hooks%2Fpre%2Fpre.sql"),
                         observationParent(
                                 "sql-batch/import-hooks%2Fpre%2Fpre.sql/2", "sql-file/import-hooks%2Fpre%2Fpre.sql"),
-                        observationParent("table-clear/MyModule.bar", "module/import/MyModule"),
                         observationParent("table-transfer/MyModule.foo", "module/import/MyModule"),
                         observationParent(
                                 "sql-file/MyModule%2Fimport%2FMyModule.foo.sql", "table-transfer/MyModule.foo"),
@@ -271,7 +545,7 @@ final class RuntimeEngineTest {
                         observationParent("maintenance/post-shrink-reindex/MyModule.bar", "module/import/MyModule"),
                         observationParent("maintenance/database-update-statistics", "phase/data-import"),
                         observationParent("maintenance/database-update-usage", "phase/data-import"),
-                        "\"operation_id\":\"command/import\",\"parent_operation_id\":null,\"kind\":\"command\",\"status\":\"succeeded\"")
+                        "\"operation_id\":\"command/create-by-import\",\"parent_operation_id\":null,\"kind\":\"command\",\"status\":\"succeeded\"")
                 .doesNotContain(tempDir.toString(), "IMPORT_DB", "DBT_TEST", "secret");
     }
 
@@ -310,8 +584,15 @@ final class RuntimeEngineTest {
     @Test
     void timedImportAttachesSuccessfulSqlTimingTreeToActiveBatch(@TempDir final Path tempDir) throws IOException {
         createFile(tempDir, "db/import-hooks/pre/timing.sql", "TIMING");
-        final var importConfig =
-                new ImportConfig("default", List.of("MyModule"), "import", List.of("import-hooks/pre"), List.of());
+        final var importConfig = new ImportConfig(
+                "default",
+                List.of("MyModule"),
+                "import",
+                List.of("import-hooks/pre"),
+                List.of(),
+                List.of(),
+                null,
+                List.of());
         final var database = runtimeDatabase(
                 RepositoryConfigTestData.singleModule(),
                 tempDir.resolve("db"),
@@ -350,7 +631,7 @@ final class RuntimeEngineTest {
         final var timing = new ImportTimingRecorder(output, () -> clock.getAndAdd(1_000L));
         final var engine = new RuntimeEngine(driver, new FileResolver(), ignored -> {}, timing);
 
-        engine.databaseImport(database, "default", connection, sourceConnection, null, Map.of());
+        engine.createByImport(database, "default", connection, sourceConnection, null, true, Map.of());
 
         final var text = output.toString();
         assertThat(timingActivationCount).hasValue(1);
@@ -425,7 +706,7 @@ final class RuntimeEngineTest {
     }
 
     @Test
-    void timedImportFailureCompletesActiveSqlAndJavaAncestors(@TempDir final Path tempDir) {
+    void timedCreateByImportFailureCompletesActiveSqlAndJavaAncestors(@TempDir final Path tempDir) {
         final var database = runtimeDatabase(RepositoryConfigTestData.singleModule(), tempDir.resolve("db"));
         final var driver = new RecordingDriver() {
             @Override
@@ -453,8 +734,8 @@ final class RuntimeEngineTest {
         final var timing = new ImportTimingRecorder(output, () -> clock.getAndAdd(1_000L));
         final var engine = new RuntimeEngine(driver, new FileResolver(), ignored -> {}, timing);
 
-        assertThatThrownBy(
-                        () -> engine.databaseImport(database, "default", connection, sourceConnection, null, Map.of()))
+        assertThatThrownBy(() ->
+                        engine.createByImport(database, "default", connection, sourceConnection, null, true, Map.of()))
                 .isInstanceOf(RuntimeExecutionException.class)
                 .hasMessageContaining("Problem importing MyModule.foo")
                 .rootCause()
@@ -475,8 +756,8 @@ final class RuntimeEngineTest {
                                 "table-transfer/MyModule.foo", "sql_batch"),
                         failedObservation("table-transfer/MyModule.foo", "module/import/MyModule", "table_transfer"),
                         failedObservation("module/import/MyModule", "phase/data-import", "module"),
-                        failedObservation("phase/data-import", "command/import", "phase"),
-                        "\"operation_id\":\"command/import\",\"parent_operation_id\":null,\"kind\":\"command\",\"status\":\"failed\"");
+                        failedObservation("phase/data-import", "command/create-by-import", "phase"),
+                        "\"operation_id\":\"command/create-by-import\",\"parent_operation_id\":null,\"kind\":\"command\",\"status\":\"failed\"");
         assertThat(text.indexOf("analysis-corruption/Analysis/handwritten%2F1"))
                 .isLessThan(text.indexOf("phase/corruption-checks"));
         assertThat(text.indexOf("phase/final-validation"))
@@ -484,7 +765,8 @@ final class RuntimeEngineTest {
     }
 
     @Test
-    void importUsesRowSourceAndPreservesFixtureSqlStandardPrecedence(@TempDir final Path tempDir) throws IOException {
+    void createByImportUsesRowSourceAndPreservesFixtureSqlStandardPrecedence(@TempDir final Path tempDir)
+            throws IOException {
         createFile(tempDir, "db/MyModule/import/MyModule.foo.yml", "r1:\n  ID: 1\n");
         createFile(tempDir, "db/MyModule/import/MyModule.bar.sql", "EXPLICIT __TABLE__ __SOURCE__ __TARGET__");
         final var repository = singleModuleRepository(
@@ -497,13 +779,10 @@ final class RuntimeEngineTest {
         final var engine = new RuntimeEngine(driver, new FileResolver(), output::add);
         final var database = runtimeDatabase(repository, tempDir.resolve("db"));
 
-        engine.databaseImport(database, "default", connection, sourceConnection, null, Map.of());
+        engine.createByImport(database, "default", connection, sourceConnection, null, true, Map.of());
 
         assertThat(driver.calls)
                 .containsSubsequence(
-                        "execute(false):DELETE FROM [MyModule].[baz]",
-                        "execute(false):DELETE FROM [MyModule].[bar]",
-                        "execute(false):DELETE FROM [MyModule].[foo]",
                         "preTableImport(default,[MyModule].[foo])",
                         "preFixtureImport([MyModule].[foo])",
                         "insert([MyModule].[foo],{ID=1})",
@@ -533,8 +812,8 @@ final class RuntimeEngineTest {
             final var engine = new RuntimeEngine(driver, new FileResolver());
             final var database = runtimeDatabase(repository, searchDir);
 
-            assertThatThrownBy(() ->
-                            engine.databaseImport(database, "default", connection, sourceConnection, null, Map.of()))
+            assertThatThrownBy(() -> engine.createByImport(
+                            database, "default", connection, sourceConnection, null, true, Map.of()))
                     .isInstanceOf(RuntimeExecutionException.class)
                     .hasMessageContaining("Import Definition 'default'")
                     .hasMessageContaining("Deployment Row Source table 'MyModule.deployment'")
@@ -551,8 +830,8 @@ final class RuntimeEngineTest {
         final var engine = new RuntimeEngine(driver, new FileResolver());
         final var database = runtimeDatabase(repository, tempDir.resolve("db"));
 
-        assertThatThrownBy(() -> engine.databaseImport(
-                        database, "default", connection, sourceConnection, "MyModule.deployment", Map.of()))
+        assertThatThrownBy(() -> engine.createByImport(
+                        database, "default", connection, sourceConnection, "MyModule.deployment", true, Map.of()))
                 .isInstanceOf(RuntimeExecutionException.class)
                 .hasMessageContaining("Import Definition 'default'")
                 .hasMessageContaining("can not resume at Deployment Row Source table 'MyModule.deployment'");
@@ -570,7 +849,7 @@ final class RuntimeEngineTest {
                 Map.of("MyModule", List.of()));
         final var database = runtimeDatabase(repository, tempDir.resolve("db"));
 
-        engine.databaseImport(database, "default", connection, sourceConnection, "MyModule.bar", Map.of());
+        engine.createByImport(database, "default", connection, sourceConnection, "MyModule.bar", true, Map.of());
         assertThat(driver.calls)
                 .containsSubsequence(
                         "open(false)",
@@ -582,8 +861,8 @@ final class RuntimeEngineTest {
         assertThat(driver.calls).doesNotContain("execute(false):DELETE FROM [MyModule].[foo]");
 
         driver.calls.clear();
-        assertThatThrownBy(() -> engine.databaseImport(
-                        database, "default", connection, sourceConnection, "Missing.Table", Map.of()))
+        assertThatThrownBy(() -> engine.createByImport(
+                        database, "default", connection, sourceConnection, "Missing.Table", true, Map.of()))
                 .isInstanceOf(RuntimeExecutionException.class)
                 .hasMessageContaining("Partial import unable to be completed");
         assertThat(driver.calls).isEmpty();
@@ -603,7 +882,7 @@ final class RuntimeEngineTest {
         final var database = runtimeDatabase(repository, tempDir.resolve("db"));
 
         assertThatThrownBy(() -> new RuntimeEngine(driver, new FileResolver())
-                        .databaseImport(database, "default", connection, sourceConnection, null, Map.of()))
+                        .createByImport(database, "default", connection, sourceConnection, null, true, Map.of()))
                 .isInstanceOf(RuntimeExecutionException.class)
                 .hasMessageContaining("both Import Fixture")
                 .hasMessageContaining("MyModule.seq");
@@ -611,26 +890,31 @@ final class RuntimeEngineTest {
     }
 
     @Test
-    void standaloneImportUsesImportModuleOrderAndDeletesEachModuleBeforeImport(@TempDir final Path tempDir) {
+    void createByImportUsesConfiguredModuleOrder(@TempDir final Path tempDir) {
         final var driver = new RecordingDriver();
         final var engine = new RuntimeEngine(driver, new FileResolver());
         final var repository = RepositoryConfigTestData.twoModules();
-        final var importConfig =
-                new ImportConfig("custom", List.of("MyOtherModule", "MyModule"), "import", List.of(), List.of());
+        final var importConfig = new ImportConfig(
+                "custom",
+                List.of("MyOtherModule", "MyModule"),
+                "import",
+                List.of(),
+                List.of(),
+                List.of(),
+                null,
+                List.of());
         final var database =
                 runtimeDatabase(repository, tempDir.resolve("db"), List.of(), Map.of("custom", importConfig));
 
-        engine.databaseImport(database, "custom", connection, sourceConnection, null, Map.of());
+        engine.createByImport(database, "custom", connection, sourceConnection, null, true, Map.of());
 
         final var transcript = String.join("\n", driver.calls);
         assertThat(transcript)
                 .containsSubsequence(
-                        "execute(false):DELETE FROM [MyOtherModule].[bark]",
-                        "execute(false):DELETE FROM [MyOtherModule].[baz]",
+                        "createSchema(MyModule)",
+                        "createSchema(MyOtherModule)",
                         "preTableImport(custom,[MyOtherModule].[baz])",
                         "preTableImport(custom,[MyOtherModule].[bark])",
-                        "execute(false):DELETE FROM [MyModule].[bar]",
-                        "execute(false):DELETE FROM [MyModule].[foo]",
                         "preTableImport(custom,[MyModule].[foo])",
                         "preTableImport(custom,[MyModule].[bar])");
     }
@@ -642,8 +926,8 @@ final class RuntimeEngineTest {
         final var engine = new RuntimeEngine(driver, new FileResolver());
         final var database = runtimeDatabase(RepositoryConfigTestData.singleModule(), tempDir.resolve("db"));
 
-        assertThatThrownBy(
-                        () -> engine.databaseImport(database, "default", connection, sourceConnection, null, Map.of()))
+        assertThatThrownBy(() ->
+                        engine.createByImport(database, "default", connection, sourceConnection, null, true, Map.of()))
                 .isInstanceOf(RuntimeExecutionException.class)
                 .hasMessageContaining("Discovered additional files in import directory");
         assertThat(driver.calls).isEmpty();
@@ -760,7 +1044,17 @@ final class RuntimeEngineTest {
                 repository,
                 tempDir.resolve("db"),
                 List.of("defaultDataset"),
-                Map.of("default", new ImportConfig("default", repository.modules(), "import", List.of(), List.of())),
+                Map.of(
+                        "default",
+                        new ImportConfig(
+                                "default",
+                                repository.modules(),
+                                "import",
+                                List.of(),
+                                List.of(),
+                                List.of(),
+                                null,
+                                List.of())),
                 Map.of("tenant", new FilterPropertyConfig("__TENANT__", "tenant-0", List.of("tenant-7"))));
 
         engine.exportFixtures(
@@ -983,12 +1277,12 @@ final class RuntimeEngineTest {
                 Map.of("MyModule", List.of("[MyModule].[fooSeq]")));
         final var database = runtimeDatabase(repository, tempDir.resolve("db"));
 
-        engine.databaseImport(database, "default", connection, sourceConnection, null, Map.of());
+        engine.createByImport(database, "default", connection, sourceConnection, null, true, Map.of());
         assertThat(driver.calls).contains("updateSequence([MyModule].[fooSeq],23)");
     }
 
     @Test
-    void importUsesArtifactLocationsWhenImportFilesInZip(@TempDir final Path tempDir) {
+    void createByImportUsesArtifactLocationsWhenImportFilesInZip(@TempDir final Path tempDir) {
         final var driver = new RecordingDriver();
         final var output = new StringWriter();
         final var clock = new AtomicLong();
@@ -1022,13 +1316,22 @@ final class RuntimeEngineTest {
                 true,
                 false,
                 Map.of(),
-                Map.of("default", new ImportConfig("default", repository.modules(), "import", List.of(), List.of())));
+                Map.of(
+                        "default",
+                        new ImportConfig(
+                                "default",
+                                repository.modules(),
+                                "import",
+                                List.of(),
+                                List.of(),
+                                List.of(),
+                                null,
+                                List.of())),
+                List.of());
 
-        engine.databaseImport(database, "default", connection, sourceConnection, null, Map.of());
+        engine.createByImport(database, "default", connection, sourceConnection, null, true, Map.of());
         assertThat(driver.calls).contains("execute(true):SELECT IMPORT_DB DBT_TEST");
-        assertThat(output.toString())
-                .contains("\"operation_id\":\"sql-file/MyModule%2Fimport%2FMyModule.foo.sql\"")
-                .doesNotContain("post");
+        assertThat(output.toString()).contains("\"operation_id\":\"sql-file/MyModule%2Fimport%2FMyModule.foo.sql\"");
     }
 
     @Test
@@ -1041,7 +1344,17 @@ final class RuntimeEngineTest {
                 RepositoryConfigTestData.singleModule(),
                 tempDir.resolve("db"),
                 List.of("defaultDataset"),
-                Map.of("default", new ImportConfig("default", List.of("MyModule"), "import", List.of(), List.of())),
+                Map.of(
+                        "default",
+                        new ImportConfig(
+                                "default",
+                                List.of("MyModule"),
+                                "import",
+                                List.of(),
+                                List.of(),
+                                List.of(),
+                                null,
+                                List.of())),
                 Map.of(
                         "first", new FilterPropertyConfig("__A__", "A", List.of()),
                         "second", new FilterPropertyConfig("__B__", "B", List.of())));
@@ -1059,7 +1372,17 @@ final class RuntimeEngineTest {
                 RepositoryConfigTestData.singleModule(),
                 tempDir.resolve("db"),
                 List.of("defaultDataset"),
-                Map.of("default", new ImportConfig("default", List.of("MyModule"), "import", List.of(), List.of())),
+                Map.of(
+                        "default",
+                        new ImportConfig(
+                                "default",
+                                List.of("MyModule"),
+                                "import",
+                                List.of(),
+                                List.of(),
+                                List.of(),
+                                null,
+                                List.of())),
                 Map.of("mode", new FilterPropertyConfig("__MODE__", "bulk", List.of("bulk", "delta"))));
 
         assertThatThrownBy(() -> engine.create(database, connection, true, Map.of("unknown", "value")))
@@ -1075,7 +1398,17 @@ final class RuntimeEngineTest {
                 RepositoryConfigTestData.singleModule(),
                 tempDir.resolve("db"),
                 List.of("defaultDataset"),
-                Map.of("default", new ImportConfig("default", List.of("MyModule"), "import", List.of(), List.of())),
+                Map.of(
+                        "default",
+                        new ImportConfig(
+                                "default",
+                                List.of("MyModule"),
+                                "import",
+                                List.of(),
+                                List.of(),
+                                List.of(),
+                                null,
+                                List.of())),
                 Map.of("tenant", new FilterPropertyConfig("__TENANT__", null, List.of())));
 
         assertThatThrownBy(() -> engine.create(database, connection, true, Map.of()))
@@ -1091,7 +1424,17 @@ final class RuntimeEngineTest {
                 RepositoryConfigTestData.singleModule(),
                 tempDir.resolve("db"),
                 List.of("defaultDataset"),
-                Map.of("default", new ImportConfig("default", List.of("MyModule"), "import", List.of(), List.of())),
+                Map.of(
+                        "default",
+                        new ImportConfig(
+                                "default",
+                                List.of("MyModule"),
+                                "import",
+                                List.of(),
+                                List.of(),
+                                List.of(),
+                                null,
+                                List.of())),
                 Map.of("mode", new FilterPropertyConfig("__MODE__", "bulk", List.of("bulk", "delta"))));
 
         assertThatThrownBy(() -> engine.create(database, connection, true, Map.of("mode", "other")))
@@ -1107,7 +1450,17 @@ final class RuntimeEngineTest {
                 RepositoryConfigTestData.singleModule(),
                 tempDir.resolve("db"),
                 List.of("defaultDataset"),
-                Map.of("default", new ImportConfig("default", List.of("MyModule"), "import", List.of(), List.of())),
+                Map.of(
+                        "default",
+                        new ImportConfig(
+                                "default",
+                                List.of("MyModule"),
+                                "import",
+                                List.of(),
+                                List.of(),
+                                List.of(),
+                                null,
+                                List.of())),
                 Map.of("mode", new FilterPropertyConfig("__MODE__", "bulk", List.of("bulk", "delta"))));
 
         assertThatThrownBy(() -> engine.create(database, connection, true, Map.of("sourceDatabase", "override")))
@@ -1124,7 +1477,7 @@ final class RuntimeEngineTest {
         final var engine = new RuntimeEngine(driver, new FileResolver());
         final var database = runtimeDatabase(RepositoryConfigTestData.singleModule(), tempDir.resolve("db"));
 
-        engine.databaseImport(database, "default", connection, sourceConnection, null, Map.of());
+        engine.createByImport(database, "default", connection, sourceConnection, null, true, Map.of());
 
         assertThat(driver.calls).contains("execute(true):SELECT @@SOURCE@@ @@TARGET@@ IMPORT_DB DBT_TEST");
     }
@@ -1140,7 +1493,7 @@ final class RuntimeEngineTest {
         final var engine = new RuntimeEngine(driver, new FileResolver());
         final var database = runtimeDatabase(RepositoryConfigTestData.singleModule(), tempDir.resolve("db"));
 
-        engine.databaseImport(database, "default", connection, sourceConnection, null, Map.of());
+        engine.createByImport(database, "default", connection, sourceConnection, null, true, Map.of());
 
         assertThat(String.join("\n", driver.calls))
                 .doesNotContain("ASSERT_ROW_COUNT")
@@ -1215,7 +1568,17 @@ final class RuntimeEngineTest {
                 RepositoryConfigTestData.singleModule(),
                 tempDir.resolve("db"),
                 List.of("defaultDataset"),
-                Map.of("default", new ImportConfig("default", List.of("MyModule"), "import", List.of(), List.of())),
+                Map.of(
+                        "default",
+                        new ImportConfig(
+                                "default",
+                                List.of("MyModule"),
+                                "import",
+                                List.of(),
+                                List.of(),
+                                List.of(),
+                                null,
+                                List.of())),
                 Map.of(),
                 "Configured_Version_2");
 
@@ -1265,7 +1628,17 @@ final class RuntimeEngineTest {
                 RepositoryConfigTestData.singleModule(),
                 tempDir.resolve("db"),
                 List.of("defaultDataset"),
-                Map.of("default", new ImportConfig("default", List.of("MyModule"), "import", List.of(), List.of())),
+                Map.of(
+                        "default",
+                        new ImportConfig(
+                                "default",
+                                List.of("MyModule"),
+                                "import",
+                                List.of(),
+                                List.of(),
+                                List.of(),
+                                null,
+                                List.of())),
                 Map.of(),
                 "1");
 
@@ -1312,7 +1685,17 @@ final class RuntimeEngineTest {
                 repository,
                 resourceRoot,
                 datasets,
-                Map.of("default", new ImportConfig("default", repository.modules(), "import", List.of(), List.of())),
+                Map.of(
+                        "default",
+                        new ImportConfig(
+                                "default",
+                                repository.modules(),
+                                "import",
+                                List.of(),
+                                List.of(),
+                                List.of(),
+                                null,
+                                List.of())),
                 Map.of());
     }
 
@@ -1367,7 +1750,40 @@ final class RuntimeEngineTest {
                 true,
                 false,
                 filterProperties,
-                imports);
+                imports,
+                List.of());
+    }
+
+    private static RuntimeDatabase withContributions(
+            final RuntimeDatabase database, final List<String> contributionDirs) {
+        return new RuntimeDatabase(
+                database.repository(),
+                database.resourceRoot(),
+                database.preDbArtifacts(),
+                database.postDbArtifacts(),
+                database.indexFileName(),
+                database.upDirs(),
+                database.downDirs(),
+                database.finalizeDirs(),
+                database.preCreateDirs(),
+                database.postCreateDirs(),
+                database.fixtureDirName(),
+                database.datasetsDirName(),
+                database.preDatasetDirs(),
+                database.postDatasetDirs(),
+                database.datasets(),
+                database.migrationDir(),
+                database.version(),
+                database.schemaHash(),
+                database.dataPath(),
+                database.logPath(),
+                database.forceDrop(),
+                database.deleteBackupHistory(),
+                database.reindexOnImport(),
+                database.shrinkOnImport(),
+                database.filterProperties(),
+                database.imports(),
+                contributionDirs);
     }
 
     private static int indexOf(final List<String> values, final String expected) {
@@ -1402,7 +1818,7 @@ final class RuntimeEngineTest {
             final List<SqlTimingObservation> observations, final String expectedMessage) {
         final var timing = new ImportTimingRecorder(new StringWriter(), System::nanoTime);
         assertThatThrownBy(() -> timing.command(
-                        "command/import",
+                        "command/create-by-import",
                         () -> timing.run("sql-batch/file/1", "sql_batch", () -> {
                             timing.beginSqlBatch();
                             observations.forEach(timing::recordSqlObservation);
@@ -1439,7 +1855,8 @@ final class RuntimeEngineTest {
                 database.reindexOnImport(),
                 true,
                 database.filterProperties(),
-                database.imports());
+                database.imports(),
+                database.contributionDirs());
     }
 
     private static void createFile(final Path root, final String relativePath, final String content)

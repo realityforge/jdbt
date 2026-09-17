@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Objects;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -123,6 +124,40 @@ final class ProjectRuntimeLoaderTest {
                 new ProjectRuntimeLoader(tempDir).load().database().schemaHash();
 
         assertThat(secondHash).isNotEqualTo(firstHash);
+    }
+
+    @Test
+    void schemaHashIncludesContributionAndLateImportResources(@TempDir final Path tempDir) throws IOException {
+        writeFile(tempDir, "jdbt.yml", """
+            contributionDirs: [selected/contributions]
+            imports:
+              default:
+                preLateImportDirs: [import-hooks/pre-late]
+                lateImportDir: late-import
+            """);
+        writeFile(tempDir, "repository.yml", """
+            modules:
+              A:
+                tables: [{name: "[A].[Known]", columns: ["[ID]"], indexes: []}]
+                sequences: []
+            """);
+        writeFile(tempDir, "selected/contributions/action.sql", "SELECT 1");
+        writeFile(tempDir, "import-hooks/pre-late/reconcile.sql", "SELECT 2");
+        writeFile(tempDir, "A/late-import/A.Known.sql", "SELECT 3");
+
+        final var initialHash =
+                new ProjectRuntimeLoader(tempDir).load().database().schemaHash();
+        writeFile(tempDir, "selected/contributions/action.sql", "SELECT 4");
+        final var contributionHash =
+                new ProjectRuntimeLoader(tempDir).load().database().schemaHash();
+        writeFile(tempDir, "import-hooks/pre-late/reconcile.sql", "SELECT 5");
+        final var preLateHash =
+                new ProjectRuntimeLoader(tempDir).load().database().schemaHash();
+        writeFile(tempDir, "A/late-import/A.Known.sql", "SELECT 6");
+        final var lateHash = new ProjectRuntimeLoader(tempDir).load().database().schemaHash();
+
+        assertThat(List.of(initialHash, contributionHash, preLateHash, lateHash))
+                .doesNotHaveDuplicates();
     }
 
     @Test

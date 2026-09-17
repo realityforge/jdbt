@@ -8,6 +8,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import org.jspecify.annotations.Nullable;
 import org.realityforge.jdbt.files.FileResolver;
@@ -31,6 +32,12 @@ public final class DatabaseDataPackager {
                 .sorted()
                 .distinct()
                 .toList();
+        final var lateImportDirs = database.imports().values().stream()
+                .map(config -> config.lateImportDir())
+                .filter(Objects::nonNull)
+                .sorted()
+                .distinct()
+                .toList();
         final var datasetDirs = database.datasets().stream()
                 .map(dataset -> database.datasetsDirName() + '/' + dataset)
                 .toList();
@@ -45,6 +52,7 @@ public final class DatabaseDataPackager {
         moduleDirs.addAll(database.finalizeDirs());
         moduleDirs.add(database.fixtureDirName());
         moduleDirs.addAll(importDirs);
+        moduleDirs.addAll(lateImportDirs);
         moduleDirs.addAll(datasetDirs);
 
         for (final var moduleName : database.repository().modules()) {
@@ -60,7 +68,7 @@ public final class DatabaseDataPackager {
                             database.postDbArtifacts(),
                             database.preDbArtifacts());
                     copyFilesToDir(filesForKnownElements(database, moduleName, files, "yml"), targetDir);
-                } else if (importDirs.contains(relativeDirName)) {
+                } else if (importDirs.contains(relativeDirName) || lateImportDirs.contains(relativeDirName)) {
                     final var files = new ArrayList<ResourceFile>();
                     files.addAll(fileResolver.collectFiles(
                             database.resourceRoot(),
@@ -122,6 +130,7 @@ public final class DatabaseDataPackager {
         final var directories = new ArrayList<String>();
         directories.addAll(database.preCreateDirs());
         directories.addAll(database.postCreateDirs());
+        directories.addAll(database.contributionDirs());
 
         final var importKeys = database.imports().keySet().stream().sorted().toList();
         for (final var importKey : importKeys) {
@@ -129,6 +138,7 @@ public final class DatabaseDataPackager {
             if (null != importConfig) {
                 directories.addAll(importConfig.preImportDirs());
                 directories.addAll(importConfig.postImportDirs());
+                directories.addAll(importConfig.preLateImportDirs());
             }
         }
 

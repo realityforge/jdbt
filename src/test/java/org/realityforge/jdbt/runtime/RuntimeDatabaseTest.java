@@ -59,6 +59,17 @@ final class RuntimeDatabaseTest {
                 true,
                 false,
                 Map.of(),
-                Map.of("default", new ImportConfig("default", repository.modules(), "import", List.of(), List.of())));
+                Map.of(
+                        "default",
+                        new ImportConfig(
+                                "default",
+                                repository.modules(),
+                                "import",
+                                List.of(),
+                                List.of(),
+                                List.of(),
+                                null,
+                                List.of())),
+                List.of());
     }
 }

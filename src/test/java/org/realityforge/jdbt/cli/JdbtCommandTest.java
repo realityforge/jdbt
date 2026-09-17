@@ -175,52 +175,13 @@ final class JdbtCommandTest {
     }
 
     @Test
-    void importDispatchesWithTargetAndSourceConnectionsAndResumeAt() {
+    void importCommandIsNotExposed() {
         final var runner = new RecordingRunner();
         final var exitCode = JdbtCommand.execute(
-                new String[] {
-                    "import",
-                    "--import",
-                    "full",
-                    "--resume-at",
-                    "Core.Table",
-                    "--timing-output",
-                    "tmp/import-timing.ndjson",
-                    "--target-host",
-                    "thost",
-                    "--target-port",
-                    "1433",
-                    "--target-database",
-                    "tdb",
-                    "--target-username",
-                    "tuser",
-                    "--password-env",
-                    "T_PASS",
-                    "--source-host",
-                    "shost",
-                    "--source-port",
-                    "1432",
-                    "--source-database",
-                    "sdb",
-                    "--source-username",
-                    "suser",
-                    "--source-password-env",
-                    "S_PASS"
-                },
-                runner,
-                new PasswordResolver(
-                        Map.of("T_PASS", "target-secret", "S_PASS", "source-secret"),
-                        new ByteArrayInputStream(new byte[0])));
+                new String[] {"import"}, runner, new PasswordResolver(Map.of(), new ByteArrayInputStream(new byte[0])));
 
-        assertThat(exitCode).isZero();
-        assertThat(runner.lastCall).isEqualTo("import");
-        assertThat(runner.importKey).isEqualTo("full");
-        assertThat(runner.resumeAt).isEqualTo("Core.Table");
-        assertThat(runner.timingOutput).isEqualTo(Path.of("tmp/import-timing.ndjson"));
-        assertThat(runner.targetConnection)
-                .isEqualTo(new DatabaseConnection("thost", 1433, "tdb", "tuser", "target-secret"));
-        assertThat(runner.sourceConnection)
-                .isEqualTo(new DatabaseConnection("shost", 1432, "sdb", "suser", "source-secret"));
+        assertThat(exitCode).isEqualTo(JdbtCommand.USAGE_EXIT_CODE);
+        assertThat(runner.lastCall).isEmpty();
     }
 
     @Test
@@ -248,6 +209,8 @@ final class JdbtCommandTest {
                     "--source-username",
                     "suser",
                     "--source-password-stdin",
+                    "--resume-at",
+                    "Core.Table",
                     "--timing-output",
                     "timing.ndjson"
                 },
@@ -260,11 +223,12 @@ final class JdbtCommandTest {
         assertThat(runner.targetConnection.password()).isEqualTo("target");
         assertNotNull(runner.sourceConnection);
         assertThat(runner.sourceConnection.password()).isEqualTo("source");
+        assertThat(runner.resumeAt).isEqualTo("Core.Table");
         assertThat(runner.timingOutput).isEqualTo(Path.of("timing.ndjson"));
     }
 
     @Test
-    void timingOutputIsRejectedByCommandsOtherThanImportCommands() {
+    void timingOutputIsRejectedByCommandsOtherThanCreateByImport() {
         final var runner = new RecordingRunner();
 
         final var exitCode = JdbtCommand.execute(
@@ -594,23 +558,6 @@ final class JdbtCommandTest {
         public void migrate(final DatabaseConnection target, final Map<String, String> filterProperties) {
             this.lastCall = "migrate";
             this.targetConnection = target;
-            this.filterProperties = filterProperties;
-        }
-
-        @Override
-        public void databaseImport(
-                final @Nullable String importKey,
-                final DatabaseConnection target,
-                final DatabaseConnection source,
-                final @Nullable String resumeAt,
-                final @Nullable Path timingOutput,
-                final Map<String, String> filterProperties) {
-            this.lastCall = "import";
-            this.importKey = importKey;
-            this.targetConnection = target;
-            this.sourceConnection = source;
-            this.resumeAt = resumeAt;
-            this.timingOutput = timingOutput;
             this.filterProperties = filterProperties;
         }
 

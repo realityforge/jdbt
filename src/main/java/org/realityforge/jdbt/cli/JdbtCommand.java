@@ -25,7 +25,6 @@ import picocli.CommandLine.Model.CommandSpec;
             JdbtCommand.CreateWithDatasetCommand.class,
             JdbtCommand.DropCommand.class,
             JdbtCommand.MigrateCommand.class,
-            JdbtCommand.ImportCommand.class,
             JdbtCommand.CreateByImportCommand.class,
             JdbtCommand.LoadDatasetCommand.class,
             JdbtCommand.PackageDataCommand.class,
@@ -309,37 +308,6 @@ public final class JdbtCommand implements Callable<Integer> {
         @Override
         public Integer call() {
             runner().migrate(target.toConnection(passwordResolver()), filterProperties());
-            return 0;
-        }
-    }
-
-    @CommandLine.Command(name = "import", description = "Import data from source to target")
-    @SuppressWarnings("FieldCanBeFinal")
-    static final class ImportCommand extends BaseSqlCommand {
-        @CommandLine.Option(names = "--import", description = "Import key from jdbt.yml")
-        private @Nullable String importKey;
-
-        @CommandLine.Option(names = "--resume-at", description = "Resume import at table or sequence")
-        private @Nullable String resumeAt;
-
-        @CommandLine.Option(names = "--timing-output", description = "Write structured import timing to this path")
-        private @Nullable Path timingOutput;
-
-        @CommandLine.Mixin
-        private TargetConnectionOptions target = new TargetConnectionOptions();
-
-        @CommandLine.Mixin
-        private SourceConnectionOptions source = new SourceConnectionOptions();
-
-        @Override
-        public Integer call() {
-            runner().databaseImport(
-                            importKey,
-                            target.toConnection(passwordResolver()),
-                            source.toConnection(passwordResolver()),
-                            resumeAt,
-                            timingOutput,
-                            filterProperties());
             return 0;
         }
     }

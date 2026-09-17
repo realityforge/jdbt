@@ -44,7 +44,18 @@ final class RuntimeDatabaseFactoryTest {
                 true,
                 false,
                 Map.of("mode", new FilterPropertyConfig("__MODE__", "bulk", List.of("bulk", "delta"))),
-                Map.of("default", new ImportConfig("default", List.of("Core"), "import", List.of(), List.of())));
+                Map.of(
+                        "default",
+                        new ImportConfig(
+                                "default",
+                                List.of("Core"),
+                                "import",
+                                List.of(),
+                                List.of(),
+                                List.of(),
+                                null,
+                                List.of())),
+                List.of());
 
         final var runtimeDatabase = factory.from(database, repository, List.of(), List.of(), "hash", Path.of("dbRoot"));
 

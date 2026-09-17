@@ -181,6 +181,7 @@ final class ProjectRuntimeLoader {
         paths.addAll(database.finalizeDirs());
         paths.addAll(database.preCreateDirs());
         paths.addAll(database.postCreateDirs());
+        paths.addAll(database.contributionDirs());
         paths.add(database.fixtureDirName());
         paths.add(database.datasetsDirName());
         paths.addAll(database.preDatasetDirs());
@@ -190,6 +191,11 @@ final class ProjectRuntimeLoader {
             paths.add(importConfig.dir());
             paths.addAll(importConfig.preImportDirs());
             paths.addAll(importConfig.postImportDirs());
+            paths.addAll(importConfig.preLateImportDirs());
+            paths.addAll(importConfig.requiredFiles());
+            if (null != importConfig.lateImportDir()) {
+                paths.add(importConfig.lateImportDir());
+            }
         }
         for (final var configuredPath : paths) {
             final var path = Path.of(configuredPath);
@@ -254,6 +260,19 @@ final class ProjectRuntimeLoader {
             for (final var dir : importConfig.postImportDirs()) {
                 files.addAll(collectDirSet(database, dir));
             }
+            for (final var dir : importConfig.preLateImportDirs()) {
+                files.addAll(collectDirSet(database, dir));
+            }
+            if (null != importConfig.lateImportDir()) {
+                for (final var moduleName : importConfig.modules()) {
+                    files.addAll(collectElementFiles(database, moduleName, importConfig.lateImportDir(), "yml"));
+                    files.addAll(collectElementFiles(database, moduleName, importConfig.lateImportDir(), "sql"));
+                }
+            }
+        }
+
+        for (final var dir : database.contributionDirs()) {
+            files.addAll(collectDirSet(database, dir));
         }
 
         for (final var dir : database.postCreateDirs()) {

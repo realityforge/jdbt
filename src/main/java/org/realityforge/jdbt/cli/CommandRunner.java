@@ -20,14 +20,6 @@ interface CommandRunner {
 
     void migrate(DatabaseConnection target, Map<String, String> filterProperties);
 
-    void databaseImport(
-            @Nullable String importKey,
-            DatabaseConnection target,
-            DatabaseConnection source,
-            @Nullable String resumeAt,
-            @Nullable Path timingOutput,
-            Map<String, String> filterProperties);
-
     void createByImport(
             @Nullable String importKey,
             DatabaseConnection target,

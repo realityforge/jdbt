@@ -13,6 +13,7 @@ public final class JdbtProjectConfigLoader {
             "finalizeDirs",
             "preCreateDirs",
             "postCreateDirs",
+            "contributionDirs",
             "datasets",
             "datasetsDirName",
             "preDatasetDirs",
@@ -95,7 +96,8 @@ public final class JdbtProjectConfigLoader {
                 booleanDefault(body, "reindexOnImport", path, true),
                 booleanDefault(body, "shrinkOnImport", path, false),
                 filterProperties,
-                imports);
+                imports,
+                YamlMapSupport.optionalStringList(body, "contributionDirs", path, List.of()));
     }
 
     private static boolean booleanDefault(
@@ -219,7 +221,17 @@ public final class JdbtProjectConfigLoader {
             }
             final var path = databasePath + ".imports." + importKey;
             final var importNode = YamlMapSupport.toStringMap(importBody, path);
-            YamlMapSupport.assertKeys(importNode, Set.of("modules", "dir", "preImportDirs", "postImportDirs"), path);
+            YamlMapSupport.assertKeys(
+                    importNode,
+                    Set.of(
+                            "modules",
+                            "dir",
+                            "preImportDirs",
+                            "postImportDirs",
+                            "preLateImportDirs",
+                            "lateImportDir",
+                            "requiredFiles"),
+                    path);
 
             final var modules = YamlMapSupport.optionalStringList(importNode, "modules", path, repositoryModules);
             validateModulesExist(modules, repositoryModules, "import", importKey, databasePath);
@@ -236,7 +248,10 @@ public final class JdbtProjectConfigLoader {
                             YamlMapSupport.optionalStringList(
                                     importNode, "preImportDirs", path, DEFAULT_PRE_IMPORT_DIRS),
                             YamlMapSupport.optionalStringList(
-                                    importNode, "postImportDirs", path, DEFAULT_POST_IMPORT_DIRS)));
+                                    importNode, "postImportDirs", path, DEFAULT_POST_IMPORT_DIRS),
+                            YamlMapSupport.optionalStringList(importNode, "preLateImportDirs", path, List.of()),
+                            YamlMapSupport.optionalString(importNode, "lateImportDir", path),
+                            YamlMapSupport.optionalStringList(importNode, "requiredFiles", path, List.of())));
         }
         return Collections.unmodifiableMap(new LinkedHashMap<>(imports));
     }

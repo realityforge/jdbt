@@ -80,24 +80,6 @@ final class DefaultCommandRunner implements CommandRunner {
     }
 
     @Override
-    public void databaseImport(
-            final @Nullable String importKey,
-            final DatabaseConnection target,
-            final DatabaseConnection source,
-            final @Nullable String resumeAt,
-            final @Nullable Path timingOutput,
-            final Map<String, String> filterProperties) {
-        final var runtime = projectRuntimeLoader.load();
-        final var resolvedImport = resolveImportKey(runtime, importKey);
-        withImportTiming(
-                runtime,
-                timingOutput,
-                timing -> runtimeEngine(timing)
-                        .databaseImport(
-                                runtime.database(), resolvedImport, target, source, resumeAt, filterProperties));
-    }
-
-    @Override
     public void createByImport(
             final @Nullable String importKey,
             final DatabaseConnection target,

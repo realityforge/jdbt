@@ -14,7 +14,6 @@ This project keeps parity-first behavior with the Ruby reference while using Jav
   - `create-with-dataset`
   - `drop`
   - `migrate`
-  - `import`
   - `create-by-import`
   - `load-dataset`
   - `package-data`

@@ -8,7 +8,7 @@ This specification defines jdbt's opt-in structured timing output for a
 
 ## Requirements
 
-1. The `import` and `create-by-import` commands must enable timing only when passed `--timing-output <path>`. Without
+1. The `create-by-import` command must enable timing only when passed `--timing-output <path>`. Without
    that option, jdbt must not create timing output or change its human-readable output.
 2. An absolute timing path must be used directly, while a relative path must resolve from the
    [Database Project](../glossary/README.md#database-project). Jdbt must create missing parent directories and open or

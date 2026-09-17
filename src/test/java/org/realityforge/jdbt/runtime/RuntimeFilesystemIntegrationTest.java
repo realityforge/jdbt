@@ -71,7 +71,7 @@ final class RuntimeFilesystemIntegrationTest {
     }
 
     @Test
-    void importFailureCanBeResumedFromFailedTable(@TempDir final Path tempDir) throws IOException {
+    void createByImportFailureCanBeResumedFromFailedTable(@TempDir final Path tempDir) throws IOException {
         createFile(tempDir, "db/Core/load/Core.foo.sql", "first import");
         createFile(tempDir, "db/Core/load/Core.bar.sql", "FAIL second import");
         createFile(tempDir, "db/Core/load/Core.baz.sql", "third import");
@@ -80,15 +80,13 @@ final class RuntimeFilesystemIntegrationTest {
         final var engine = new RuntimeEngine(firstDriver, new FileResolver());
         final var database = runtimeDatabase(tempDir.resolve("db"), RowSource.IMPORT);
 
-        assertThatThrownBy(() -> engine.databaseImport(database, "custom", target, source, null, Map.of()))
+        assertThatThrownBy(() -> engine.createByImport(database, "custom", target, source, null, true, Map.of()))
                 .isInstanceOf(RuntimeExecutionException.class)
                 .hasMessageContaining("Problem importing Core.bar")
                 .hasMessageContaining("--resume-at=Core.bar");
         assertThat(firstDriver.transcript()).isEqualTo("""
             open target
-            sql:DELETE FROM [Core].[baz]
-            sql:DELETE FROM [Core].[bar]
-            sql:DELETE FROM [Core].[foo]
+            create-schema:Core
             pre-table:custom:[Core].[foo]
             sql:first import
             post-table:custom:[Core].[foo]
@@ -99,7 +97,7 @@ final class RuntimeFilesystemIntegrationTest {
 
         final var resumeDriver = new TranscriptDriver();
         new RuntimeEngine(resumeDriver, new FileResolver())
-                .databaseImport(database, "custom", target, source, "Core.bar", Map.of());
+                .createByImport(database, "custom", target, source, "Core.bar", true, Map.of());
 
         assertThat(resumeDriver.transcript()).isEqualTo("""
             open target
@@ -153,7 +151,18 @@ final class RuntimeFilesystemIntegrationTest {
                 true,
                 false,
                 Map.of(),
-                Map.of("custom", new ImportConfig("custom", repository.modules(), "load", List.of(), List.of())));
+                Map.of(
+                        "custom",
+                        new ImportConfig(
+                                "custom",
+                                repository.modules(),
+                                "load",
+                                List.of(),
+                                List.of(),
+                                List.of(),
+                                null,
+                                List.of())),
+                List.of());
     }
 
     private static void createFile(final Path root, final String relativePath, final String content)

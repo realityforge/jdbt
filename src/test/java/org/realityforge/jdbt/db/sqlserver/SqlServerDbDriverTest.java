@@ -391,7 +391,8 @@ final class SqlServerDbDriverTest {
         when(target.createStatement()).thenReturn(statement);
         final var driver = new SqlServerDbDriver((connection, controlDatabase) -> controlDatabase ? control : target);
         final var metadata = new DatabaseMetadata("1", "hash", null, null, false, true, false, false);
-        final var importConfig = new ImportConfig("default", List.of("Core"), "import", List.of(), List.of());
+        final var importConfig = new ImportConfig(
+                "default", List.of("Core"), "import", List.of(), List.of(), List.of(), null, List.of());
         driver.open(config, false);
 
         driver.preTableImport(metadata, importConfig, "[Core].[tbl]");
@@ -583,10 +584,12 @@ final class SqlServerDbDriverTest {
         driver.postFixtureImport("[dbo].[tbl]");
         final var metadata = new DatabaseMetadata("1", "hash", null, null, false, true, true, false);
         driver.preTableImport(
-                metadata, new ImportConfig("default", List.of(), "import", List.of(), List.of()), "[dbo].[tbl]");
+                metadata,
+                new ImportConfig("default", List.of(), "import", List.of(), List.of(), List.of(), null, List.of()),
+                "[dbo].[tbl]");
         driver.postTableImport(
                 metadata,
-                new ImportConfig("default", List.of(), "import", List.of(), List.of()),
+                new ImportConfig("default", List.of(), "import", List.of(), List.of(), List.of(), null, List.of()),
                 "[dbo].[tbl]",
                 ImportMaintenanceObserver.DIRECT);
 
@@ -622,7 +625,8 @@ final class SqlServerDbDriverTest {
         when(target.createStatement()).thenReturn(statement);
         final var driver = new SqlServerDbDriver((connection, controlDatabase) -> target);
         driver.open(config, false);
-        final var importConfig = new ImportConfig("default", List.of("Core"), "import", List.of(), List.of());
+        final var importConfig = new ImportConfig(
+                "default", List.of("Core"), "import", List.of(), List.of(), List.of(), null, List.of());
         final var noMaintenance = new DatabaseMetadata("1", "hash", null, null, false, true, false, false);
 
         driver.postDatabaseImport(noMaintenance, importConfig, ImportMaintenanceObserver.DIRECT);
@@ -669,7 +673,8 @@ final class SqlServerDbDriverTest {
         when(identityResult.getLong(1)).thenReturn(0L);
         final var driver = new SqlServerDbDriver((connection, controlDatabase) -> target);
         driver.open(config, false);
-        final var importConfig = new ImportConfig("default", List.of("Core"), "import", List.of(), List.of());
+        final var importConfig = new ImportConfig(
+                "default", List.of("Core"), "import", List.of(), List.of(), List.of(), null, List.of());
         final var metadata = new DatabaseMetadata("1", "hash", null, null, false, true, true, true);
         final var observed = new ArrayList<String>();
         final ImportMaintenanceObserver observer = (operation, subject, action) -> {

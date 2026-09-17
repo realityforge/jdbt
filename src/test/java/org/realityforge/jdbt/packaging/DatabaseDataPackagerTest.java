@@ -39,6 +39,9 @@ final class DatabaseDataPackagerTest {
         createFile(tempDir, "db/db-hooks/post/post.sql", "POST");
         createFile(tempDir, "db/import-hooks/pre/pre.sql", "IPRE");
         createFile(tempDir, "db/import-hooks/post/post.sql", "IPOST");
+        createFile(tempDir, "db/import-hooks/pre-late/reconcile.sql", "RECONCILE");
+        createFile(tempDir, "db/selected/contributions/action.sql", "CONTRIBUTION");
+        createFile(tempDir, "db/MyModule/late-import/MyModule.foo.sql", "LATE");
         createFile(tempDir, "db/datasets/seed/pre/pre.sql", "DSPRE");
         createFile(tempDir, "db/datasets/seed/post/post.sql", "DSPOST");
         createFile(tempDir, "db/migrations/001_a.sql", "M1");
@@ -52,10 +55,14 @@ final class DatabaseDataPackagerTest {
                         List.of("MyModule"),
                         "import",
                         List.of("import-hooks/pre"),
-                        List.of("import-hooks/post")));
+                        List.of("import-hooks/post"),
+                        List.of("import-hooks/pre-late"),
+                        "late-import",
+                        List.of()));
+        final var configuredDatabase = withContributions(database, List.of("selected/contributions"));
 
         final var output = tempDir.resolve("package");
-        new DatabaseDataPackager(new FileResolver()).packageDatabaseData(database, output);
+        new DatabaseDataPackager(new FileResolver()).packageDatabaseData(configuredDatabase, output);
 
         assertThat(Files.readString(output.resolve("MyModule/index.txt"))).isEqualTo("b.sql\na.sql");
         assertThat(Files.readString(output.resolve("MyModule/down/index.txt"))).isEqualTo("drop.sql");
@@ -67,6 +74,7 @@ final class DatabaseDataPackagerTest {
 
         assertThat(output.resolve("MyModule/import/MyModule.foo.sql")).exists();
         assertThat(output.resolve("MyModule/import/Unknown.sql")).doesNotExist();
+        assertThat(output.resolve("MyModule/late-import/MyModule.foo.sql")).exists();
 
         assertThat(output.resolve("MyModule/datasets/seed/MyModule.foo.yml")).exists();
         assertThat(output.resolve("MyModule/datasets/seed/Unknown.yml")).doesNotExist();
@@ -77,6 +85,10 @@ final class DatabaseDataPackagerTest {
                 .isEqualTo("pre.sql");
         assertThat(Files.readString(output.resolve("import-hooks/post/index.txt")))
                 .isEqualTo("post.sql");
+        assertThat(Files.readString(output.resolve("import-hooks/pre-late/index.txt")))
+                .isEqualTo("reconcile.sql");
+        assertThat(Files.readString(output.resolve("selected/contributions/index.txt")))
+                .isEqualTo("action.sql");
         assertThat(Files.readString(output.resolve("datasets/seed/pre/index.txt")))
                 .isEqualTo("pre.sql");
         assertThat(Files.readString(output.resolve("datasets/seed/post/index.txt")))
@@ -85,7 +97,7 @@ final class DatabaseDataPackagerTest {
 
         final var repositoryYaml = Files.readString(output.resolve("repository.yml"));
         final var loaded = new RepositoryConfigLoader().load(repositoryYaml, "repository.yml");
-        assertThat(loaded).isEqualTo(database.repository());
+        assertThat(loaded).isEqualTo(configuredDatabase.repository());
     }
 
     @Test
@@ -109,7 +121,10 @@ final class DatabaseDataPackagerTest {
                         List.of("MyModule"),
                         "import",
                         List.of("import-hooks/pre"),
-                        List.of("import-hooks/post")));
+                        List.of("import-hooks/post"),
+                        List.of(),
+                        null,
+                        List.of()));
 
         final var output = tempDir.resolve("package");
         new DatabaseDataPackager(new FileResolver()).packageDatabaseData(database, output);
@@ -128,9 +143,23 @@ final class DatabaseDataPackagerTest {
         createFile(tempDir, "db/import-hooks/post/c.sql", "C");
 
         final var alpha = new ImportConfig(
-                "alpha", List.of("MyModule"), "import", List.of("import-hooks/pre"), List.of("import-hooks/post"));
-        final var beta =
-                new ImportConfig("beta", List.of("MyModule"), "import", List.of("import-hooks/pre"), List.of());
+                "alpha",
+                List.of("MyModule"),
+                "import",
+                List.of("import-hooks/pre"),
+                List.of("import-hooks/post"),
+                List.of(),
+                null,
+                List.of());
+        final var beta = new ImportConfig(
+                "beta",
+                List.of("MyModule"),
+                "import",
+                List.of("import-hooks/pre"),
+                List.of(),
+                List.of(),
+                null,
+                List.of());
 
         final var first = runtimeDatabase(
                 repositoryConfig(), tempDir.resolve("db"), List.of(), List.of(), Map.of("alpha", alpha, "beta", beta));
@@ -171,7 +200,17 @@ final class DatabaseDataPackagerTest {
                 tempDir.resolve("db"),
                 List.of(),
                 List.of(),
-                Map.of("default", new ImportConfig("default", List.of("MyModule"), "import", List.of(), List.of())));
+                Map.of(
+                        "default",
+                        new ImportConfig(
+                                "default",
+                                List.of("MyModule"),
+                                "import",
+                                List.of(),
+                                List.of(),
+                                List.of(),
+                                null,
+                                List.of())));
 
         final var output = tempDir.resolve("package");
         new DatabaseDataPackager(new FileResolver()).packageDatabaseData(database, output);
@@ -230,7 +269,8 @@ final class DatabaseDataPackagerTest {
                 true,
                 false,
                 Map.of(),
-                imports);
+                imports,
+                List.of());
     }
 
     private static RepositoryConfig repositoryConfig() {
@@ -241,6 +281,38 @@ final class DatabaseDataPackagerTest {
                         "MyModule",
                         List.of(new RepositoryTable("[MyModule].[foo]", List.of("[ID]"), List.of(), RowSource.IMPORT))),
                 Map.of("MyModule", List.of()));
+    }
+
+    private static RuntimeDatabase withContributions(
+            final RuntimeDatabase database, final List<String> contributionDirs) {
+        return new RuntimeDatabase(
+                database.repository(),
+                database.resourceRoot(),
+                database.preDbArtifacts(),
+                database.postDbArtifacts(),
+                database.indexFileName(),
+                database.upDirs(),
+                database.downDirs(),
+                database.finalizeDirs(),
+                database.preCreateDirs(),
+                database.postCreateDirs(),
+                database.fixtureDirName(),
+                database.datasetsDirName(),
+                database.preDatasetDirs(),
+                database.postDatasetDirs(),
+                database.datasets(),
+                database.migrationDir(),
+                database.version(),
+                database.schemaHash(),
+                database.dataPath(),
+                database.logPath(),
+                database.forceDrop(),
+                database.deleteBackupHistory(),
+                database.reindexOnImport(),
+                database.shrinkOnImport(),
+                database.filterProperties(),
+                database.imports(),
+                contributionDirs);
     }
 
     private static void createFile(final Path root, final String relativePath, final String content)

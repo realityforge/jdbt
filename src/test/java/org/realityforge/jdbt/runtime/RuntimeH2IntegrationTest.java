@@ -90,7 +90,18 @@ final class RuntimeH2IntegrationTest {
                 true,
                 false,
                 Map.of(),
-                Map.of("custom", new ImportConfig("custom", repository.modules(), "load", List.of(), List.of())));
+                Map.of(
+                        "custom",
+                        new ImportConfig(
+                                "custom",
+                                repository.modules(),
+                                "load",
+                                List.of(),
+                                List.of(),
+                                List.of(),
+                                null,
+                                List.of())),
+                List.of());
     }
 
     private static void createFile(final Path root, final String relativePath, final String content)

@@ -26,7 +26,8 @@ public record DatabaseConfig(
         boolean reindexOnImport,
         boolean shrinkOnImport,
         Map<String, FilterPropertyConfig> filterProperties,
-        Map<String, ImportConfig> imports) {
+        Map<String, ImportConfig> imports,
+        List<String> contributionDirs) {
 
     public DatabaseConfig {
         upDirs = List.copyOf(upDirs);
@@ -39,5 +40,6 @@ public record DatabaseConfig(
         postDatasetDirs = List.copyOf(postDatasetDirs);
         filterProperties = Collections.unmodifiableMap(new LinkedHashMap<>(filterProperties));
         imports = Collections.unmodifiableMap(new LinkedHashMap<>(imports));
+        contributionDirs = List.copyOf(contributionDirs);
     }
 }

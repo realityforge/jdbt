@@ -31,7 +31,7 @@ final class DefaultCommandRunnerTest {
     private final DatabaseConnection source = new DatabaseConnection("127.0.0.1", 1433, "SRC", "sa", "secret");
 
     @Test
-    void statusCreateDropMigrateAndImportCommandsExecute(@TempDir final Path tempDir) throws IOException {
+    void statusCreateDropMigrateAndCreateByImportCommandsExecute(@TempDir final Path tempDir) throws IOException {
         writeFile(tempDir, "jdbt.yml", projectConfig());
         writeFile(tempDir, "repository.yml", repositoryConfig());
         writeFile(tempDir, "migrations/001_test.sql", "SELECT 1");
@@ -51,7 +51,6 @@ final class DefaultCommandRunnerTest {
         runner.createWithDataset(target, true, "seed", Map.of());
         runner.drop(target, Map.of());
         runner.migrate(target, Map.of());
-        runner.databaseImport(null, target, source, null, null, Map.of());
         runner.createByImport(null, target, source, null, true, null, Map.of());
         runner.loadDataset("seed", target, Map.of());
         runner.verifyConstraints(target, List.of("MyModule"), List.of(), Map.of());
@@ -122,12 +121,11 @@ final class DefaultCommandRunnerTest {
         final var driver = new RecordingDriver();
         final var runner = new DefaultCommandRunner(new ProjectRuntimeLoader(consumer), driver, new FileResolver());
 
-        runner.databaseImport("default", target, source, null, null, Map.of());
+        runner.createByImport("default", target, source, null, true, null, Map.of());
 
         assertThat(driver.transcript()).isEqualTo("""
             open target
             sql:artifact pre
-            sql:DELETE FROM [MyModule].[foo]
             pre-table:default:[MyModule].[foo]
             sql:artifact import SRC DB [MyModule].[foo]
             post-table:default:[MyModule].[foo]
@@ -183,12 +181,12 @@ final class DefaultCommandRunnerTest {
     }
 
     @Test
-    void databaseImportRequiresDefaultImportWhenImportNotProvided(@TempDir final Path tempDir) throws IOException {
+    void createByImportRequiresDefaultImportWhenImportNotProvided(@TempDir final Path tempDir) throws IOException {
         writeFile(tempDir, "jdbt.yml", projectConfigWithoutImports());
         writeFile(tempDir, "repository.yml", repositoryConfig());
         final var runner = createRunner(tempDir);
 
-        assertThatThrownBy(() -> runner.databaseImport(null, target, source, null, null, Map.of()))
+        assertThatThrownBy(() -> runner.createByImport(null, target, source, null, true, null, Map.of()))
                 .isInstanceOf(RuntimeExecutionException.class)
                 .hasMessageContaining("Unable to locate import definition by key");
     }
@@ -201,12 +199,12 @@ final class DefaultCommandRunnerTest {
         final var driver = new RecordingDriver();
         final var runner = new DefaultCommandRunner(new ProjectRuntimeLoader(tempDir), driver, new FileResolver());
 
-        runner.databaseImport(null, target, source, null, Path.of("evidence/import.ndjson"), Map.of());
+        runner.createByImport(null, target, source, null, true, Path.of("evidence/import.ndjson"), Map.of());
 
         assertThat(tempDir.resolve("evidence/import.ndjson"))
                 .content(StandardCharsets.UTF_8)
                 .doesNotContain("stale timing")
-                .contains("\"operation_id\":\"command/import\"")
+                .contains("\"operation_id\":\"command/create-by-import\"")
                 .contains("\"parent_operation_id\":null");
 
         final var absoluteOutput = tempDir.resolve("absolute/create.ndjson").toAbsolutePath();
@@ -225,8 +223,8 @@ final class DefaultCommandRunnerTest {
         final var driver = new RecordingDriver();
         final var runner = new DefaultCommandRunner(new ProjectRuntimeLoader(tempDir), driver, new FileResolver());
 
-        assertThatThrownBy(
-                        () -> runner.databaseImport(null, target, source, null, Path.of("timing-directory"), Map.of()))
+        assertThatThrownBy(() ->
+                        runner.createByImport(null, target, source, null, true, Path.of("timing-directory"), Map.of()))
                 .isInstanceOf(RuntimeExecutionException.class)
                 .hasMessage("Unable to open import timing output")
                 .hasNoCause();

@@ -40,7 +40,15 @@ final class StandardImportEmitterTest {
                 repository,
                 Map.of(
                         "selected",
-                        new ImportConfig("selected", List.of("Second", "First"), "import", List.of(), List.of())));
+                        new ImportConfig(
+                                "selected",
+                                List.of("Second", "First"),
+                                "import",
+                                List.of(),
+                                List.of(),
+                                List.of(),
+                                null,
+                                List.of())));
 
         final var output = new StandardImportEmitter(new SqlServerDbDriver())
                 .emit(database, "selected", Path.of("generated"), false);
@@ -181,7 +189,14 @@ final class StandardImportEmitterTest {
                                 Map.of(
                                         "default",
                                         new ImportConfig(
-                                                "default", List.of(unsafeModule), "import", List.of(), List.of()))),
+                                                "default",
+                                                List.of(unsafeModule),
+                                                "import",
+                                                List.of(),
+                                                List.of(),
+                                                List.of(),
+                                                null,
+                                                List.of()))),
                         "default",
                         Path.of("generated"),
                         false))
@@ -202,7 +217,10 @@ final class StandardImportEmitterTest {
     }
 
     private static Map<String, ImportConfig> imports() {
-        return Map.of("default", new ImportConfig("default", List.of("Core"), "import", List.of(), List.of()));
+        return Map.of(
+                "default",
+                new ImportConfig(
+                        "default", List.of("Core"), "import", List.of(), List.of(), List.of(), null, List.of()));
     }
 
     private static RuntimeDatabase database(
@@ -233,6 +251,7 @@ final class StandardImportEmitterTest {
                 true,
                 false,
                 Map.of(),
-                imports);
+                imports,
+                List.of());
     }
 }

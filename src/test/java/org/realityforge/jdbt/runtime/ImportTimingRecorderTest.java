@@ -18,11 +18,11 @@ final class ImportTimingRecorderTest {
         final var output = new StringWriter();
         final var recorder = new ImportTimingRecorder(output, clock(0L, 1_000L, 4_000L, 10_000L));
 
-        recorder.command("command/import", () -> recorder.run("phase/data-import", "phase", () -> {}));
+        recorder.command("command/create-by-import", () -> recorder.run("phase/data-import", "phase", () -> {}));
 
         assertThat(output.toString()).isEqualTo("""
-            {"schema_version":1,"sequence":1,"operation_id":"phase/data-import","parent_operation_id":"command/import","kind":"phase","status":"succeeded","elapsed_microseconds":3}
-            {"schema_version":1,"sequence":2,"operation_id":"command/import","parent_operation_id":null,"kind":"command","status":"succeeded","elapsed_microseconds":10}
+            {"schema_version":1,"sequence":1,"operation_id":"phase/data-import","parent_operation_id":"command/create-by-import","kind":"phase","status":"succeeded","elapsed_microseconds":3}
+            {"schema_version":1,"sequence":2,"operation_id":"command/create-by-import","parent_operation_id":null,"kind":"command","status":"succeeded","elapsed_microseconds":10}
             """);
     }
 
@@ -33,7 +33,7 @@ final class ImportTimingRecorderTest {
         final var failure = new IllegalStateException("database failure");
 
         assertThatThrownBy(() -> recorder.command(
-                        "command/import",
+                        "command/create-by-import",
                         () -> recorder.run("phase/data-import", "phase", () -> {
                             throw failure;
                         })))
@@ -43,7 +43,7 @@ final class ImportTimingRecorderTest {
                 .containsSubsequence(
                         "\"operation_id\":\"phase/data-import\"",
                         "\"status\":\"failed\"",
-                        "\"operation_id\":\"command/import\"",
+                        "\"operation_id\":\"command/create-by-import\"",
                         "\"status\":\"failed\"");
     }
 
@@ -52,7 +52,7 @@ final class ImportTimingRecorderTest {
         final var recorder = new ImportTimingRecorder(new FailingWriter(), clock(0L, 1_000L));
         final var failure = new IllegalStateException("database failure");
 
-        assertThatThrownBy(() -> recorder.command("command/import", () -> {
+        assertThatThrownBy(() -> recorder.command("command/create-by-import", () -> {
                     throw failure;
                 }))
                 .isSameAs(failure);
@@ -70,7 +70,7 @@ final class ImportTimingRecorderTest {
         final var primary = new IllegalStateException("database failure");
 
         assertThatThrownBy(() -> recorder.command(
-                        "command/import",
+                        "command/create-by-import",
                         () -> recorder.run("sql-batch/file/1", "sql_batch", () -> {
                             recorder.beginSqlBatch();
                             recorder.recordSqlObservation(new SqlTimingObservation(
@@ -101,9 +101,9 @@ final class ImportTimingRecorderTest {
         final var output = new StringWriter();
         final var recorder = new ImportTimingRecorder(output, clock(0L, 1_000L, 2_000L));
 
-        recorder.command("command/import", () -> {});
+        recorder.command("command/create-by-import", () -> {});
 
-        assertThatThrownBy(() -> recorder.command("command/import", () -> {}))
+        assertThatThrownBy(() -> recorder.command("command/create-by-import", () -> {}))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Duplicate import timing operation ID");
         assertThat(ImportTimingRecorder.component("db-hooks/final/100% café.sql"))

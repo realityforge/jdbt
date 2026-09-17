@@ -43,6 +43,7 @@ public final class RuntimeDatabaseFactory {
                 database.reindexOnImport(),
                 database.shrinkOnImport(),
                 database.filterProperties(),
-                database.imports());
+                database.imports(),
+                database.contributionDirs());
     }
 }

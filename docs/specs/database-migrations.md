@@ -16,8 +16,9 @@ executes, and records [Migrations](../glossary/README.md#migration) in a target 
    older jdbt version without checksums is incompatible and must be rejected.
 5. Jdbt must acquire an exclusive target-database migration lock before inspecting or changing Migration State. A
    concurrent migration operation that cannot acquire the lock must fail without executing a Migration.
-6. Database creation must initialize Migration State with every current Migration without executing the Migration
-   files, because the newly created schema already represents those changes.
+6. Database creation must initialize Migration State with every current Migration after structural finalization and
+   before post-create hooks, without executing the Migration files, because the newly created schema already represents
+   those changes.
 7. An explicit migration operation with no Migration files must fail before opening the target database.
 8. When Migration State does not exist, jdbt must read the live target database's `DatabaseSchemaVersion`, find the
    matching [Release Migration](../glossary/README.md#release-migration), and atomically initialize Migration State

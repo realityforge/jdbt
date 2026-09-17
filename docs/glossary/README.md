@@ -32,6 +32,10 @@ The single local filesystem tree selected by `resourceRoot`. Jdbt resolves proje
 
 A resolved database asset backed either by a file beneath the [Resource Root](#resource-root) or an entry in a [Database Artifact](#database-artifact). Its origin, logical path, display name, and content remain typed runtime data rather than an encoded path string.
 
+### Database Contribution
+
+An ordered database-level directory of SQL resources that establishes deployment-owned data after ordinary data or dataset establishment and before structural finalization. Contributions run once during fresh, dataset-backed, and import-backed creation, but not during Migration or late-table import recovery.
+
 ### Database Statistics Export
 
 A deterministic CSV observation of approximate row counts and physical used-page counts for every table and physical index declared by [Repository Metadata](#repository-metadata). It validates the live database against the modeled identities and excludes database-only objects.
@@ -61,7 +65,7 @@ A named entry under `imports` in `jdbt.yml`. It selects ordered [Database Module
 
 ### Database Import
 
-The runtime operation that transfers rows and sequence positions from a source database to a target database according to an [Import Definition](#import-definition). Use this term when distinguishing the operation from its configuration or files.
+The create-by-import phase that transfers rows and sequence positions from a source database to a target database according to an [Import Definition](#import-definition). Jdbt exposes no standalone import command.
 
 ### Standard Import
 
@@ -70,6 +74,10 @@ The generated fallback for an [Import Row Source](#import-row-source) table or s
 ### Explicit Import SQL
 
 A per-table or per-sequence `.sql` file in an [Import Definition](#import-definition) directory. For an [Import Row Source](#import-row-source) object it overrides [Standard Import](#standard-import).
+
+### Late Import
+
+The single import of an [Import Row Source](#import-row-source) table deferred from the ordinary table-transfer phase until after [Database Contributions](#database-contribution) and import-only pre-late hooks. It still runs before structural finalization. A late table has an explicit SQL or YAML asset in its Import Definition's `lateImportDir` and cannot also have an ordinary explicit import asset.
 
 ### Standard Import Script
 
