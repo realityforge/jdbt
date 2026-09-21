@@ -38,3 +38,9 @@ published, and jdbt replaces the provisional local override with the exact integ
 - Implementation review round 2 reported `Findings: none` after rechecking all round-1 corrections and approved exact
   rules commit `a17824473bedba10fb530e831fe4e190ed67c56d`. At the time of approval the public GitHub repository did not exist and
   the local rules repository had no remote, so no unreviewed state had been published.
+- The public repository was created at `https://github.com/realityforge/rules_palantir_java_format`, with `main`, the
+  accepted description, issues enabled, wiki/projects disabled, and immutable releases verified enabled before any
+  tag. Initial hosted run `35666545537` found Windows buildifier-runfiles and GNU tar `pipefail` portability defects;
+  release remained blocked and no tag was created.
+- Rules commit `8b5d302` corrects both hosted failures. The rules full gate and jdbt full gate passed against that exact
+  local candidate; the required same-reviewer round 3 is pending before it is pushed or tagged.

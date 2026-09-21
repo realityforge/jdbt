@@ -39,6 +39,9 @@ provenance workflow, and BCR-ready metadata make the local rules repository read
 - Rules commits `00a4773` (`feat: prepare portable formatter release`), `2813316` (`fix: normalize smoke lockfile
   mode`), and `a178244` (`fix: enforce reviewed release readiness`) add the isolated consumer, portability correction,
   CI, documentation, archive tooling, provenance release, and BCR templates.
+- Rules commit `8b5d302` (`fix: make release gates cross-platform`) replaces the buildifier macro's broken
+  manifest-runfiles Windows wrapper with the pinned executable's direct check mode and avoids GNU tar `SIGPIPE` under
+  `pipefail` by validating a materialized archive manifest.
 - The first consumer build exposed two hidden generated-protocol dependencies: Bazel's internal worker proto leaked an
   unresolved `grpc-java` mapping, and a locally generated replacement invoked native protobuf tooling that failed
   under current Xcode. A focused private codec now implements Bazel's canonical protobuf worker wire fields directly;
@@ -52,6 +55,10 @@ provenance workflow, and BCR-ready metadata make the local rules repository read
   with Bazel 9; strict Maven locking and tracked-state validation remain enabled on every lane.
 - The CI workflow defines ten required, non-allowed-failure lanes: Java 17 with Bazel 8.4/9.2 on Ubuntu, macOS Intel,
   macOS arm64, and Windows, plus Java 21/25 with Bazel 9.2 on Ubuntu. Hosted results remain a T06 publication gate.
+- Hosted run `35666545537` exposed the two cross-platform gate defects above: both Windows lanes failed resolving the
+  buildifier executable from generated runfiles, while all Ubuntu lanes failed after successful build/test/smoke work
+  when GNU tar received a closed pipeline. The formatter tests and four macOS lanes passed. Both fixes then passed the
+  rules and jdbt full local gates before another review round.
 - The setup-bazel action is pinned to commit `8cb04a772ab4c1eb984e9c1b493a182e96c5e425`, verified as tag `0.19.0`.
   Release preflight requires the semantic-version tag, explicitly reviewed SHA, and current `origin/main` to be the
   same commit, then queries the successful push CI run and requires each of the ten named matrix jobs exactly once.
