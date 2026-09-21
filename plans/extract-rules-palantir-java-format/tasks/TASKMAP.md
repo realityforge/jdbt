@@ -5,8 +5,8 @@
 - Current frontier: `T06 public release and archive migration`
 - Planning reviewer: `/root/extraction_planning_reviewer` (`2/3` rounds, `Findings: none`)
 - Plan checkpoint: `automatic` (confirmed `$grill-me` understanding and passing planning review)
-- Implementation reviewer: `/root/implementation_reviewer` (`2/5` rounds; prior `Findings: none`; hosted-CI fixes in
-  rules commit `8b5d302` passed both local gates and require round 3 before push/tag)
+- Implementation reviewer: `/root/implementation_reviewer` (`3/5` rounds; `Findings: none`; approved rules commit
+  `8b5d30285011baad90fe91f66acb98a96290429f`)
 
 ## Full-scope validation
 

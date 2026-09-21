@@ -43,4 +43,6 @@ published, and jdbt replaces the provisional local override with the exact integ
   tag. Initial hosted run `35666545537` found Windows buildifier-runfiles and GNU tar `pipefail` portability defects;
   release remained blocked and no tag was created.
 - Rules commit `8b5d302` corrects both hosted failures. The rules full gate and jdbt full gate passed against that exact
-  local candidate; the required same-reviewer round 3 is pending before it is pushed or tagged.
+  local candidate. Same-reviewer round 3 reported `Findings: none` and approved exact commit
+  `8b5d30285011baad90fe91f66acb98a96290429f` before it was pushed or tagged; the replacement hosted matrix remains the
+  release gate.
