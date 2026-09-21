@@ -1,6 +1,6 @@
 # T02 — Public persistent format check
 
-- Status: `pending`
+- Status: `in_progress`
 - Blocked by: `T01`
 - Spec coverage: `R1`, `R4`, `R5`; `AC1`, `AC2`, `AC5`
 
