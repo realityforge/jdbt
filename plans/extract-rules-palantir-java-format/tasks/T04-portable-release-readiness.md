@@ -1,6 +1,6 @@
 # T04 — Portable consumer, CI, and release readiness
 
-- Status: `pending`
+- Status: `in_progress`
 - Blocked by: `T02`, `T03`
 - Spec coverage: `R5`, `R6`, `R7`, `R9`; `AC1`, `AC5`, `AC6`, `AC7`, `AC11`, `AC14`
 
