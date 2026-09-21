@@ -8,6 +8,7 @@ common --tool_java_runtime_version=remotejdk_17
 
 build --nojava_header_compilation
 build --experimental_strict_java_deps=error
+build --@protobuf//bazel/toolchains:prefer_prebuilt_protoc=true
 test --explicit_java_test_deps
 
 # Generate the symlink tree as a peer directory

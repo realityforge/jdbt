@@ -1,6 +1,6 @@
 # T02 — Persistent worker protocol and fallback
 
-- Status: `pending`
+- Status: `complete`
 - Blocked by: `T01`
 - Spec coverage: `R3`, `R4`, `R7`; `AC5`, `AC9`
 
@@ -12,13 +12,13 @@ parameter file when persistent-worker mode is not selected.
 
 ## Acceptance criteria
 
-- [ ] Protobuf 33.4 is a direct `dev_dependency`; Java protocol classes are generated locally from Bazel's canonical
+- [x] Protobuf 33.4 is a direct `dev_dependency`; Java protocol classes are generated locally from Bazel's canonical
   worker schema using prebuilt `protoc`, without hand-written wire handling or checked-in generated source.
-- [ ] The worker recognizes `--persistent_worker`, keeps protocol stdout clean, preserves request IDs, reports dirty
+- [x] The worker recognizes `--persistent_worker`, keeps protocol stdout clean, preserves request IDs, reports dirty
   workspace-relative filenames and remediation, writes the declared marker only on success, and exits cleanly at EOF.
-- [ ] One formatter is constructed outside the single-request loop; multiplexing and concurrent formatting are absent.
-- [ ] Non-worker invocation expands the final `@params` file and performs the identical immutable check once.
-- [ ] The protocol/tool source package is development-only and does not make protobuf necessary to load or build jdbt
+- [x] One formatter is constructed outside the single-request loop; multiplexing and concurrent formatting are absent.
+- [x] Non-worker invocation expands the final `@params` file and performs the identical immutable check once.
+- [x] The protocol/tool source package is development-only and does not make protobuf necessary to load or build jdbt
   product targets from a consuming module.
 
 ## Validation
@@ -31,4 +31,11 @@ parameter file when persistent-worker mode is not selected.
 
 ## Evidence
 
-- `pending`
+- `bazel test //tools/java-format/src/test/java/org/realityforge/jdbt/tools/javaformat:javaformat_tests` — passed
+  clean/dirty/cancelled protocol requests, request IDs, EOF, marker behavior, diagnostics, and local parameter expansion.
+- `bazel run //tools/java-format:palantir_java_format_worker -- @/tmp/jdbt-worker.params` — clean direct fallback
+  invocation exited zero and created an empty declared marker.
+- External Bazel 9.2 consumer with jdbt's documented rules_java patch queried and built
+  `@jdbt//src/main/java/org/realityforge/jdbt/config:config` without the development-only protobuf mapping.
+- `tools/update_java_deps.sh --check` — passed.
+- `tools/check.sh` — passed; 10 tests passed, line coverage 89.49%, branch coverage 78.60%.

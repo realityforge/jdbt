@@ -1,3 +1,4 @@
+load("@protobuf//bazel:java_proto_library.bzl", "java_proto_library")
 load("//third_party/java:rules.bzl", "java_binary", "java_library")
 load("//tools/java-format:defs.bzl", "PALANTIR_JVM_FLAGS")
 
@@ -19,4 +20,26 @@ java_binary(
     jvm_flags = PALANTIR_JVM_FLAGS,
     main_class = "org.realityforge.jdbt.tools.javaformat.PalantirJavaFormatMain",
     runtime_deps = [":javaformat"],
+)
+
+java_proto_library(
+    name = "worker_protocol_java",
+    deps = ["@bazel_tools//src/main/protobuf:worker_protocol_proto"],
+)
+
+java_library(
+    name = "worker",
+    srcs = ["PalantirJavaFormatWorkerMain.java"],
+    deps = [
+        ":javaformat",
+        ":worker_protocol_java",
+        "//tools/java-format:com_palantir_javaformat__palantir_java_format_spi",
+    ],
+)
+
+java_binary(
+    name = "palantir_java_format_worker",
+    jvm_flags = PALANTIR_JVM_FLAGS,
+    main_class = "org.realityforge.jdbt.tools.javaformat.PalantirJavaFormatWorkerMain",
+    runtime_deps = [":worker"],
 )

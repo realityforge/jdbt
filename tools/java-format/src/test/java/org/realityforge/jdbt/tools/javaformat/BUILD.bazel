@@ -8,6 +8,7 @@ junit5_test(
     srcs = [
         "PalantirFormatterTest.java",
         "PalantirJavaFormatMainTest.java",
+        "PalantirJavaFormatWorkerMainTest.java",
         "package-info.java",
     ],
     jvm_flags = PALANTIR_JVM_FLAGS,
@@ -16,5 +17,7 @@ junit5_test(
         "//third_party/java:assertj_core",
         "//tools/java-format:com_palantir_javaformat__palantir_java_format_spi",
         "//tools/java-format/src/main/java/org/realityforge/jdbt/tools/javaformat",
+        "//tools/java-format/src/main/java/org/realityforge/jdbt/tools/javaformat:worker",
+        "//tools/java-format/src/main/java/org/realityforge/jdbt/tools/javaformat:worker_protocol_java",
     ],
 )

@@ -205,3 +205,8 @@ alias(
     name = "java_format",
     actual = "//tools/java-format/src/main/java/org/realityforge/jdbt/tools/javaformat:java_format",
 )
+
+alias(
+    name = "palantir_java_format_worker",
+    actual = "//tools/java-format/src/main/java/org/realityforge/jdbt/tools/javaformat:palantir_java_format_worker",
+)
