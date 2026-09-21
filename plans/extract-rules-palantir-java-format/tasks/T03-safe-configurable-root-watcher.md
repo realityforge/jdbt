@@ -1,6 +1,6 @@
 # T03 — Safe configurable-root watcher
 
-- Status: `pending`
+- Status: `in_progress`
 - Blocked by: `T01`
 - Spec coverage: `R3`, `R4`; `AC4`
 

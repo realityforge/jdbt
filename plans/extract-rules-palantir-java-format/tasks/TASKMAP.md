@@ -2,7 +2,7 @@
 
 - Spec: [`SPEC.md`](../SPEC.md)
 - Status: `implementing`
-- Current frontier: `T02`
+- Current frontier: `T03`
 - Planning reviewer: `/root/extraction_planning_reviewer` (`2/3` rounds, `Findings: none`)
 - Plan checkpoint: `automatic` (confirmed `$grill-me` understanding and passing planning review)
 - Implementation reviewer: `pending` (`0/5` rounds)
@@ -18,8 +18,8 @@
 | ID | Task | Status | Blocked by |
 | --- | --- | --- | --- |
 | `T01` | [`Rules repository foundation and one-shot formatter`](T01-rules-repository-foundation.md) | `complete` | None |
-| `T02` | [`Public persistent format check`](T02-public-persistent-format-check.md) | `in_progress` | `T01` |
-| `T03` | [`Safe configurable-root watcher`](T03-safe-configurable-root-watcher.md) | `pending` | `T01` |
+| `T02` | [`Public persistent format check`](T02-public-persistent-format-check.md) | `complete` | `T01` |
+| `T03` | [`Safe configurable-root watcher`](T03-safe-configurable-root-watcher.md) | `in_progress` | `T01` |
 | `T04` | [`Portable consumer, CI, and release readiness`](T04-portable-release-readiness.md) | `pending` | `T02`, `T03` |
 | `T05` | [`Provisional jdbt hard-cut migration`](T05-provisional-jdbt-migration.md) | `pending` | `T04` |
 | `T06` | [`Public v0.1.0 and released-archive migration`](T06-release-and-archive-migration.md) | `pending` | `T05`, prepublication review |
