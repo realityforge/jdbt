@@ -1,6 +1,6 @@
 # T06 — Public v0.1.0 and released-archive migration
 
-- Status: `pending`
+- Status: `in_progress`
 - Blocked by: `T05`, prepublication review
 - Spec coverage: `R6`, `R7`, `R8`, `R9`, `R10`; `AC6`, `AC7`, `AC10`, `AC11`, `AC12`, `AC14`
 
@@ -11,7 +11,7 @@ published, and jdbt replaces the provisional local override with the exact integ
 
 ## Acceptance criteria
 
-- [ ] Prepublication implementation review reports `Findings: none` and records the exact approved rules commit SHA
+- [x] Prepublication implementation review reports `Findings: none` and records the exact approved rules commit SHA
   before the GitHub repository is created or pushed.
 - [ ] Public `realityforge/rules_palantir_java_format` is created on `main` with the accepted description/features and
   reviewed commits; repository CI completes the full required matrix successfully.
@@ -35,4 +35,6 @@ published, and jdbt replaces the provisional local override with the exact integ
 
 ## Evidence
 
-- `pending`
+- Implementation review round 2 reported `Findings: none` after rechecking all round-1 corrections and approved exact
+  rules commit `a17824473bedba10fb530e831fe4e190ed67c56d`. At the time of approval the public GitHub repository did not exist and
+  the local rules repository had no remote, so no unreviewed state had been published.

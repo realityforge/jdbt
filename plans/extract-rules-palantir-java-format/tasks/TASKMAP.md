@@ -1,12 +1,12 @@
 # Task Map
 
 - Spec: [`SPEC.md`](../SPEC.md)
-- Status: `reviewing`
-- Current frontier: `prepublication implementation re-review`
+- Status: `in_progress`
+- Current frontier: `T06 public release and archive migration`
 - Planning reviewer: `/root/extraction_planning_reviewer` (`2/3` rounds, `Findings: none`)
 - Plan checkpoint: `automatic` (confirmed `$grill-me` understanding and passing planning review)
-- Implementation reviewer: `/root/implementation_reviewer` (`1/5` rounds; four findings resolved in rules commit
-  `a178244`, findings-free re-review pending)
+- Implementation reviewer: `/root/implementation_reviewer` (`2/5` rounds; `Findings: none`; approved rules commit
+  `a17824473bedba10fb530e831fe4e190ed67c56d`)
 
 ## Full-scope validation
 
