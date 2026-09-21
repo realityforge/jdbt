@@ -1,0 +1,38 @@
+# T06 — Public v0.1.0 and released-archive migration
+
+- Status: `pending`
+- Blocked by: `T05`, prepublication review
+- Spec coverage: `R6`, `R7`, `R8`, `R9`, `R10`; `AC6`, `AC7`, `AC10`, `AC11`, `AC12`, `AC14`
+
+## Delivers
+
+The reviewed rules repository is public, its required GitHub matrix is green, immutable `v0.1.0` and provenance are
+published, and jdbt replaces the provisional local override with the exact integrity-pinned release archive.
+
+## Acceptance criteria
+
+- [ ] Prepublication implementation review reports `Findings: none` and records the exact approved rules commit SHA
+  before the GitHub repository is created or pushed.
+- [ ] Public `realityforge/rules_palantir_java_format` is created on `main` with the accepted description/features and
+  reviewed commits; repository CI completes the full required matrix successfully.
+- [ ] Repository immutable releases are enabled before publication; issues are enabled and wiki/projects are disabled.
+- [ ] The release tag points to the recorded reviewer-approved SHA; any tracked CI-driven fix reruns both local gates and
+  receives another findings-free round from the same reviewer before tagging.
+- [ ] Release workflow publishes deterministic immutable `v0.1.0`, expected archive/prefix and provenance; independent
+  download verifies integrity and extracted smoke consumption.
+- [ ] No BCR PR or registry fork is created; templates and future automation remain present for later use.
+- [ ] Jdbt replaces only `local_path_override` with `bazel_dep` 0.1.0 plus exact release `archive_override`, strip prefix,
+  and SRI integrity; no sibling checkout participates in its final builds.
+- [ ] Both full gates pass after release substitution, worktrees are clean except preserved jdbt user state, and the
+  same reviewer confirms the final archive-driven changes with no findings.
+
+## Validation
+
+- GitHub required-check inspection — proves the promised matrix completed on the published commit.
+- `gh release`/API plus independent archive download, integrity, tree, and smoke checks — proves immutable release state.
+- Jdbt module graph/query and `tools/check.sh` with the sibling unavailable — proves real archive consumption.
+- Rules `tools/check.sh` — confirms source repository remains identical to the released candidate.
+
+## Evidence
+
+- `pending`
