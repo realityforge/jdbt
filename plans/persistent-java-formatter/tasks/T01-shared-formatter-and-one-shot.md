@@ -31,6 +31,9 @@ script becomes a thin dispatcher to that frontend.
 ## Evidence
 
 - Baseline on this host: after `bazel shutdown`, current CLI check `real 4.95s`; immediate warm CLI check `real 1.52s`.
+- `PalantirFormatterTest` invokes Palantir's actual CLI entry point with the former `--palantir --replace` options for
+  import cleanup, long-string reflow, and Javadoc fixtures, then compares the resulting files directly with both the
+  in-process service output and retained goldens.
 - `bazel test //tools/java-format/src/test/java/org/realityforge/jdbt/tools/javaformat:javaformat_tests` — passed.
 - Two consecutive `tools/java_format.sh write` runs produced the same complete Java-source digest
   (`1a52a0561c963f0097bdd39e05ff550c99d8f091`).
