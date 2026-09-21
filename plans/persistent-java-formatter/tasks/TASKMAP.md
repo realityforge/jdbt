@@ -1,11 +1,11 @@
 # Task Map
 
 - Spec: [`SPEC.md`](../SPEC.md)
-- Status: `implementation-review`
-- Current frontier: `implementation review`
+- Status: `ready-for-closeout`
+- Current frontier: `closeout`
 - Planning reviewer: `/root/planning_reviewer` (`1/3` rounds, `Findings: none`)
 - Plan checkpoint: `automatic` (confirmed `$grill-me` understanding and passing planning review)
-- Implementation reviewer: `pending` (`0/5` rounds)
+- Implementation reviewer: `/root/implementation_reviewer` (`2/5` rounds, `Findings: none`)
 
 ## Full-scope validation
 
