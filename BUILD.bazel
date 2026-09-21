@@ -45,6 +45,7 @@ java_format_check(
         ":all_tests",
         "//src/main/java/org/realityforge/jdbt:jdbt_bin",
         "//tools/java-format/src/main/java/org/realityforge/jdbt/tools/javaformat",
+        "//tools/java-format/src/main/java/org/realityforge/jdbt/tools/javaformat:watcher",
         "//tools/java-format/src/main/java/org/realityforge/jdbt/tools/javaformat:worker",
         "//tools/java-format/src/test/java/org/realityforge/jdbt/tools/javaformat:javaformat_tests",
     ],

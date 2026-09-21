@@ -25,6 +25,25 @@ java_binary(
     runtime_deps = [":javaformat"],
 )
 
+java_library(
+    name = "watcher",
+    srcs = [
+        "PalantirJavaFormatWatchMain.java",
+        "PalantirJavaFormatWatcher.java",
+    ],
+    deps = [
+        ":javaformat",
+        "//tools/java-format:com_palantir_javaformat__palantir_java_format_spi",
+    ],
+)
+
+java_binary(
+    name = "java_format_watch",
+    jvm_flags = PALANTIR_JVM_FLAGS,
+    main_class = "org.realityforge.jdbt.tools.javaformat.PalantirJavaFormatWatchMain",
+    runtime_deps = [":watcher"],
+)
+
 java_proto_library(
     name = "worker_protocol_java",
     deps = ["@bazel_tools//src/main/protobuf:worker_protocol_proto"],
