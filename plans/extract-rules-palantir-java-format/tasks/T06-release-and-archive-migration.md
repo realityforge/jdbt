@@ -51,5 +51,6 @@ published, and jdbt replaces the provisional local override with the exact integ
   workspace-relative paths with Windows backslashes instead of the public forward-slash form. No tag or release was
   created. Rules candidate `cebe4635344f249c5fd9deef5c84587d8c6ce8a3` routes all in-workspace watcher diagnostics
   through a normalized forward-slash display and adds `--test_output=errors` to hosted tests. The exact rules full gate
-  and jdbt full gate pass locally; same-reviewer reapproval and a fully green replacement hosted matrix remain required
-  before tagging.
+  and jdbt full gate pass locally. Same-reviewer round 4 reported `Findings: none` and approved that exact commit before
+  it was pushed or tagged; the reviewer retained only the explicit residual risk that both hosted Windows lanes must
+  confirm the normalized diagnostics. A fully green replacement hosted matrix remains required before tagging.
