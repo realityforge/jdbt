@@ -3,7 +3,7 @@ load("@ahab//:defs.bzl", "ahab", "ahab_check", "ahab_explain", "ahab_update")
 exports_files(["exceptions.json"])
 
 REPRO_SPECS = [{
-    "//tools/java-format/src/main/java/org/realityforge/jdbt/tools/javaformat/palantir_java_format_worker": {
+    "@rules_palantir_java_format//java_format/private/java/org/realityforge/rules/palantirjavaformat/palantir_java_format_worker": {
         "spec": {"reproducibility": "always"},
     },
 }]

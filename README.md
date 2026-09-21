@@ -28,8 +28,8 @@ tools/check.sh
 ```
 
 The check verifies generated dependency files without rewriting them. After changing
-`third_party/java/dependencies.yml` or `tools/java-format/dependencies.yml`, regenerate the checked-in Bazel
-outputs and lockfile with `tools/update_java_deps.sh`.
+`third_party/java/dependencies.yml`, regenerate the checked-in Bazel outputs and lockfile with
+`tools/update_java_deps.sh`.
 
 Run the CLI through Bazel:
 
@@ -60,7 +60,7 @@ tools/java_format.sh write
 Keep a formatter process running and format Java files after they are saved under `src/` or `tools/`:
 
 ```bash
-bazel run //tools/java-format:java_format_watch
+bazel run @rules_palantir_java_format//:java_format_watch -- --root=src --root=tools
 ```
 
 The watcher does not format existing files when it starts. Run the one-shot write command first when the repository

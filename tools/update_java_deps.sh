@@ -35,21 +35,15 @@ generate() {
     --config-file third_party/java/dependencies.yml \
     --cache-directory "${CACHE_DIR}" \
     generate
-  java -jar "${JAR}" \
-    --directory "${directory}" \
-    --config-file tools/java-format/dependencies.yml \
-    --cache-directory "${CACHE_DIR}" \
-    generate
 }
 
 cd "${ROOT}"
 if [[ "${CHECK_ONLY}" == true ]]; then
   CHECK_ROOT="$(mktemp -d)"
   trap 'rm -rf "${CHECK_ROOT}"' EXIT
-  mkdir -p "${CHECK_ROOT}/third_party/java" "${CHECK_ROOT}/tools/java-format"
+  mkdir -p "${CHECK_ROOT}/third_party/java"
   cp MODULE.bazel "${CHECK_ROOT}/MODULE.bazel"
   cp third_party/java/BUILD.bazel third_party/java/dependencies.yml "${CHECK_ROOT}/third_party/java/"
-  cp tools/java-format/BUILD.bazel tools/java-format/dependencies.yml "${CHECK_ROOT}/tools/java-format/"
   generate "${CHECK_ROOT}"
   "${BAZEL}" build //:buildifier
   BUILDIFIER_DIRECTORY="$("${BAZEL}" info bazel-bin)"
@@ -63,15 +57,13 @@ if [[ "${CHECK_ONLY}" == true ]]; then
     -lint=fix \
     '--warnings=+unsorted-dict-items,-module-docstring,-function-docstring' \
     "${CHECK_ROOT}/MODULE.bazel" \
-    "${CHECK_ROOT}/third_party/java/BUILD.bazel" \
-    "${CHECK_ROOT}/tools/java-format/BUILD.bazel"
+    "${CHECK_ROOT}/third_party/java/BUILD.bazel"
   diff -u MODULE.bazel "${CHECK_ROOT}/MODULE.bazel"
   diff -u third_party/java/BUILD.bazel "${CHECK_ROOT}/third_party/java/BUILD.bazel"
-  diff -u tools/java-format/BUILD.bazel "${CHECK_ROOT}/tools/java-format/BUILD.bazel"
 else
   generate "${ROOT}"
   "${BAZEL}" mod deps --lockfile_mode=update
   "${BAZEL}" run //third_party/java:update_depgen_generated_outputs
   "${BAZEL}" mod deps --lockfile_mode=update
-  "${BAZEL}" run //:buildifier -- MODULE.bazel third_party/java/BUILD.bazel tools/java-format/BUILD.bazel
+  "${BAZEL}" run //:buildifier -- MODULE.bazel third_party/java/BUILD.bazel
 fi
