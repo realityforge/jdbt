@@ -44,3 +44,7 @@ singleplex worker with configurable remediation and ordinary local fallback.
   executed two scan actions, while `jps -lv` showed exactly one formatter worker process (PID `71176`).
 - `tools/check.sh` passed Buildifier, build, protocol/integration tests, self-formatting, Maven/Bzlmod locks, and clean
   tracked-state validation for the staged T02 tree.
+- During T04 consumer isolation, the generated protocol target proved non-portable: Bazel's internal proto package
+  leaked an unresolved `grpc-java` mapping under Bazel 9 and compiling a replacement proto triggered native protobuf
+  toolchain failures under current Xcode. The implementation now speaks the same canonical protobuf wire contract via
+  a small private codec, eliminating both consumer dependencies while retaining the accepted worker behavior.

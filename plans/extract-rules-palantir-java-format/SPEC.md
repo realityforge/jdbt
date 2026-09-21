@@ -52,8 +52,10 @@ commands, removes the local formatter implementation, passes its full gate, and 
   fallback. Consumers opt into worker reuse through documented mnemonic-specific `.bazelrc` settings.
 - The watcher preserves startup non-mutation, one formatting thread, conditional writes, debouncing, recursive new
   directory registration, invalid-input recovery, symlink/outside rejection, and overflow rescan behavior.
-- The dependency baseline is rules_jvm_external 7.1, rules_java 9.9.0, protobuf 33.4, and Palantir Java Format 2.93.0.
-  A uniquely named, locked Maven repository is internal to the module and requires no consumer configuration.
+- The dependency baseline is rules_jvm_external 7.1, rules_java 9.9.0, and Palantir Java Format 2.93.0. A uniquely
+  named, locked Maven repository is internal to the module and requires no consumer configuration. The worker uses a
+  small repository-owned codec for Bazel's canonical protobuf wire contract rather than compiling Bazel-internal proto
+  targets in consumers.
 - The supported JDK set for `0.1.0` is Java 17, 21, and 25. CI runs Java 17 across Bazel 8/9 on Linux, macOS x86/arm64,
   and Windows, plus focused Bazel 9 Linux lanes for Java 21 and 25. Later JDK versions are unsupported until added to
   CI. Release is blocked unless every required lane passes; failures are fixed rather than silently narrowing scope.
@@ -139,7 +141,7 @@ commands, removes the local formatter implementation, passes its full gate, and 
 | `D3` | Keep the root API small and hide the raw aspect/provider/worker. | Pre-1.0 can evolve internals without creating unnecessary compatibility obligations. | Advanced consumers cannot directly compose the aspect in `0.1.0`. | Load only root `defs.bzl` and use the two root aliases. |
 | `D4` | Require explicit safe roots for write/watch. | A reusable module cannot assume jdbt's filesystem layout or safely mutate an implicit scope. | Consumers add root arguments; startup and mutation scope are unsurprising. | Verify missing and unsafe roots fail without writes. |
 | `D5` | Pin formatter dependencies inside a uniquely named rules_jvm_external repository. | It is BCR-native, reproducible, and isolated from consumer Maven graphs. | Module releases own Palantir upgrades and a checked lockfile. | Build alongside an independent consumer Maven install. |
-| `D6` | Generate the worker protocol from Bazel's canonical schema with normal protobuf dependency. | This avoids vendored generated code and hand-maintained wire parsing. | Protobuf is an implementation dependency of the public rules module. | Inspect generated-protocol target and dependency boundary. |
+| `D6` | Implement the required fields of Bazel's canonical protobuf worker wire contract in a small private codec. | The original generated-protocol design leaked Bazel-internal repository mappings and forced consumer-side native protobuf tooling; the bounded codec removes both portability failures without exposing protocol internals. | No protobuf dependency is required; protocol parsing is covered directly, including IDs, cancellation, EOF, unknown fields, and malformed input boundaries. | Build from the independent module on macOS and run focused protocol tests plus real persistent-worker actions. |
 | `D7` | Promise Bazel 8/9, Java 17/21/25, and all principal desktop platforms at `0.1.0`. | BCR consumers expect portable rules, while a bounded JDK set makes compatibility executable rather than aspirational. | Java 17 covers every Bazel/platform combination; focused Bazel 9 Linux lanes cover Java 21/25; later JDKs require a future CI addition. | Require every named lane to pass before release. |
 | `D8` | Publish immutable `v0.1.0` before BCR submission. | The user wants a real reusable release now while retaining explicit control over registry submission. | `0.1.0` can be submitted manually later; automated attestations begin with later releases. | Inspect release immutability, archive, provenance, and absence of a BCR PR. |
 | `D9` | Migrate jdbt by hard cut and temporarily use an archive override. | It proves a real consumer and avoids maintaining local/external formatter paths while BCR publication is pending. | Jdbt pins a GitHub URL and integrity until the registry entry exists. | Search for local formatter residue and build from a clean external fetch. |
@@ -157,7 +159,8 @@ commands, removes the local formatter implementation, passes its full gate, and 
 - The formatter binaries accept repeatable `--root=PATH`; paths are resolved from `BUILD_WORKSPACE_DIRECTORY`, and
   formatter diagnostics remain repository-neutral except for consumer-provided check remediation.
 - The module uses a uniquely named rules_jvm_external 7.1 extension repository for Palantir 2.93.0 and its locked
-  closure. `rules_java` 9.9.0 and protobuf 33.4 are normal Bzlmod dependencies.
+  closure. `rules_java` 9.9.0 is the only other normal Bzlmod dependency; the private worker codec has no protobuf
+  build-time dependency.
 - The smoke module has its own `MODULE.bazel`, `local_path_override`, optional unrelated Maven graph, clean Java target,
   and public check rule. Negative mutation/write/watch scenarios run in disposable copies so BCR steady-state tests pass.
 - `tools/check.sh` is the release gate. CI runs it and the smoke suite with Java 17 under Bazel 8/9 across the accepted
