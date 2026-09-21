@@ -1,6 +1,6 @@
 # T01 — Shared formatter and one-shot write
 
-- Status: `pending`
+- Status: `complete`
 - Blocked by: `None`
 - Spec coverage: `R1`, `R2`; `AC1`, `AC2`
 
@@ -12,14 +12,14 @@ script becomes a thin dispatcher to that frontend.
 
 ## Acceptance criteria
 
-- [ ] Capture the current formatter's cold/warm baseline before replacing its invocation path.
-- [ ] One formatter instance returns expected Palantir output for deliberately dirty Java without spawning a process.
-- [ ] Current repository sources are fixed points and focused dirty formatting/import/reflow/Javadoc cases match the
+- [x] Capture the current formatter's cold/warm baseline before replacing its invocation path.
+- [x] One formatter instance returns expected Palantir output for deliberately dirty Java without spawning a process.
+- [x] Current repository sources are fixed points and focused dirty formatting/import/reflow/Javadoc cases match the
   established CLI output exactly.
-- [ ] The one-shot command uses `BUILD_WORKSPACE_DIRECTORY`, deterministic file ordering, strict `src/` and `tools/`
+- [x] The one-shot command uses `BUILD_WORKSPACE_DIRECTORY`, deterministic file ordering, strict `src/` and `tools/`
   scope, and changes only differing non-symlink Java files.
-- [ ] `tools/java_format.sh write` dispatches to the new frontend while retaining mode validation.
-- [ ] Production and test sources follow directory-owned BUILD rules and share one Starlark definition of Palantir's
+- [x] `tools/java_format.sh write` dispatches to the new frontend while retaining mode validation.
+- [x] Production and test sources follow directory-owned BUILD rules and share one Starlark definition of Palantir's
   required JDK module exports.
 
 ## Validation
@@ -30,4 +30,9 @@ script becomes a thin dispatcher to that frontend.
 
 ## Evidence
 
-- `pending`
+- Baseline on this host: after `bazel shutdown`, current CLI check `real 4.95s`; immediate warm CLI check `real 1.52s`.
+- `bazel test //tools/java-format/src/test/java/org/realityforge/jdbt/tools/javaformat:javaformat_tests` — passed.
+- Two consecutive `tools/java_format.sh write` runs produced the same complete Java-source digest
+  (`1a52a0561c963f0097bdd39e05ff550c99d8f091`).
+- `tools/update_java_deps.sh --check` — passed.
+- `tools/check.sh` — passed; 10 tests passed, line coverage 89.49%, branch coverage 78.60%.

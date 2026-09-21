@@ -1,0 +1,22 @@
+load("//third_party/java:rules.bzl", "java_binary", "java_library")
+load("//tools/java-format:defs.bzl", "PALANTIR_JVM_FLAGS")
+
+package(default_visibility = ["//tools/java-format:__subpackages__"])
+
+java_library(
+    name = "javaformat",
+    srcs = [
+        "PalantirFormatter.java",
+        "PalantirJavaFormatMain.java",
+        "package-info.java",
+    ],
+    runtime_deps = ["//tools/java-format:com_palantir_javaformat__palantir_java_format"],
+    deps = ["//tools/java-format:com_palantir_javaformat__palantir_java_format_spi"],
+)
+
+java_binary(
+    name = "java_format",
+    jvm_flags = PALANTIR_JVM_FLAGS,
+    main_class = "org.realityforge.jdbt.tools.javaformat.PalantirJavaFormatMain",
+    runtime_deps = [":javaformat"],
+)

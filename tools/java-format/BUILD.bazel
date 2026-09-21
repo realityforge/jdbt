@@ -1,5 +1,6 @@
 load("@rules_java//java:defs.bzl", _java_import = "java_import")
 load("//third_party/java:rules.bzl", "java_binary")
+load(":defs.bzl", "PALANTIR_JVM_FLAGS")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -10,33 +11,34 @@ package(default_visibility = ["//visibility:public"])
 exports_files(["dependencies.yml"])
 
 # Dependency Graph Generated from the input data
-# \- com.palantir.javaformat:palantir-java-format:jar:2.93.0 [compile]
-#    +- com.palantir.javaformat:palantir-java-format-spi:jar:2.93.0 [compile]
-#    |  +- com.google.guava:guava:jar:33.6.0-jre [compile]
-#    |  +- com.fasterxml.jackson.core:jackson-annotations:jar:2.21 [compile]
-#    |  \- com.fasterxml.jackson.datatype:jackson-datatype-guava:jar:2.21.4 [compile]
-#    |     +- com.google.guava:guava:jar:25.1-jre [compile] (conflicts with 33.6.0-jre)
-#    |     +- com.fasterxml.jackson.core:jackson-annotations:jar:2.21 [compile]
-#    |     +- com.fasterxml.jackson.core:jackson-core:jar:2.21.4 [compile]
-#    |     \- com.fasterxml.jackson.core:jackson-databind:jar:2.21.4 [compile]
+# +- com.palantir.javaformat:palantir-java-format:jar:2.93.0 [compile]
+# |  +- com.palantir.javaformat:palantir-java-format-spi:jar:2.93.0 [compile]
+# |  +- com.google.guava:guava:jar:33.6.0-jre [compile]
+# |  |  +- com.google.guava:failureaccess:jar:1.0.3 [compile]
+# |  |  +- com.google.guava:listenablefuture:jar:9999.0-empty-to-avoid-conflict-with-guava [compile]
+# |  |  +- org.jspecify:jspecify:jar:1.0.0 [compile]
+# |  |  +- com.google.errorprone:error_prone_annotations:jar:2.47.0 [compile]
+# |  |  \- com.google.j2objc:j2objc-annotations:jar:3.1 [compile]
+# |  +- org.functionaljava:functionaljava:jar:5.0 [runtime]
+# |  +- com.fasterxml.jackson.core:jackson-core:jar:2.21.4 [compile]
+# |  +- com.fasterxml.jackson.core:jackson-databind:jar:2.21.4 [compile]
+# |  |  +- com.fasterxml.jackson.core:jackson-annotations:jar:2.21 [compile]
+# |  |  \- com.fasterxml.jackson.core:jackson-core:jar:2.21.4 [compile]
+# |  +- com.fasterxml.jackson.datatype:jackson-datatype-jdk8:jar:2.21.4 [runtime]
+# |  |  +- com.fasterxml.jackson.core:jackson-core:jar:2.21.4 [runtime]
+# |  |  \- com.fasterxml.jackson.core:jackson-databind:jar:2.21.4 [runtime]
+# |  +- com.fasterxml.jackson.module:jackson-module-parameter-names:jar:2.21.4 [runtime]
+# |  |  +- com.fasterxml.jackson.core:jackson-core:jar:2.21.4 [runtime]
+# |  |  \- com.fasterxml.jackson.core:jackson-databind:jar:2.21.4 [runtime]
+# |  \- com.google.code.findbugs:jsr305:jar:3.0.2 [runtime]
+# \- com.palantir.javaformat:palantir-java-format-spi:jar:2.93.0 [compile]
 #    +- com.google.guava:guava:jar:33.6.0-jre [compile]
-#    |  +- com.google.guava:failureaccess:jar:1.0.3 [compile]
-#    |  +- com.google.guava:listenablefuture:jar:9999.0-empty-to-avoid-conflict-with-guava [compile]
-#    |  +- org.jspecify:jspecify:jar:1.0.0 [compile]
-#    |  +- com.google.errorprone:error_prone_annotations:jar:2.47.0 [compile]
-#    |  \- com.google.j2objc:j2objc-annotations:jar:3.1 [compile]
-#    +- org.functionaljava:functionaljava:jar:5.0 [runtime]
-#    +- com.fasterxml.jackson.core:jackson-core:jar:2.21.4 [compile]
-#    +- com.fasterxml.jackson.core:jackson-databind:jar:2.21.4 [compile]
-#    |  +- com.fasterxml.jackson.core:jackson-annotations:jar:2.21 [compile]
-#    |  \- com.fasterxml.jackson.core:jackson-core:jar:2.21.4 [compile]
-#    +- com.fasterxml.jackson.datatype:jackson-datatype-jdk8:jar:2.21.4 [runtime]
-#    |  +- com.fasterxml.jackson.core:jackson-core:jar:2.21.4 [runtime]
-#    |  \- com.fasterxml.jackson.core:jackson-databind:jar:2.21.4 [runtime]
-#    +- com.fasterxml.jackson.module:jackson-module-parameter-names:jar:2.21.4 [runtime]
-#    |  +- com.fasterxml.jackson.core:jackson-core:jar:2.21.4 [runtime]
-#    |  \- com.fasterxml.jackson.core:jackson-databind:jar:2.21.4 [runtime]
-#    \- com.google.code.findbugs:jsr305:jar:3.0.2 [runtime]
+#    +- com.fasterxml.jackson.core:jackson-annotations:jar:2.21 [compile]
+#    \- com.fasterxml.jackson.datatype:jackson-datatype-guava:jar:2.21.4 [compile]
+#       +- com.google.guava:guava:jar:25.1-jre [compile] (conflicts with 33.6.0-jre)
+#       +- com.fasterxml.jackson.core:jackson-annotations:jar:2.21 [compile]
+#       +- com.fasterxml.jackson.core:jackson-core:jar:2.21.4 [compile]
+#       \- com.fasterxml.jackson.core:jackson-databind:jar:2.21.4 [compile]
 
 _java_import(
     name = "com_fasterxml_jackson_core__jackson_annotations",
@@ -169,7 +171,6 @@ _java_import(
     name = "com_palantir_javaformat__palantir_java_format_spi",
     jars = ["@com_palantir_javaformat__palantir_java_format_spi__2_93_0//file"],
     tags = ["maven_coordinates=com.palantir.javaformat:palantir-java-format-spi:2.93.0"],
-    visibility = ["//visibility:private"],
     deps = [
         ":com_fasterxml_jackson_core__jackson_annotations",
         ":com_fasterxml_jackson_datatype__jackson_datatype_guava",
@@ -195,14 +196,12 @@ _java_import(
 
 java_binary(
     name = "palantir_java_format",
-    jvm_flags = [
-        "--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
-        "--add-exports=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
-        "--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
-        "--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED",
-        "--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
-        "--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED",
-    ],
+    jvm_flags = PALANTIR_JVM_FLAGS,
     main_class = "com.palantir.javaformat.java.Main",
     runtime_deps = [":com_palantir_javaformat__palantir_java_format"],
+)
+
+alias(
+    name = "java_format",
+    actual = "//tools/java-format/src/main/java/org/realityforge/jdbt/tools/javaformat:java_format",
 )

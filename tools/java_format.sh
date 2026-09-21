@@ -15,6 +15,10 @@ esac
 
 cd "${ROOT}"
 
+if [[ "${MODE}" == "write" ]]; then
+  exec bazel run //tools/java-format:java_format -- --write
+fi
+
 args_file="$(mktemp)"
 trap 'rm -f "${args_file}"' EXIT
 
@@ -26,15 +30,8 @@ if [[ ! -s "${args_file}" ]]; then
   exit 0
 fi
 
-if [[ "${MODE}" == "check" ]]; then
-  bazel run //tools/java-format:palantir_java_format -- \
-    --palantir \
-    --dry-run \
-    --set-exit-if-changed \
-    "@${args_file}"
-else
-  bazel run //tools/java-format:palantir_java_format -- \
-    --palantir \
-    --replace \
-    "@${args_file}"
-fi
+bazel run //tools/java-format:palantir_java_format -- \
+  --palantir \
+  --dry-run \
+  --set-exit-if-changed \
+  "@${args_file}"

@@ -1,8 +1,8 @@
 # Task Map
 
 - Spec: [`SPEC.md`](../SPEC.md)
-- Status: `planned`
-- Current frontier: `T01`
+- Status: `implementing`
+- Current frontier: `T02`
 - Planning reviewer: `/root/planning_reviewer` (`1/3` rounds, `Findings: none`)
 - Plan checkpoint: `automatic` (confirmed `$grill-me` understanding and passing planning review)
 - Implementation reviewer: `pending` (`0/5` rounds)
@@ -16,7 +16,7 @@
 
 | ID | Task | Status | Blocked by |
 | --- | --- | --- | --- |
-| `T01` | [`Shared formatter and one-shot write`](T01-shared-formatter-and-one-shot.md) | `pending` | None |
+| `T01` | [`Shared formatter and one-shot write`](T01-shared-formatter-and-one-shot.md) | `complete` | None |
 | `T02` | [`Persistent worker protocol and fallback`](T02-persistent-worker.md) | `pending` | `T01` |
 | `T03` | [`Target-granular Bazel format check`](T03-bazel-format-check.md) | `pending` | `T02` |
 | `T04` | [`Safe long-lived format watcher`](T04-format-watcher.md) | `pending` | `T01` |
