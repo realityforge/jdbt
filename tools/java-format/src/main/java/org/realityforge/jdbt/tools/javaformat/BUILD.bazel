@@ -2,7 +2,10 @@ load("@protobuf//bazel:java_proto_library.bzl", "java_proto_library")
 load("//third_party/java:rules.bzl", "java_binary", "java_library")
 load("//tools/java-format:defs.bzl", "PALANTIR_JVM_FLAGS")
 
-package(default_visibility = ["//tools/java-format:__subpackages__"])
+package(default_visibility = [
+    "//:__pkg__",
+    "//tools/java-format:__subpackages__",
+])
 
 java_library(
     name = "javaformat",

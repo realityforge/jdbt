@@ -1,4 +1,5 @@
 load("@buildifier_prebuilt//:rules.bzl", "buildifier")
+load("//tools/java-format:format.bzl", "java_format_check")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -35,4 +36,16 @@ buildifier(
 test_suite(
     name = "all_tests",
     tests = ["//src/test/java/org/realityforge/jdbt:all_tests"],
+)
+
+java_format_check(
+    name = "java_format_check",
+    testonly = True,
+    targets = [
+        ":all_tests",
+        "//src/main/java/org/realityforge/jdbt:jdbt_bin",
+        "//tools/java-format/src/main/java/org/realityforge/jdbt/tools/javaformat",
+        "//tools/java-format/src/main/java/org/realityforge/jdbt/tools/javaformat:worker",
+        "//tools/java-format/src/test/java/org/realityforge/jdbt/tools/javaformat:javaformat_tests",
+    ],
 )

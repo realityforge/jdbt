@@ -2,10 +2,17 @@ load("@ahab//:defs.bzl", "ahab", "ahab_check", "ahab_explain", "ahab_update")
 
 exports_files(["exceptions.json"])
 
+REPRO_SPECS = [{
+    "//tools/java-format/src/main/java/org/realityforge/jdbt/tools/javaformat/palantir_java_format_worker": {
+        "spec": {"reproducibility": "always"},
+    },
+}]
+
 # Analyze and produce a visual report
 ahab(
     name = "hermeticity",
     label = "//...",
+    repro_specs = REPRO_SPECS,
 )
 
 # Ensure hermeticity has not been comprised except for explict exceptions
@@ -13,6 +20,7 @@ ahab_check(
     name = "hermeticity.check",
     baseline = "exceptions.json",
     label = "//...",
+    repro_specs = REPRO_SPECS,
 )
 
 # Update the exception list
@@ -20,6 +28,7 @@ ahab_update(
     name = "hermeticity.update",
     baseline = "exceptions.json",
     label = "//...",
+    repro_specs = REPRO_SPECS,
 )
 
 # Produces a report based on current exceptions in json
