@@ -2,10 +2,11 @@
 
 - Spec: [`SPEC.md`](../SPEC.md)
 - Status: `reviewing`
-- Current frontier: `prepublication implementation review`
+- Current frontier: `prepublication implementation re-review`
 - Planning reviewer: `/root/extraction_planning_reviewer` (`2/3` rounds, `Findings: none`)
 - Plan checkpoint: `automatic` (confirmed `$grill-me` understanding and passing planning review)
-- Implementation reviewer: `pending` (`0/5` rounds)
+- Implementation reviewer: `/root/implementation_reviewer` (`1/5` rounds; four findings resolved in rules commit
+  `a178244`, findings-free re-review pending)
 
 ## Full-scope validation
 

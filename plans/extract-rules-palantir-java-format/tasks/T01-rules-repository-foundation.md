@@ -15,8 +15,9 @@ parity/safety tests, and an initial comprehensive check script.
 - [x] The repository uses `main`, an unmodified Apache-2.0 `LICENSE`, root `NOTICE` containing
   `Copyright 2026 Peter Donald`, module/repository metadata without source version or compatibility level, Java package
   `org.realityforge.rules.palantirjavaformat`, and no jdbt labels or package identity.
-- [x] rules_jvm_external 7.1 owns a uniquely named strict, pinned Palantir 2.93.0 closure; rules_java 9.9.0 and protobuf
-  33.4 are normal dependencies, and Maven lock drift fails.
+- [x] rules_jvm_external 7.1 owns a uniquely named strict, pinned Palantir 2.93.0 closure; rules_java 9.9.0 is the
+  only normal Bazel rule dependency, the worker protocol codec has no generated-protobuf dependency, and Maven lock
+  drift fails.
 - [x] Root alias `//:java_format` requires repeatable safe `--root=PATH` values and rejects missing, absolute, outside,
   nonexistent, non-directory, or symlink roots without writes.
 - [x] Valid roots are normalized, sorted, and deduplicated; only regular non-symlink `.java` descendants are formatted
@@ -40,5 +41,8 @@ parity/safety tests, and an initial comprehensive check script.
 - A disposable Bazel 9.2.0 consumer built its own `@consumer_maven` Guava-backed target and
   `@rules_palantir_java_format//:java_format` together, proving the dev-only tooling and unique formatter Maven
   repository do not leak across the public package boundary.
+- The final dependency closure contains rules_java 9.9.0, rules_jvm_external 7.1, and the uniquely named locked Maven
+  repository. The private worker uses the canonical length-delimited protobuf wire fields through a dependency-free
+  codec, so neither protobuf rules nor generated runtime libraries leak into consumers.
 - `LICENSE`, `NOTICE`, `MODULE.bazel`, `REPO.bazel`, and the Java package were inspected for the accepted public
   identity; the source module has no version or compatibility level.

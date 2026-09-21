@@ -36,9 +36,9 @@ provenance workflow, and BCR-ready metadata make the local rules repository read
 
 ## Evidence
 
-- Rules commits `00a4773` (`feat: prepare portable formatter release`) and `2813316` (`fix: normalize smoke lockfile
-  mode`) add the isolated consumer, portability correction, CI, documentation, archive tooling, provenance release,
-  and BCR templates.
+- Rules commits `00a4773` (`feat: prepare portable formatter release`), `2813316` (`fix: normalize smoke lockfile
+  mode`), and `a178244` (`fix: enforce reviewed release readiness`) add the isolated consumer, portability correction,
+  CI, documentation, archive tooling, provenance release, and BCR templates.
 - The first consumer build exposed two hidden generated-protocol dependencies: Bazel's internal worker proto leaked an
   unresolved `grpc-java` mapping, and a locally generated replacement invoked native protobuf tooling that failed
   under current Xcode. A focused private codec now implements Bazel's canonical protobuf worker wire fields directly;
@@ -52,6 +52,11 @@ provenance workflow, and BCR-ready metadata make the local rules repository read
   with Bazel 9; strict Maven locking and tracked-state validation remain enabled on every lane.
 - The CI workflow defines ten required, non-allowed-failure lanes: Java 17 with Bazel 8.4/9.2 on Ubuntu, macOS Intel,
   macOS arm64, and Windows, plus Java 21/25 with Bazel 9.2 on Ubuntu. Hosted results remain a T06 publication gate.
+- The setup-bazel action is pinned to commit `8cb04a772ab4c1eb984e9c1b493a182e96c5e425`, verified as tag `0.19.0`.
+  Release preflight requires the semantic-version tag, explicitly reviewed SHA, and current `origin/main` to be the
+  same commit, then queries the successful push CI run and requires each of the ten named matrix jobs exactly once.
+- Independent raw protobuf-wire golden vectors cover canonical worker requests/responses, every supported unknown-field
+  wire type, truncated framing, oversized messages, and malformed length varints without round-tripping the codec.
 - The gate built two byte-identical `rules_palantir_java_format-v0.1.0.tar.gz` archives from the staged tree, verified
   the sole `rules_palantir_java_format-0.1.0/` prefix, extracted one, and built its smoke consumer and public formatter.
 - `yq` parsed all CI/release/publish and BCR YAML; Python parsed both JSON templates; the pinned release workflow is
