@@ -46,3 +46,10 @@ published, and jdbt replaces the provisional local override with the exact integ
   local candidate. Same-reviewer round 3 reported `Findings: none` and approved exact commit
   `8b5d30285011baad90fe91f66acb98a96290429f` before it was pushed or tagged; the replacement hosted matrix remains the
   release gate.
+- Hosted run `35667646527` passed all eight Ubuntu and macOS jobs. Both Windows jobs passed buildifier and compilation,
+  then failed `javaformat_tests` after one watcher-await timeout because successful and error diagnostics rendered
+  workspace-relative paths with Windows backslashes instead of the public forward-slash form. No tag or release was
+  created. Rules candidate `cebe4635344f249c5fd9deef5c84587d8c6ce8a3` routes all in-workspace watcher diagnostics
+  through a normalized forward-slash display and adds `--test_output=errors` to hosted tests. The exact rules full gate
+  and jdbt full gate pass locally; same-reviewer reapproval and a fully green replacement hosted matrix remain required
+  before tagging.

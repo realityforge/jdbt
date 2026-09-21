@@ -59,6 +59,12 @@ provenance workflow, and BCR-ready metadata make the local rules repository read
   buildifier executable from generated runfiles, while all Ubuntu lanes failed after successful build/test/smoke work
   when GNU tar received a closed pipeline. The formatter tests and four macOS lanes passed. Both fixes then passed the
   rules and jdbt full local gates before another review round.
+- Replacement hosted run `35667646527` passed all eight Ubuntu and macOS lanes and advanced both Windows lanes through
+  buildifier and compilation before `javaformat_tests` timed out waiting for a forward-slash watcher diagnostic. The
+  watcher rendered in-workspace relative paths with the host separator, so Windows emitted `source\\Existing.java`
+  while the public diagnostic contract and tests expected `source/Existing.java`. Candidate `cebe463` normalizes only
+  in-workspace displayed paths to forward slashes and adds `--test_output=errors` to the full gate so any remaining
+  hosted test failure is self-diagnosing; both rules and jdbt full local gates pass against that exact commit.
 - The setup-bazel action is pinned to commit `8cb04a772ab4c1eb984e9c1b493a182e96c5e425`, verified as tag `0.19.0`.
   Release preflight requires the semantic-version tag, explicitly reviewed SHA, and current `origin/main` to be the
   same commit, then queries the successful push CI run and requires each of the ten named matrix jobs exactly once.
