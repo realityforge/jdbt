@@ -1,8 +1,8 @@
 # Task Map
 
 - Spec: [`SPEC.md`](../SPEC.md)
-- Status: `implementing`
-- Current frontier: `T05`
+- Status: `implementation-review`
+- Current frontier: `implementation review`
 - Planning reviewer: `/root/planning_reviewer` (`1/3` rounds, `Findings: none`)
 - Plan checkpoint: `automatic` (confirmed `$grill-me` understanding and passing planning review)
 - Implementation reviewer: `pending` (`0/5` rounds)
@@ -10,7 +10,8 @@
 ## Full-scope validation
 
 - Gate: `tools/check.sh`
-- Evidence: `pending`
+- Evidence: `tools/check.sh` passed after integrated clean/dirty/repair/repeat-clean and live watcher exercises; 10 tests
+  passed, with 89.49% line coverage and 78.60% branch coverage.
 
 ## Tasks
 
@@ -20,7 +21,7 @@
 | `T02` | [`Persistent worker protocol and fallback`](T02-persistent-worker.md) | `complete` | `T01` |
 | `T03` | [`Target-granular Bazel format check`](T03-bazel-format-check.md) | `complete` | `T02` |
 | `T04` | [`Safe long-lived format watcher`](T04-format-watcher.md) | `complete` | `T01` |
-| `T05` | [`Integrated UX, evidence, and full gate`](T05-integrated-validation.md) | `pending` | `T03`, `T04` |
+| `T05` | [`Integrated UX, evidence, and full gate`](T05-integrated-validation.md) | `complete` | `T03`, `T04` |
 
 ## Sequencing notes
 

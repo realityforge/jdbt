@@ -1,6 +1,4 @@
 load("@rules_java//java:defs.bzl", _java_import = "java_import")
-load("//third_party/java:rules.bzl", "java_binary")
-load(":defs.bzl", "PALANTIR_JVM_FLAGS")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -193,13 +191,6 @@ _java_import(
 )
 
 # --- depgen-generated targets end ---
-
-java_binary(
-    name = "palantir_java_format",
-    jvm_flags = PALANTIR_JVM_FLAGS,
-    main_class = "com.palantir.javaformat.java.Main",
-    runtime_deps = [":com_palantir_javaformat__palantir_java_format"],
-)
 
 alias(
     name = "java_format",

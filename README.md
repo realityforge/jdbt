@@ -43,6 +43,29 @@ Build a runnable deploy jar:
 bazel build //src/main/java/org/realityforge/jdbt:jdbt_bin_deploy.jar
 ```
 
+### Java formatting
+
+Check all Java sources without modifying them:
+
+```bash
+tools/java_format.sh check
+```
+
+Format all Java sources once:
+
+```bash
+tools/java_format.sh write
+```
+
+Keep a formatter process running and format Java files after they are saved under `src/` or `tools/`:
+
+```bash
+bazel run //tools/java-format:java_format_watch
+```
+
+The watcher does not format existing files when it starts. Run the one-shot write command first when the repository
+needs an initial formatting pass.
+
 ### Consuming JDBT as a Bazel module
 
 JDBT patches `rules_java` 9.9.0 so its deploy JARs can omit Bazel build metadata. Bazel applies module overrides only
