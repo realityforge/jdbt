@@ -5,8 +5,8 @@
 - Current frontier: `T06 public release and archive migration`
 - Planning reviewer: `/root/extraction_planning_reviewer` (`2/3` rounds, `Findings: none`)
 - Plan checkpoint: `automatic` (confirmed `$grill-me` understanding and passing planning review)
-- Implementation reviewer: `/root/implementation_reviewer` (`7` rounds; `Findings: none`; approved rules commit
-  `884ddb006414a1265407870d13a7d564db5fda02`)
+- Implementation reviewer: `/root/implementation_reviewer` (`9` rounds; `Findings: none`; approved rules commit
+  `3144866dbae4193cff8820241421b59293f2dd05` for hosted validation after round 8's Windows CRLF correction)
 
 ## Full-scope validation
 

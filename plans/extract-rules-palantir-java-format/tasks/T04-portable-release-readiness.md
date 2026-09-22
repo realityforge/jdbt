@@ -71,6 +71,13 @@ provenance workflow, and BCR-ready metadata make the local rules repository read
   `884ddb0` builds and runs the watcher executable directly, supplies the workspace environment explicitly, reads the
   validated native Windows PID from MSYS/Cygwin `/proc` before terminating the launcher process tree, and emits watcher
   logs on timeout. Focused smoke plus both full local gates pass against that exact candidate.
+- Hosted run `35671696952` passed all eight Ubuntu/macOS jobs and both Windows formatter test suites, but both Windows
+  smoke jobs again failed only at final workspace removal. GitHub Actions then identified the surviving orphan as a
+  Java process, proving that the validated `/proc` PID belonged to the launcher rather than the watcher JVM. Candidate
+  `3144866dbae4193cff8820241421b59293f2dd05` instead resolves the exact watcher main class through the installed JDK's
+  `jps`, normalizes native Windows CRLF output, rejects zero or multiple matches, and terminates that native JVM PID
+  before waiting for the shell launcher. Focused CRLF parsing and smoke plus both full local gates pass against that
+  exact candidate; hosted Windows validation remains a T06 publication gate.
 - The setup-bazel action is pinned to commit `8cb04a772ab4c1eb984e9c1b493a182e96c5e425`, verified as tag `0.19.0`.
   Release preflight requires the semantic-version tag, explicitly reviewed SHA, and current `origin/main` to be the
   same commit, then queries the successful push CI run and requires each of the ten named matrix jobs exactly once.

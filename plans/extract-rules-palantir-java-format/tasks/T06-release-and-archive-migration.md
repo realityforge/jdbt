@@ -66,3 +66,12 @@ published, and jdbt replaces the provisional local override with the exact integ
   jdbt full gate pass locally. Same-reviewer round 7 reported `Findings: none` and approved that exact commit before it
   was pushed or tagged, retaining only hosted Bazel 8.4/9.2 Windows confirmation as residual risk. A fully green hosted
   matrix remains required before tagging.
+- Hosted run `35671696952` passed all eight Ubuntu/macOS jobs and both Windows formatter test suites. Both Windows smoke
+  jobs reached final cleanup and failed because the watcher JVM still held its workspace; GitHub Actions subsequently
+  reported the orphan Java process. No tag or release was created. Same-reviewer round 8 rejected the first `jps`
+  candidate because native Windows CRLF could leave a carriage return on the exact main-class field. Corrected candidate
+  `3144866dbae4193cff8820241421b59293f2dd05` resolves the exact watcher main class with the installed JDK's `jps`,
+  normalizes carriage returns, rejects zero or multiple matches, and terminates the native JVM PID before waiting for
+  the shell launcher. Focused CRLF parsing and smoke, the exact rules full gate, and the jdbt full gate pass locally.
+  Same-reviewer round 9 reported `Findings: none` and approved that exact commit for hosted validation, retaining only
+  the two hosted Windows lanes as residual risk. The complete hosted matrix remains the release gate before tagging.
