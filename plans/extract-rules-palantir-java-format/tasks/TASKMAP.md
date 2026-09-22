@@ -2,11 +2,11 @@
 
 - Spec: [`SPEC.md`](../SPEC.md)
 - Status: `in_progress`
-- Current frontier: `T06 public release and archive migration`
+- Current frontier: `T07 final publication and governance`
 - Planning reviewer: `/root/extraction_planning_reviewer` (`2/3` rounds, `Findings: none`)
 - Plan checkpoint: `automatic` (confirmed `$grill-me` understanding and passing planning review)
-- Implementation reviewer: `/root/implementation_reviewer` (`12` rounds; `Findings: none`; approved deterministic archive
-  candidate `fbd857332d0a9993fa50d66ccfcf361658e448d2` for hosted validation)
+- Implementation reviewer: `/root/implementation_reviewer` (`13` rounds; `Findings: none`; final T06 archive
+  substitution approved with no residual risk)
 
 ## Full-scope validation
 
@@ -23,8 +23,8 @@
 | `T03` | [`Safe configurable-root watcher`](T03-safe-configurable-root-watcher.md) | `complete` | `T01` |
 | `T04` | [`Portable consumer, CI, and release readiness`](T04-portable-release-readiness.md) | `complete` | `T02`, `T03` |
 | `T05` | [`Provisional jdbt hard-cut migration`](T05-provisional-jdbt-migration.md) | `complete` | `T04` |
-| `T06` | [`Public v0.1.0 and released-archive migration`](T06-release-and-archive-migration.md) | `pending` | `T05`, prepublication review |
-| `T07` | [`Final publication and governance`](T07-final-publication-and-governance.md) | `pending` | `T06`, final archive review |
+| `T06` | [`Public v0.1.0 and released-archive migration`](T06-release-and-archive-migration.md) | `complete` | `T05`, prepublication review |
+| `T07` | [`Final publication and governance`](T07-final-publication-and-governance.md) | `in_progress` | `T06`, final archive review |
 
 ## Sequencing notes
 

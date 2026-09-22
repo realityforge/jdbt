@@ -1,6 +1,6 @@
 # T07 — Final publication and governance
 
-- Status: `pending`
+- Status: `in_progress`
 - Blocked by: `T06`, final archive review
 - Spec coverage: `R10`; `AC12`, `AC13`
 

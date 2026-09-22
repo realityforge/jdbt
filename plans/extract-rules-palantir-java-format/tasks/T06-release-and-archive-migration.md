@@ -1,6 +1,6 @@
 # T06 — Public v0.1.0 and released-archive migration
 
-- Status: `in_progress`
+- Status: `complete`
 - Blocked by: `T05`, prepublication review
 - Spec coverage: `R6`, `R7`, `R8`, `R9`, `R10`; `AC6`, `AC7`, `AC10`, `AC11`, `AC12`, `AC14`
 
@@ -13,17 +13,17 @@ published, and jdbt replaces the provisional local override with the exact integ
 
 - [x] Prepublication implementation review reports `Findings: none` and records the exact approved rules commit SHA
   before the GitHub repository is created or pushed.
-- [ ] Public `realityforge/rules_palantir_java_format` is created on `main` with the accepted description/features and
+- [x] Public `realityforge/rules_palantir_java_format` is created on `main` with the accepted description/features and
   reviewed commits; repository CI completes the full required matrix successfully.
-- [ ] Repository immutable releases are enabled before publication; issues are enabled and wiki/projects are disabled.
-- [ ] The release tag points to the recorded reviewer-approved SHA; any tracked CI-driven fix reruns both local gates and
+- [x] Repository immutable releases are enabled before publication; issues are enabled and wiki/projects are disabled.
+- [x] The release tag points to the recorded reviewer-approved SHA; any tracked CI-driven fix reruns both local gates and
   receives another findings-free round from the same reviewer before tagging.
-- [ ] Release workflow publishes deterministic immutable `v0.1.0`, expected archive/prefix and provenance; independent
+- [x] Release workflow publishes deterministic immutable `v0.1.0`, expected archive/prefix and provenance; independent
   download verifies integrity and extracted smoke consumption.
-- [ ] No BCR PR or registry fork is created; templates and future automation remain present for later use.
-- [ ] Jdbt replaces only `local_path_override` with `bazel_dep` 0.1.0 plus exact release `archive_override`, strip prefix,
+- [x] No BCR PR or registry fork is created; templates and future automation remain present for later use.
+- [x] Jdbt replaces only `local_path_override` with `bazel_dep` 0.1.0 plus exact release `archive_override`, strip prefix,
   and SRI integrity; no sibling checkout participates in its final builds.
-- [ ] Both full gates pass after release substitution, worktrees are clean except preserved jdbt user state, and the
+- [x] Both full gates pass after release substitution, worktrees are clean except preserved jdbt user state, and the
   same reviewer confirms the final archive-driven changes with no findings.
 
 ## Validation
@@ -102,3 +102,19 @@ published, and jdbt replaces the provisional local override with the exact integ
   and jdbt full gate pass locally. Same-reviewer round 12 reported `Findings: none` and approved that exact commit for
   hosted validation, retaining only macOS x86_64 confirmation of archive equality as residual risk. The complete hosted
   matrix remains the release gate before tagging.
+- Hosted run `35676075377` passed all ten required jobs on reviewed commit
+  `fbd857332d0a9993fa50d66ccfcf361658e448d2`, including both Windows lanes and Java 17/Bazel 9.2 on macOS x86_64. The
+  annotated `v0.1.0` tag and remote `main` both peel to that exact commit. Guarded release run `35676536245` passed
+  reviewed-candidate preflight, build, Sigstore/SLSA provenance attestation, and release publication.
+- GitHub reports release `v0.1.0` immutable. Independent download produced SHA-256
+  `f56b55c21a5a4c80e7c3adec39b83f198ed654890a1d88c5150fa3a40f065b56` and SRI
+  `sha256-9WtVwhpaTIDnw63sObg/GY7WVIkKHYjFFQ+jpA8GW1Y=`; it contains only the
+  `rules_palantir_java_format-0.1.0/` prefix. Offline provenance verification binds the artifact to the pinned
+  `bazel-contrib/.github` reusable workflow, exact source SHA, and `refs/heads/main`. The extracted standalone smoke
+  consumer built its public formatter targets successfully.
+- Jdbt now declares version `0.1.0` with an `archive_override` for the exact release URL, prefix, and SRI. With the
+  sibling checkout physically moved away, a fresh-output-base query resolved only the public formatter and watcher
+  aliases and the complete jdbt gate passed. The sibling was restored only after verification. BCR search found no
+  matching PR, and no `realityforge/bazel-central-registry` fork exists. Same-reviewer final archive-substitution review
+  round 13 reported `Findings: none`, found no residual risk in the substitution, and approved the exact `MODULE.bazel`
+  and evidence delta for commit and publication.

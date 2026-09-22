@@ -100,6 +100,9 @@ provenance workflow, and BCR-ready metadata make the local rules repository read
   `fbd857332d0a9993fa50d66ccfcf361658e448d2` assigns every archive entry the fixed Unix-epoch timestamp and deliberately
   separates the two regression-test builds by one second. The focused release test and both full local gates pass
   against that exact candidate; hosted matrix validation remains a T06 publication gate.
+- Hosted run `35676075377` passed all ten required Java/Bazel/platform jobs on exact reviewed commit
+  `fbd857332d0a9993fa50d66ccfcf361658e448d2`, including both Windows lanes and the macOS x86_64 lane that exposed the
+  raw-tree timestamp defect. This closes the hosted portability gate without reducing the accepted matrix.
 - The setup-bazel action is pinned to commit `8cb04a772ab4c1eb984e9c1b493a182e96c5e425`, verified as tag `0.19.0`.
   Release preflight requires the semantic-version tag, explicitly reviewed SHA, and current `origin/main` to be the
   same commit, then queries the successful push CI run and requires each of the ten named matrix jobs exactly once.
