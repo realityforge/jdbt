@@ -134,12 +134,6 @@ modules:
 ## Documentation
 
 - User guide: [`docs/user-guide.md`](docs/user-guide.md)
-- Canonical terms: [`docs/glossary/README.md`](docs/glossary/README.md)
-- Database Import specification: [`docs/specs/database-imports.md`](docs/specs/database-imports.md)
-- Database Import Timing specification: [`docs/specs/database-import-timing.md`](docs/specs/database-import-timing.md)
-- Repository Metadata decision: [`docs/adr/0001-repository-metadata-for-standard-imports.md`](docs/adr/0001-repository-metadata-for-standard-imports.md)
-- Planning and parity tracking: `plans/jdbt/`
-- Agent workflow constraints: `AGENTS.md`
 
 ## Notes
 
