@@ -92,6 +92,14 @@ provenance workflow, and BCR-ready metadata make the local rules repository read
   `ecf8be859af554be628e1f6feeed06e3f9ad2a7e` applies the same workspace-specific Bazel shutdown, stable-root change,
   and removal ordering to release-archive verification. The focused release test and both full local gates pass
   against that exact candidate; hosted Windows validation remains a T06 publication gate.
+- Hosted run `35675040878` passed nine of ten jobs, including both complete Windows lanes, proving candidate
+  `ecf8be859af554be628e1f6feeed06e3f9ad2a7e` closes both disposable Bazel workspaces correctly. The sole failure was
+  Java 17/Bazel 9.2 on macOS x86_64: its two archives of the same staged tree differed because `git archive` gives a raw
+  tree object the current time, and the two fast invocations only appeared deterministic when they happened within one
+  clock second. The failure reproduces locally when the invocations are separated by two seconds. Candidate
+  `fbd857332d0a9993fa50d66ccfcf361658e448d2` assigns every archive entry the fixed Unix-epoch timestamp and deliberately
+  separates the two regression-test builds by one second. The focused release test and both full local gates pass
+  against that exact candidate; hosted matrix validation remains a T06 publication gate.
 - The setup-bazel action is pinned to commit `8cb04a772ab4c1eb984e9c1b493a182e96c5e425`, verified as tag `0.19.0`.
   Release preflight requires the semantic-version tag, explicitly reviewed SHA, and current `origin/main` to be the
   same commit, then queries the successful push CI run and requires each of the ten named matrix jobs exactly once.

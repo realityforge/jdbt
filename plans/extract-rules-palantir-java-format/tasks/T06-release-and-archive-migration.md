@@ -92,3 +92,13 @@ published, and jdbt replaces the provisional local override with the exact integ
   full gate, and jdbt full gate pass locally. Same-reviewer round 11 reported `Findings: none` and approved that exact
   commit for hosted validation, retaining only the two hosted Windows lanes as residual risk. The complete hosted matrix
   remains the release gate before tagging.
+- Hosted run `35675040878` passed nine of ten jobs, including both complete Windows lanes, resolving round 11's residual
+  handle-cleanup risk. The only failure was Java 17/Bazel 9.2 on macOS x86_64, where the two supposedly deterministic
+  archives differed. No tag or release was created. The archive test uses a staged raw tree object; `git archive`
+  timestamps such entries with the invocation time, so back-to-back builds passed only when they fell in one clock
+  second. A two-second-separated local reproduction produced different bytes. Candidate
+  `fbd857332d0a9993fa50d66ccfcf361658e448d2` fixes the producer with a fixed Unix-epoch entry timestamp and adds a
+  one-second separation that makes the regression test deterministic. The focused release test, exact rules full gate,
+  and jdbt full gate pass locally. Same-reviewer round 12 reported `Findings: none` and approved that exact commit for
+  hosted validation, retaining only macOS x86_64 confirmation of archive equality as residual risk. The complete hosted
+  matrix remains the release gate before tagging.

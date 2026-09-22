@@ -5,8 +5,8 @@
 - Current frontier: `T06 public release and archive migration`
 - Planning reviewer: `/root/extraction_planning_reviewer` (`2/3` rounds, `Findings: none`)
 - Plan checkpoint: `automatic` (confirmed `$grill-me` understanding and passing planning review)
-- Implementation reviewer: `/root/implementation_reviewer` (`11` rounds; `Findings: none`; approved release-test cleanup
-  candidate `ecf8be859af554be628e1f6feeed06e3f9ad2a7e` for hosted validation)
+- Implementation reviewer: `/root/implementation_reviewer` (`12` rounds; `Findings: none`; approved deterministic archive
+  candidate `fbd857332d0a9993fa50d66ccfcf361658e448d2` for hosted validation)
 
 ## Full-scope validation
 
