@@ -85,6 +85,13 @@ provenance workflow, and BCR-ready metadata make the local rules repository read
   shuts down that workspace's Bazel server, changes to the stable repository root, and only then removes the temporary
   tree. Focused smoke plus both full local gates pass against that exact candidate; hosted Windows validation remains a
   T06 publication gate.
+- Hosted run `35674045753` passed all eight Ubuntu/macOS jobs and both Windows formatter test suites. Both Windows lanes
+  also passed the original disposable-smoke cleanup, proving candidate `cc381c37b5fa3606f6822fe72382e0f2089c8b31`
+  closes that workspace correctly. They failed only later when `tools/test_release.sh` removed the extracted archive's
+  `e2e/smoke` tree while its Bazel server still held it open. Candidate
+  `ecf8be859af554be628e1f6feeed06e3f9ad2a7e` applies the same workspace-specific Bazel shutdown, stable-root change,
+  and removal ordering to release-archive verification. The focused release test and both full local gates pass
+  against that exact candidate; hosted Windows validation remains a T06 publication gate.
 - The setup-bazel action is pinned to commit `8cb04a772ab4c1eb984e9c1b493a182e96c5e425`, verified as tag `0.19.0`.
   Release preflight requires the semantic-version tag, explicitly reviewed SHA, and current `origin/main` to be the
   same commit, then queries the successful push CI run and requires each of the ten named matrix jobs exactly once.

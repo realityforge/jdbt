@@ -83,3 +83,12 @@ published, and jdbt replaces the provisional local override with the exact integ
   locally. Same-reviewer round 10 reported `Findings: none` and approved that exact commit for hosted validation,
   retaining only the two hosted Windows lanes as residual risk. The complete hosted matrix remains the release gate
   before tagging.
+- Hosted run `35674045753` passed all eight non-Windows jobs, both Windows formatter test suites, and the original
+  disposable-smoke cleanup, confirming round 10's fix. Both Windows lanes failed only in the later release-archive
+  verification when its extracted `e2e/smoke` workspace was removed with a Bazel server still holding the directory.
+  No tag or release was created. Candidate `ecf8be859af554be628e1f6feeed06e3f9ad2a7e` mirrors the proven cleanup in
+  `tools/test_release.sh`: it shuts down that exact extracted consumer with the configured Bazel startup options,
+  returns to the stable repository root, and then removes the release-test tree. The focused release test, exact rules
+  full gate, and jdbt full gate pass locally. Same-reviewer round 11 reported `Findings: none` and approved that exact
+  commit for hosted validation, retaining only the two hosted Windows lanes as residual risk. The complete hosted matrix
+  remains the release gate before tagging.
