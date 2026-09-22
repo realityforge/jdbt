@@ -63,4 +63,6 @@ published, and jdbt replaces the provisional local override with the exact integ
   `884ddb006414a1265407870d13a7d564db5fda02` runs the already-built watcher executable directly, reads and validates
   its native Windows PID from MSYS/Cygwin `/proc/<pid>/winpid`, requires successful process-tree termination before
   waiting, and bounds lookup or termination failure without waiting. Focused smoke, the exact rules full gate, and the
-  jdbt full gate pass locally; same-reviewer reapproval and a fully green hosted matrix remain required before tagging.
+  jdbt full gate pass locally. Same-reviewer round 7 reported `Findings: none` and approved that exact commit before it
+  was pushed or tagged, retaining only hosted Bazel 8.4/9.2 Windows confirmation as residual risk. A fully green hosted
+  matrix remains required before tagging.
