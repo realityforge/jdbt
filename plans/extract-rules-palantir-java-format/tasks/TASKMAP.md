@@ -1,8 +1,8 @@
 # Task Map
 
 - Spec: [`SPEC.md`](../SPEC.md)
-- Status: `in_progress`
-- Current frontier: `T07 final publication and governance`
+- Status: `complete`
+- Current frontier: `complete`
 - Planning reviewer: `/root/extraction_planning_reviewer` (`2/3` rounds, `Findings: none`)
 - Plan checkpoint: `automatic` (confirmed `$grill-me` understanding and passing planning review)
 - Implementation reviewer: `/root/implementation_reviewer` (`13` rounds; `Findings: none`; final T06 archive
@@ -12,7 +12,9 @@
 
 - Gates: `/Users/peter/Code/realityforge/rules_palantir_java_format/tools/check.sh`, jdbt `tools/check.sh`, required
   GitHub Bazel 8/9 platform checks, release archive/provenance verification, and upstream state verification.
-- Evidence: `pending`
+- Evidence: rules `fbd857332d0a9993fa50d66ccfcf361658e448d2`, immutable release `v0.1.0`, green rules runs
+  `35676075377`/`35676536245`, jdbt `df9b335826fe2801a332cc921ef375cbd8c5fafd`, green jdbt run `35677654369`,
+  archive-only local gate, final review round 13 `Findings: none`, and protected rules `main`.
 
 ## Tasks
 
@@ -24,7 +26,7 @@
 | `T04` | [`Portable consumer, CI, and release readiness`](T04-portable-release-readiness.md) | `complete` | `T02`, `T03` |
 | `T05` | [`Provisional jdbt hard-cut migration`](T05-provisional-jdbt-migration.md) | `complete` | `T04` |
 | `T06` | [`Public v0.1.0 and released-archive migration`](T06-release-and-archive-migration.md) | `complete` | `T05`, prepublication review |
-| `T07` | [`Final publication and governance`](T07-final-publication-and-governance.md) | `in_progress` | `T06`, final archive review |
+| `T07` | [`Final publication and governance`](T07-final-publication-and-governance.md) | `complete` | `T06`, final archive review |
 
 ## Sequencing notes
 
