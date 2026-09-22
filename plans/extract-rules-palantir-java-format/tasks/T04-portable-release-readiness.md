@@ -78,6 +78,13 @@ provenance workflow, and BCR-ready metadata make the local rules repository read
   `jps`, normalizes native Windows CRLF output, rejects zero or multiple matches, and terminates that native JVM PID
   before waiting for the shell launcher. Focused CRLF parsing and smoke plus both full local gates pass against that
   exact candidate; hosted Windows validation remains a T06 publication gate.
+- Hosted run `35673248105` passed all eight Ubuntu/macOS jobs and both Windows formatter test suites. Both Windows smoke
+  jobs still failed only when removing the disposable workspace, even after terminating the exact watcher JVM; GitHub
+  again cleaned an orphan Java process afterward. This isolates the remaining handles to cleanup context, including the
+  disposable Bazel server and the shell's current directory. Candidate `cc381c37b5fa3606f6822fe72382e0f2089c8b31`
+  shuts down that workspace's Bazel server, changes to the stable repository root, and only then removes the temporary
+  tree. Focused smoke plus both full local gates pass against that exact candidate; hosted Windows validation remains a
+  T06 publication gate.
 - The setup-bazel action is pinned to commit `8cb04a772ab4c1eb984e9c1b493a182e96c5e425`, verified as tag `0.19.0`.
   Release preflight requires the semantic-version tag, explicitly reviewed SHA, and current `origin/main` to be the
   same commit, then queries the successful push CI run and requires each of the ten named matrix jobs exactly once.

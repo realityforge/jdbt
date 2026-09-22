@@ -75,3 +75,11 @@ published, and jdbt replaces the provisional local override with the exact integ
   the shell launcher. Focused CRLF parsing and smoke, the exact rules full gate, and the jdbt full gate pass locally.
   Same-reviewer round 9 reported `Findings: none` and approved that exact commit for hosted validation, retaining only
   the two hosted Windows lanes as residual risk. The complete hosted matrix remains the release gate before tagging.
+- Hosted run `35673248105` passed all eight non-Windows jobs and both Windows formatter test suites. Both Windows smoke
+  jobs again failed only at final disposable-workspace removal, despite successful exact watcher-JVM termination; the
+  Actions runner then cleaned an orphan Java process. No tag or release was created. Candidate
+  `cc381c37b5fa3606f6822fe72382e0f2089c8b31` shuts down the disposable workspace's Bazel server, leaves that directory,
+  and only then removes the temporary tree. Focused smoke, the exact rules full gate, and the jdbt full gate pass
+  locally. Same-reviewer round 10 reported `Findings: none` and approved that exact commit for hosted validation,
+  retaining only the two hosted Windows lanes as residual risk. The complete hosted matrix remains the release gate
+  before tagging.
