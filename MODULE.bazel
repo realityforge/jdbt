@@ -4,7 +4,7 @@ module(
 
 bazel_dep(name = "buildifier_prebuilt", version = "8.5.1", dev_dependency = True)
 
-bazel_dep(name = "ahab", version = "0.2.0")
+bazel_dep(name = "ahab", version = "0.3.0")
 bazel_dep(name = "rules_java", version = "9.9.0")
 bazel_dep(name = "rules_palantir_java_format", version = "0.1.0")
 archive_override(
