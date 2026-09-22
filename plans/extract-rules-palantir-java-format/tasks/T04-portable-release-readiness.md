@@ -68,8 +68,8 @@ provenance workflow, and BCR-ready metadata make the local rules repository read
 - Hosted run `35668711929` confirmed the normalized watcher diagnostics: `javaformat_tests` passed in both Windows
   lanes, and all eight Ubuntu/macOS lanes passed. Both Windows lanes then failed only when the smoke trap removed its
   temporary workspace: killing the `bazel run` client left the Java watcher holding the directory open. Candidate
-  `d22a808` builds and runs the watcher executable directly, supplies the workspace environment explicitly, resolves
-  the MSYS/Cygwin PID to a validated native Windows PID before terminating the launcher process tree, and emits watcher
+  `884ddb0` builds and runs the watcher executable directly, supplies the workspace environment explicitly, reads the
+  validated native Windows PID from MSYS/Cygwin `/proc` before terminating the launcher process tree, and emits watcher
   logs on timeout. Focused smoke plus both full local gates pass against that exact candidate.
 - The setup-bazel action is pinned to commit `8cb04a772ab4c1eb984e9c1b493a182e96c5e425`, verified as tag `0.19.0`.
   Release preflight requires the semantic-version tag, explicitly reviewed SHA, and current `origin/main` to be the

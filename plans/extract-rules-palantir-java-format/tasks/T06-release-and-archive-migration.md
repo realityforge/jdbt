@@ -59,7 +59,8 @@ published, and jdbt replaces the provisional local override with the exact integ
   than the Java watcher process, so `rm` reported its temporary workspace as busy. No tag or release was created.
   Same-reviewer round 5 rejected the first teardown candidate because it passed Bash's MSYS/Cygwin PID directly to
   native `taskkill`, which could miss or terminate the wrong process tree and then wait indefinitely. Corrected
-  candidate `d22a808f01f4b8f68efc4a21b0d2a0afa2d05f7f` runs the already-built watcher executable directly, resolves and
-  validates its native Windows PID through `ps`, requires successful process-tree termination before waiting, and
-  bounds failure without waiting. Focused smoke, the exact rules full gate, and the jdbt full gate pass locally;
-  same-reviewer reapproval and a fully green hosted matrix remain required before tagging.
+  Round 6 then found Git for Windows' `ps` does not support the selected output option. Corrected candidate
+  `884ddb006414a1265407870d13a7d564db5fda02` runs the already-built watcher executable directly, reads and validates
+  its native Windows PID from MSYS/Cygwin `/proc/<pid>/winpid`, requires successful process-tree termination before
+  waiting, and bounds lookup or termination failure without waiting. Focused smoke, the exact rules full gate, and the
+  jdbt full gate pass locally; same-reviewer reapproval and a fully green hosted matrix remain required before tagging.
