@@ -57,6 +57,9 @@ published, and jdbt replaces the provisional local override with the exact integ
 - Hosted run `35668711929` passed all eight non-Windows jobs and both Windows `javaformat_tests`, resolving round 4's
   residual product risk. The two Windows jobs failed later because the smoke test killed the `bazel run` client rather
   than the Java watcher process, so `rm` reported its temporary workspace as busy. No tag or release was created.
-  Candidate `92f8d08509294fe2995ca47522e67a9cb975ae5b` runs the already-built watcher executable directly and terminates
-  its Windows process tree before cleanup. Focused smoke, the exact rules full gate, and the jdbt full gate pass locally;
+  Same-reviewer round 5 rejected the first teardown candidate because it passed Bash's MSYS/Cygwin PID directly to
+  native `taskkill`, which could miss or terminate the wrong process tree and then wait indefinitely. Corrected
+  candidate `d22a808f01f4b8f68efc4a21b0d2a0afa2d05f7f` runs the already-built watcher executable directly, resolves and
+  validates its native Windows PID through `ps`, requires successful process-tree termination before waiting, and
+  bounds failure without waiting. Focused smoke, the exact rules full gate, and the jdbt full gate pass locally;
   same-reviewer reapproval and a fully green hosted matrix remain required before tagging.
