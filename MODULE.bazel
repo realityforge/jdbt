@@ -2,7 +2,7 @@ module(
     name = "jdbt",
 )
 
-bazel_dep(name = "buildifier_prebuilt", version = "8.5.1", dev_dependency = True)
+bazel_dep(name = "buildifier_prebuilt", version = "10.0.1", dev_dependency = True)
 
 bazel_dep(name = "ahab", version = "0.3.0")
 bazel_dep(name = "rules_java", version = "9.9.0")
