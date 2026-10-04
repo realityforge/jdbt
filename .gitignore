@@ -1,5 +1,8 @@
 # Ignore local temp file
 tmp/
 
+# Bazel output symlinks
+/bazel-*
+
 # Local user configuration
 /user.bazelrc
