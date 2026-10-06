@@ -47,6 +47,4 @@ interface CommandRunner {
             @Nullable String dataset,
             @Nullable Path outputDirectory,
             Map<String, String> filterProperties);
-
-    void exportDatabaseStatistics(DatabaseConnection target, Path outputFile);
 }

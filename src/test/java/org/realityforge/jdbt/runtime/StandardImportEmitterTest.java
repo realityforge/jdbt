@@ -27,13 +27,10 @@ final class StandardImportEmitterTest {
                 Map.of(
                         "First",
                         List.of(
-                                new RepositoryTable(
-                                        "[First].[tblImport]", List.of("[ID]", "[Name]"), List.of(), RowSource.IMPORT),
-                                new RepositoryTable(
-                                        "[First].[tblDeployment]", List.of("[ID]"), List.of(), RowSource.DEPLOYMENT)),
+                                new RepositoryTable("[First].[tblImport]", List.of("[ID]", "[Name]"), RowSource.IMPORT),
+                                new RepositoryTable("[First].[tblDeployment]", List.of("[ID]"), RowSource.DEPLOYMENT)),
                         "Second",
-                        List.of(new RepositoryTable(
-                                "[Second].[tblOther]", List.of("[Value]"), List.of(), RowSource.IMPORT))),
+                        List.of(new RepositoryTable("[Second].[tblOther]", List.of("[Value]"), RowSource.IMPORT))),
                 Map.of("First", List.of("[First].[ThingSeq]"), "Second", List.of()));
         final var database = database(
                 project,
@@ -158,9 +155,8 @@ final class StandardImportEmitterTest {
                 Map.of(
                         "Core",
                         List.of(
-                                new RepositoryTable("[Core].[tbl]", List.of("[ID]"), List.of(), RowSource.IMPORT),
-                                new RepositoryTable(
-                                        "\"Core\".\"tbl\"", List.of("\"ID\""), List.of(), RowSource.IMPORT))),
+                                new RepositoryTable("[Core].[tbl]", List.of("[ID]"), RowSource.IMPORT),
+                                new RepositoryTable("\"Core\".\"tbl\"", List.of("\"ID\""), RowSource.IMPORT))),
                 Map.of("Core", List.of()));
 
         assertThatThrownBy(() -> new StandardImportEmitter(new SqlServerDbDriver())
@@ -176,9 +172,7 @@ final class StandardImportEmitterTest {
         final var moduleRepository = new RepositoryConfig(
                 List.of(unsafeModule),
                 Map.of(),
-                Map.of(
-                        unsafeModule,
-                        List.of(new RepositoryTable("[Core].[tbl]", List.of("[ID]"), List.of(), RowSource.IMPORT))),
+                Map.of(unsafeModule, List.of(new RepositoryTable("[Core].[tbl]", List.of("[ID]"), RowSource.IMPORT))),
                 Map.of(unsafeModule, List.of()));
         final var emitter = new StandardImportEmitter(new SqlServerDbDriver());
 
@@ -210,9 +204,7 @@ final class StandardImportEmitterTest {
         return new RepositoryConfig(
                 List.of("Core"),
                 Map.of(),
-                Map.of(
-                        "Core",
-                        List.of(new RepositoryTable("[Core].[tbl]", List.of("[ID]"), List.of(), RowSource.IMPORT))),
+                Map.of("Core", List.of(new RepositoryTable("[Core].[tbl]", List.of("[ID]"), RowSource.IMPORT))),
                 Map.of("Core", List.of()));
     }
 

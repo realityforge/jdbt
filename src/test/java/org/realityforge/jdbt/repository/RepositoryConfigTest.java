@@ -13,12 +13,8 @@ final class RepositoryConfigTest {
             List.of("Core", "Geo"),
             Map.of("Geo", "G"),
             Map.of(
-                    "Core",
-                            List.of(new RepositoryTable(
-                                    "[Core].[tblA]", List.of("[ID]", "[Name]"), List.of(), RowSource.IMPORT)),
-                    "Geo",
-                            List.of(new RepositoryTable(
-                                    "[G].[tblB]", List.of("[ID]"), List.of(), RowSource.DEPLOYMENT))),
+                    "Core", List.of(new RepositoryTable("[Core].[tblA]", List.of("[ID]", "[Name]"), RowSource.IMPORT)),
+                    "Geo", List.of(new RepositoryTable("[G].[tblB]", List.of("[ID]"), RowSource.DEPLOYMENT))),
             Map.of("Core", List.of("[Core].[seqA]"), "Geo", List.of()));
 
     @Test

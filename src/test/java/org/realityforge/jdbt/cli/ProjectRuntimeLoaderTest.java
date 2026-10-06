@@ -76,7 +76,6 @@ final class ProjectRuntimeLoaderTest {
                 tables:
                   - name: '[A].[Known]'
                     columns: ['[Id]']
-                    indexes: []
                 sequences: []
             """);
         writeFile(tempDir, "A/import/A.Unknown.yml", "id: {}\n");
@@ -112,7 +111,6 @@ final class ProjectRuntimeLoaderTest {
                 tables:
                   - name: '[A].[Known]'
                     columns: ['[Id]']
-                    indexes: []
                 sequences: []
             """);
         writeFile(tempDir, "A/datasets/sample/A.Known.yml", "id: {value: 1}\n");
@@ -138,7 +136,7 @@ final class ProjectRuntimeLoaderTest {
         writeFile(tempDir, "repository.yml", """
             modules:
               A:
-                tables: [{name: "[A].[Known]", columns: ["[ID]"], indexes: []}]
+                tables: [{name: "[A].[Known]", columns: ["[ID]"]}]
                 sequences: []
             """);
         writeFile(tempDir, "selected/contributions/action.sql", "SELECT 1");
@@ -171,19 +169,19 @@ final class ProjectRuntimeLoaderTest {
         writeFile(tempDir, "repository.yml", """
             modules:
               Local:
-                tables: [{name: "[Local].[tbl]", columns: ["[ID]"], indexes: []}]
+                tables: [{name: "[Local].[tbl]", columns: ["[ID]"]}]
                 sequences: []
             """);
         writeArtifact(tempDir.resolve("pre.zip"), "data/repository.yml", """
             modules:
               Pre:
-                tables: [{name: "[Pre].[tbl]", columns: ["[ID]"], indexes: []}]
+                tables: [{name: "[Pre].[tbl]", columns: ["[ID]"]}]
                 sequences: []
             """);
         writeArtifact(tempDir.resolve("post.zip"), "data/repository.yml", """
             modules:
               Post:
-                tables: [{name: "[Post].[tbl]", columns: ["[ID]"], indexes: []}]
+                tables: [{name: "[Post].[tbl]", columns: ["[ID]"]}]
                 sequences: []
             """);
 
@@ -252,7 +250,7 @@ final class ProjectRuntimeLoaderTest {
         writeFile(tempDir, "repository.yml", """
             modules:
               MyModule:
-                tables: [{name: "[MyModule].[foo]", columns: ["[ID]"], indexes: []}]
+                tables: [{name: "[MyModule].[foo]", columns: ["[ID]"]}]
                 sequences: []
             """);
         writeFile(tempDir, "MyModule/a.sql", "SELECT 1");

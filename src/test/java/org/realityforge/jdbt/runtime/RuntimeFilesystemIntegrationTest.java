@@ -121,9 +121,9 @@ final class RuntimeFilesystemIntegrationTest {
                 Map.of(
                         "Core",
                         List.of(
-                                new RepositoryTable("[Core].[foo]", List.of("[ID]"), List.of(), fooRowSource),
-                                new RepositoryTable("[Core].[bar]", List.of("[ID]"), List.of(), RowSource.IMPORT),
-                                new RepositoryTable("[Core].[baz]", List.of("[ID]"), List.of(), RowSource.IMPORT))),
+                                new RepositoryTable("[Core].[foo]", List.of("[ID]"), fooRowSource),
+                                new RepositoryTable("[Core].[bar]", List.of("[ID]"), RowSource.IMPORT),
+                                new RepositoryTable("[Core].[baz]", List.of("[ID]"), RowSource.IMPORT))),
                 Map.of("Core", List.of()));
         return new RuntimeDatabase(
                 repository,

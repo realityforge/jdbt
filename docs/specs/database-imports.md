@@ -8,7 +8,6 @@ Each table in a [Repository Descriptor](../glossary/README.md#repository-descrip
 
 - a qualified `name`;
 - a non-empty, ordered list of unique quoted SQL `columns`; and
-- a mandatory ordered list of unique quoted physical SQL `indexes`; and
 - an optional `rowSource`, whose values are `import` and `deployment` and whose default is `import`.
 
 The descriptor's `modules` value is a plain YAML map. Ordered-map tags and list-shaped module maps are invalid. YAML row-data files also reject ordered-map tags; ordinary mappings retain insertion order.

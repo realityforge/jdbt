@@ -2113,7 +2113,7 @@ final class RuntimeEngineTest {
     }
 
     private static RepositoryTable table(final String name, final RowSource rowSource) {
-        return new RepositoryTable(name, List.of("[ID]"), List.of(), rowSource);
+        return new RepositoryTable(name, List.of("[ID]"), rowSource);
     }
 
     private static RepositoryConfig singleModuleRepository(final RepositoryTable... tables) {

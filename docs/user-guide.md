@@ -164,7 +164,7 @@ These keys mirror Ruby SQL Server runtime behavior and are ignored by non-SQL Se
 
 ### `repository.yml`
 
-The Repository Descriptor, `repository.yml`, defines Database Module ordering, table ordering, ordered SQL columns, physical index identities, Row Sources, sequence ordering, and optional schema overrides.
+The Repository Descriptor, `repository.yml`, defines Database Module ordering, table ordering, ordered SQL columns, Row Sources, sequence ordering, and optional schema overrides.
 
 `modules` must be a plain YAML map. Ordered-map tags and list-shaped module maps are not supported.
 
@@ -177,18 +177,16 @@ modules:
     tables:
       - name: '[Core].[tblA]'
         columns: ['[ID]', '[Name]']
-        indexes: ['[PK_A]', '[IX_A_Name]']
     sequences: []
   Billing:
     tables:
       - name: '[Billing].[tblInvoice]'
         columns: ['[InvoiceID]', '[Amount]']
-        indexes: ['[PK_Invoice]']
         rowSource: deployment
     sequences: []
 ```
 
-Each table requires a qualified `name`, a non-empty ordered list of unique quoted SQL `columns`, and an ordered list of unique quoted physical SQL `indexes`. The index list may be empty. Optional `rowSource` is `import` or `deployment` and defaults to `import`. If `schema` is omitted, the Database Module name is used.
+Each table requires a qualified `name`, a non-empty ordered list of unique quoted SQL `columns`. Optional `rowSource` is `import` or `deployment` and defaults to `import`. If `schema` is omitted, the Database Module name is used.
 
 ## Directory conventions
 
@@ -451,21 +449,10 @@ Use `--dataset <datasetKey>` to write dataset fixtures instead:
 
 `export-fixtures` accepts repeatable `--property key=value` and applies declared `filterProperties` to custom export SQL.
 
-`export-database-statistics`
-
-```bash
-bazel run //src/main/java/org/realityforge/jdbt:jdbt_bin -- export-database-statistics \
-  --target-host localhost --target-port 1433 \
-  --target-database MyDb --target-username sa --password-env DB_PASS \
-  --output ./database-statistics.csv
-```
-
-This SQL Server-only command writes approximate row counts and physical used-page counts for every modeled table and physical index. The account needs `VIEW DEFINITION` on the database. Database-only objects are ignored; missing or unusable modeled objects fail the export without replacing an existing file. See the [Database Statistics Export specification](specs/database-statistics.md) for query, validation, CSV, and atomic-output semantics.
-
 ## Artifacts and packaging
 
 - `package-data` creates a deterministic Database Artifact zip.
-- The merged Repository Descriptor is embedded as `data/repository.yml` without losing table columns, index identities, or Row Sources.
+- The merged Repository Descriptor is embedded as `data/repository.yml` without losing table columns or Row Sources.
 - Database Artifacts referenced by `preDbArtifacts` and `postDbArtifacts` must contain `data/repository.yml` and relevant `data/**` entries.
 
 ## Driver-specific behavior notes

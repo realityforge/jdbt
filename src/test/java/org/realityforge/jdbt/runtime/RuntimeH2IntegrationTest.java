@@ -62,7 +62,7 @@ final class RuntimeH2IntegrationTest {
                 Map.of(
                         "Core",
                         List.of(new RepositoryTable(
-                                "\"PUBLIC\".\"FOO\"", List.of("\"ID\"", "\"NAME\""), List.of(), RowSource.DEPLOYMENT))),
+                                "\"PUBLIC\".\"FOO\"", List.of("\"ID\"", "\"NAME\""), RowSource.DEPLOYMENT))),
                 Map.of("Core", List.of()));
         return new RuntimeDatabase(
                 repository,

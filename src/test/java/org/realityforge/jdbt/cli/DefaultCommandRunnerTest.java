@@ -264,7 +264,7 @@ final class DefaultCommandRunnerTest {
         writeFile(producer, "repository.yml", """
             modules:
               Artifact:
-                tables: [{name: "[Artifact].[tbl]", columns: ["[ID]", "[Code]"], indexes: []}]
+                tables: [{name: "[Artifact].[tbl]", columns: ["[ID]", "[Code]"]}]
                 sequences: []
             """);
         final var artifact = tempDir.resolve("artifact.zip");
@@ -310,7 +310,7 @@ final class DefaultCommandRunnerTest {
         return """
             modules:
               MyModule:
-                tables: [{name: "[MyModule].[foo]", columns: ["[ID]"], indexes: []}]
+                tables: [{name: "[MyModule].[foo]", columns: ["[ID]"]}]
                 sequences: []
             """;
     }

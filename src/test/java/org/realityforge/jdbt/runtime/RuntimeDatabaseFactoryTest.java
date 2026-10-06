@@ -20,9 +20,7 @@ final class RuntimeDatabaseFactoryTest {
         final var repository = new RepositoryConfig(
                 List.of("Core"),
                 Map.of(),
-                Map.of(
-                        "Core",
-                        List.of(new RepositoryTable("[Core].[tblA]", List.of("[ID]"), List.of(), RowSource.IMPORT))),
+                Map.of("Core", List.of(new RepositoryTable("[Core].[tblA]", List.of("[ID]"), RowSource.IMPORT))),
                 Map.of("Core", List.of()));
         final var database = new DatabaseConfig(
                 List.of("."),

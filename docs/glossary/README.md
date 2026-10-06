@@ -14,7 +14,7 @@ The `repository.yml` file in a [Database Project](#database-project) or [Databas
 
 ### Repository Metadata
 
-The ordered, merged description of [Database Modules](#database-module), schema overrides, tables, table columns, physical table-index identities, [Row Sources](#row-source), and sequences. Jdbt composes it from pre-artifact descriptors, the local descriptor, then post-artifact descriptors.
+The ordered, merged description of [Database Modules](#database-module), schema overrides, tables, table columns, [Row Sources](#row-source), and sequences. Jdbt composes it from pre-artifact descriptors, the local descriptor, then post-artifact descriptors.
 
 ### Database Module
 
@@ -35,10 +35,6 @@ A resolved database asset backed either by a file beneath the [Resource Root](#r
 ### Database Contribution
 
 An ordered database-level directory of SQL resources that establishes deployment-owned data after ordinary data or dataset establishment and before structural finalization. Contributions run once during fresh, dataset-backed, and import-backed creation, but not during Migration or late-table import recovery.
-
-### Database Statistics Export
-
-A deterministic CSV observation of approximate row counts and physical used-page counts for every table and physical index declared by [Repository Metadata](#repository-metadata). It validates the live database against the modeled identities and excludes database-only objects.
 
 ## Database evolution
 
@@ -111,7 +107,6 @@ A per-table or per-sequence YAML file in an [Import Definition](#import-definiti
 
 A table or sequence YAML file under a named dataset. It is loaded only by an explicit dataset command and may target either [Row Source](#row-source) because datasets are operator-requested data, not lifecycle ownership.
 
-The durable behavior behind these terms is specified in [Database Imports](../specs/database-imports.md),
-[Database Import Timing](../specs/database-import-timing.md), and
-[Database Statistics Export](../specs/database-statistics.md). Migration behavior is specified in
+The durable behavior behind these terms is specified in [Database Imports](../specs/database-imports.md) and
+[Database Import Timing](../specs/database-import-timing.md). Migration behavior is specified in
 [Database Migrations](../specs/database-migrations.md).

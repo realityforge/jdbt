@@ -411,59 +411,6 @@ final class JdbtCommandTest {
     }
 
     @Test
-    void exportDatabaseStatisticsDispatchesTargetAndOutput() {
-        final var runner = new RecordingRunner();
-
-        final var exitCode = JdbtCommand.execute(
-                new String[] {
-                    "export-database-statistics",
-                    "--target-host",
-                    "db.example",
-                    "--target-port",
-                    "1434",
-                    "--target-database",
-                    "rose",
-                    "--target-username",
-                    "admin",
-                    "--password-env",
-                    "DB_PASSWORD",
-                    "--output",
-                    "statistics.csv"
-                },
-                runner,
-                new PasswordResolver(Map.of("DB_PASSWORD", "secret"), new ByteArrayInputStream(new byte[0])));
-
-        assertThat(exitCode).isZero();
-        assertThat(runner.lastCall).isEqualTo("export-database-statistics");
-        assertThat(runner.targetConnection)
-                .isEqualTo(new DatabaseConnection("db.example", 1434, "rose", "admin", "secret"));
-        assertThat(runner.outputFile).isEqualTo(Path.of("statistics.csv"));
-    }
-
-    @Test
-    void exportDatabaseStatisticsRequiresOutput() {
-        final var runner = new RecordingRunner();
-
-        final var exitCode = JdbtCommand.execute(
-                new String[] {
-                    "export-database-statistics",
-                    "--target-host",
-                    "localhost",
-                    "--target-database",
-                    "rose",
-                    "--target-username",
-                    "admin",
-                    "--password",
-                    "secret"
-                },
-                runner,
-                new PasswordResolver(Map.of(), new ByteArrayInputStream(new byte[0])));
-
-        assertThat(exitCode).isEqualTo(JdbtCommand.USAGE_EXIT_CODE);
-        assertThat(runner.lastCall).isEmpty();
-    }
-
-    @Test
     void dumpFixturesCommandIsNotExposed() {
         final var runner = new RecordingRunner();
 
@@ -629,13 +576,6 @@ final class JdbtCommandTest {
             this.dataset = dataset;
             this.outputDirectory = outputDirectory;
             this.filterProperties = filterProperties;
-        }
-
-        @Override
-        public void exportDatabaseStatistics(final DatabaseConnection target, final Path outputFile) {
-            this.lastCall = "export-database-statistics";
-            this.targetConnection = target;
-            this.outputFile = outputFile;
         }
     }
 }

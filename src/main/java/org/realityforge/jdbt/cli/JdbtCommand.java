@@ -30,8 +30,7 @@ import picocli.CommandLine.Model.CommandSpec;
             JdbtCommand.PackageDataCommand.class,
             JdbtCommand.EmitStandardImportsCommand.class,
             JdbtCommand.VerifyConstraintsCommand.class,
-            JdbtCommand.ExportFixturesCommand.class,
-            JdbtCommand.ExportDatabaseStatisticsCommand.class
+            JdbtCommand.ExportFixturesCommand.class
         })
 public final class JdbtCommand implements Callable<Integer> {
     static final int USAGE_EXIT_CODE = 2;
@@ -462,25 +461,6 @@ public final class JdbtCommand implements Callable<Integer> {
                             dataset,
                             outputDirectory,
                             filterProperties());
-            return 0;
-        }
-    }
-
-    @CommandLine.Command(
-            name = "export-database-statistics",
-            mixinStandardHelpOptions = true,
-            description = "Export physical statistics for modeled tables and indexes")
-    @SuppressWarnings("FieldCanBeFinal")
-    static final class ExportDatabaseStatisticsCommand extends BaseCommand {
-        @CommandLine.Option(names = "--output", required = true, description = "Output CSV file")
-        private Path outputFile = Path.of("database-statistics.csv");
-
-        @CommandLine.Mixin
-        private TargetConnectionOptions target = new TargetConnectionOptions();
-
-        @Override
-        public Integer call() {
-            runner().exportDatabaseStatistics(target.toConnection(passwordResolver()), outputFile);
             return 0;
         }
     }

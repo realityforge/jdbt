@@ -17,16 +17,14 @@ final class RuntimeDatabaseTest {
         final var repository = new RepositoryConfig(
                 List.of("Core"),
                 Map.of("Core", "C"),
-                Map.of(
-                        "Core",
-                        List.of(new RepositoryTable("[C].[tblA]", List.of("[ID]"), List.of(), RowSource.IMPORT))),
+                Map.of("Core", List.of(new RepositoryTable("[C].[tblA]", List.of("[ID]"), RowSource.IMPORT))),
                 Map.of("Core", List.of("[C].[seqA]")));
         final var database = runtimeDatabase(repository);
 
         assertThat(database.schemaNameForModule("Core")).isEqualTo("C");
         assertThat(database.tableOrdering("Core")).containsExactly("[C].[tblA]");
         assertThat(database.tablesForModule("Core"))
-                .containsExactly(new RepositoryTable("[C].[tblA]", List.of("[ID]"), List.of(), RowSource.IMPORT));
+                .containsExactly(new RepositoryTable("[C].[tblA]", List.of("[ID]"), RowSource.IMPORT));
         assertThat(database.sequenceOrdering("Core")).containsExactly("[C].[seqA]");
         assertThat(database.orderedElementsForModule("Core")).containsExactly("[C].[tblA]", "[C].[seqA]");
         assertThat(database.filterProperties()).isEmpty();

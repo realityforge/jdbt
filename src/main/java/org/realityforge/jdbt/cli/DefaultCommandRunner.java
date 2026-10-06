@@ -11,7 +11,6 @@ import java.util.function.Consumer;
 import org.jspecify.annotations.Nullable;
 import org.realityforge.jdbt.db.DatabaseConnection;
 import org.realityforge.jdbt.db.DbDriver;
-import org.realityforge.jdbt.db.sqlserver.SqlServerDatabaseStatisticsExporter;
 import org.realityforge.jdbt.db.sqlserver.SqlServerDbDriver;
 import org.realityforge.jdbt.files.FileResolver;
 import org.realityforge.jdbt.packaging.DatabaseDataPackager;
@@ -159,15 +158,6 @@ final class DefaultCommandRunner implements CommandRunner {
         runtimeEngine()
                 .exportFixtures(
                         runtime.database(), target, propertiesFile, dataset, resolvedOutputDirectory, filterProperties);
-    }
-
-    @Override
-    public void exportDatabaseStatistics(final DatabaseConnection target, final Path outputFile) {
-        final var runtime = projectRuntimeLoader.load();
-        final var count = new SqlServerDatabaseStatisticsExporter(dbDriver)
-                .export(runtime.database().repository(), target, outputFile);
-        System.out.println("Exported " + count + " database statistics to "
-                + outputFile.toAbsolutePath().normalize());
     }
 
     private static String resolveImportKey(

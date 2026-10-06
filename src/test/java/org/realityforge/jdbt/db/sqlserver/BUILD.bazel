@@ -6,7 +6,6 @@ junit5_test(
     name = "sqlserver_tests",
     srcs = [
         "SqlServerAssertExpanderTest.java",
-        "SqlServerDatabaseStatisticsExporterTest.java",
         "SqlServerDbDriverTest.java",
         "package-info.java",
     ],
@@ -15,7 +14,6 @@ junit5_test(
         "//src/main/java/org/realityforge/jdbt/config",
         "//src/main/java/org/realityforge/jdbt/db:db_core",
         "//src/main/java/org/realityforge/jdbt/db/sqlserver",
-        "//src/main/java/org/realityforge/jdbt/repository",
         "//third_party/java:assertj_core",
         "//third_party/java:mockito_core",
     ],

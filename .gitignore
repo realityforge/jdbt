@@ -1,3 +1,6 @@
+# Bazel output symlinks
+/bazel-*
+
 # Ignore local temp file
 tmp/
 
