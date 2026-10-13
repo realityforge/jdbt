@@ -6,7 +6,7 @@
 /.idea
 
 # Ignore local temp file
-tmp/
+/tmp/
 
 # Bazel output symlinks
 /bazel-*
