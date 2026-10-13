@@ -630,7 +630,7 @@ public final class SqlServerDbDriver implements DbDriver {
             throw new DatabaseException("Failed to begin migration transaction", sqle);
         }
 
-        @Nullable Throwable failure = null;
+        Throwable failure = null;
         try {
             action.run();
             connection.commit();
@@ -819,7 +819,7 @@ public final class SqlServerDbDriver implements DbDriver {
             throw new DatabaseException("Failed to read SQL Server connection catalog", sqle);
         }
 
-        @Nullable RuntimeException failure = null;
+        RuntimeException failure = null;
         try {
             connection.setCatalog(catalog);
             action.run();

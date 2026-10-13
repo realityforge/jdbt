@@ -191,7 +191,7 @@ public final class StandardImportEmitter {
 
     private static void replaceDestination(final Path stagingDirectory, final Path destination) throws IOException {
         Files.createDirectories(destination.getParent());
-        @Nullable Path backup = null;
+        Path backup = null;
         if (Files.exists(destination, LinkOption.NOFOLLOW_LINKS)) {
             backup = Files.createTempDirectory(destination.getParent(), ".jdbt-standard-imports-backup-");
             Files.delete(backup);
