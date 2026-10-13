@@ -1,6 +1,10 @@
 # Bazel output symlinks
 /bazel-*
 
+# IDE Configuration
+/.bazelbsp
+/.idea
+
 # Ignore local temp file
 tmp/
 
