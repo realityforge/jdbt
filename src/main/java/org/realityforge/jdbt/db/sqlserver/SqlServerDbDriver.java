@@ -371,17 +371,7 @@ public final class SqlServerDbDriver implements DbDriver {
 
     @Override
     public QueryResult verifySchemaConstraints(final String schemaName) {
-        final var result = query("EXEC " + quote(schemaName) + ".spCheckConstraints");
-        final var violationIndex = result.columnLabels().indexOf("IsViolation");
-        if (-1 == violationIndex) {
-            throw new DatabaseException("Constraint check result is missing IsViolation");
-        }
-        return new QueryResult(
-                result.columnLabels(),
-                result.rows().stream()
-                        .filter(row -> Boolean.TRUE.equals(row.get(violationIndex))
-                                || row.get(violationIndex) instanceof Number number && 0 != number.intValue())
-                        .toList());
+        return query("EXEC " + quote(schemaName) + ".spCheckConstraints");
     }
 
     @Override

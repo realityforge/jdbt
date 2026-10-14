@@ -540,7 +540,7 @@ final class SqlServerDbDriverTest {
     }
 
     @Test
-    void verifySchemaConstraintsReturnsOnlyViolations() throws Exception {
+    void verifySchemaConstraintsReturnsFindings() throws Exception {
         final var target = mock(Connection.class);
         final var statement = mock(Statement.class);
         final var result = mock(ResultSet.class);
@@ -548,18 +548,44 @@ final class SqlServerDbDriverTest {
         when(target.createStatement()).thenReturn(statement);
         when(statement.executeQuery("EXEC [Core].spCheckConstraints")).thenReturn(result);
         when(result.getMetaData()).thenReturn(metadata);
-        when(metadata.getColumnCount()).thenReturn(2);
-        when(metadata.getColumnLabel(1)).thenReturn("ConstraintName");
-        when(metadata.getColumnLabel(2)).thenReturn("IsViolation");
-        when(result.next()).thenReturn(true, true, false);
-        when(result.getObject(1)).thenReturn("CK_Valid", "CK_Invalid");
-        when(result.getObject(2)).thenReturn(false, true);
+        when(metadata.getColumnCount()).thenReturn(4);
+        when(metadata.getColumnLabel(1)).thenReturn("SchemaName");
+        when(metadata.getColumnLabel(2)).thenReturn("TableName");
+        when(metadata.getColumnLabel(3)).thenReturn("ConstraintName");
+        when(metadata.getColumnLabel(4)).thenReturn("ViewSql");
+        when(result.next()).thenReturn(true, false);
+        when(result.getObject(1)).thenReturn("Core");
+        when(result.getObject(2)).thenReturn("tblExample");
+        when(result.getObject(3)).thenReturn("CK_Invalid");
+        when(result.getObject(4)).thenReturn("SELECT * FROM [Core].[tblExample]");
         final var driver = new SqlServerDbDriver((connection, controlDatabase) -> target);
         driver.open(config, false);
 
         assertThat(driver.verifySchemaConstraints("Core"))
                 .isEqualTo(new QueryResult(
-                        List.of("ConstraintName", "IsViolation"), List.of(List.of("CK_Invalid", true))));
+                        List.of("SchemaName", "TableName", "ConstraintName", "ViewSql"),
+                        List.of(List.of("Core", "tblExample", "CK_Invalid", "SELECT * FROM [Core].[tblExample]"))));
+    }
+
+    @Test
+    void verifySchemaConstraintsAcceptsValidDataWithoutFindings() throws Exception {
+        final var target = mock(Connection.class);
+        final var statement = mock(Statement.class);
+        final var result = mock(ResultSet.class);
+        final var metadata = mock(ResultSetMetaData.class);
+        when(target.createStatement()).thenReturn(statement);
+        when(statement.executeQuery("EXEC [Core].spCheckConstraints")).thenReturn(result);
+        when(result.getMetaData()).thenReturn(metadata);
+        when(metadata.getColumnCount()).thenReturn(4);
+        when(metadata.getColumnLabel(1)).thenReturn("SchemaName");
+        when(metadata.getColumnLabel(2)).thenReturn("TableName");
+        when(metadata.getColumnLabel(3)).thenReturn("ConstraintName");
+        when(metadata.getColumnLabel(4)).thenReturn("ViewSql");
+        final var driver = new SqlServerDbDriver((connection, controlDatabase) -> target);
+        driver.open(config, false);
+
+        assertThat(driver.verifySchemaConstraints("Core"))
+                .isEqualTo(new QueryResult(List.of("SchemaName", "TableName", "ConstraintName", "ViewSql"), List.of()));
     }
 
     @Test

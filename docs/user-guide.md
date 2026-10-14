@@ -409,9 +409,9 @@ bazel run //src/main/java/org/realityforge/jdbt:jdbt_bin -- verify-constraints \
   --check-query "EXEC [Analysis].[spPerformChecks]"
 ```
 
-`--schema` may be repeated. For SQL Server, each schema runs `<schema>.spCheckConstraints`, requires an `IsViolation`
-column, and fails if any returned row marks a violation. Completed non-violation rows are ignored. Other drivers return
-no schema constraint rows unless they implement a native equivalent.
+`--schema` may be repeated. For SQL Server, each schema runs `<schema>.spCheckConstraints`, which must return findings
+only: zero rows means valid data, and every returned row is reported as a failed constraint. Other drivers return no
+schema constraint rows unless they implement a native equivalent.
 
 `--check-query` may be repeated. Each query must return zero rows; any returned row is reported as a failed check.
 
