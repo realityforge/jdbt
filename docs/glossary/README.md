@@ -14,7 +14,7 @@ The `repository.yml` file in a [Database Project](#database-project) or [Databas
 
 ### Repository Metadata
 
-The ordered, merged description of [Database Modules](#database-module), schema overrides, tables, table columns, [Row Sources](#row-source), and sequences. Jdbt composes it from pre-artifact descriptors, the local descriptor, then post-artifact descriptors.
+The ordered, merged description of [Database Module](#database-module)s, schema overrides, tables, table columns, [Row Source](#row-source)s, and sequences. Jdbt composes it from pre-artifact descriptors, the local descriptor, then post-artifact descriptors.
 
 ### Database Module
 
@@ -22,11 +22,11 @@ A named, ordered unit of database ownership containing an optional schema overri
 
 ### Database Artifact
 
-A deterministic zip consumed through `preDbArtifacts` or `postDbArtifacts`. It contains `data/repository.yml` and the database assets owned by its [Database Modules](#database-module).
+A deterministic zip consumed through `preDbArtifacts` or `postDbArtifacts`. It contains `data/repository.yml` and the database assets owned by its [Database Module](#database-module)s.
 
 ### Resource Root
 
-The single local filesystem tree selected by `resourceRoot`. Jdbt resolves project-owned database assets beneath this root and combines them with configured [Database Artifacts](#database-artifact).
+The single local filesystem tree selected by `resourceRoot`. Jdbt resolves project-owned database assets beneath this root and combines them with configured [Database Artifact](#database-artifact)s.
 
 ### Database Resource
 
@@ -34,7 +34,7 @@ A resolved database asset backed either by a file beneath the [Resource Root](#r
 
 ### Database Contribution
 
-An ordered database-level directory of SQL resources that establishes deployment-owned data after ordinary data or dataset establishment and before structural finalization. Contributions run once during fresh, dataset-backed, and import-backed creation, but not during Migration or late-table import recovery.
+An ordered database-level directory of SQL resources that establishes deployment-owned data after ordinary data or dataset establishment and before structural finalization. Contributions run once during fresh, dataset-backed, and import-backed creation, but not during [Migration](#migration) or late-table import recovery.
 
 ## Database evolution
 
@@ -46,18 +46,18 @@ its durable identity and its exact UTF-8 content determines its checksum.
 ### Release Migration
 
 A [Migration](#migration) named with a `Release-<version>` suffix after its ordering prefix. It identifies the point
-represented by a live database's `DatabaseSchemaVersion` when migration state is first initialized.
+represented by a live database's `DatabaseSchemaVersion` when [Migration State](#migration-state) is first initialized.
 
 ### Migration State
 
-The target database's unique record of applied [Migrations](#migration), including each Migration's identity,
+The target database's unique record of applied [Migration](#migration)s, including each Migration's identity,
 checksum, and application time.
 
 ## Import behavior
 
 ### Import Definition
 
-A named entry under `imports` in `jdbt.yml`. It selects ordered [Database Modules](#database-module) and the directories containing import hooks and per-object overrides.
+A named entry under `imports` in `jdbt.yml`. It selects ordered [Database Module](#database-module)s and the directories containing import hooks and per-object overrides.
 
 ### Database Import
 
@@ -65,7 +65,10 @@ The create-by-import phase that transfers rows and sequence positions from a sou
 
 ### Standard Import
 
-The generated fallback for an [Import Row Source](#import-row-source) table or sequence when its [Import Definition](#import-definition) supplies neither an [Import Fixture](#import-fixture) nor [Explicit Import SQL](#explicit-import-sql). For a SQL Server table it is an `INSERT ... SELECT` across source and target databases using columns discovered from live target metadata. Offline [Standard Import Scripts](#standard-import-script) instead use the ordered [Repository Metadata](#repository-metadata) columns.
+The generated fallback for an [Import Row Source](#import-row-source) table or sequence when its
+[Import Definition](#import-definition) supplies neither an [Import Fixture](#import-fixture) nor
+[Explicit Import SQL](#explicit-import-sql). SQL Server uses live target columns at runtime, while offline
+[Standard Import Script](#standard-import-script)s use ordered [Repository Metadata](#repository-metadata) columns.
 
 ### Explicit Import SQL
 
@@ -73,7 +76,8 @@ A per-table or per-sequence `.sql` file in an [Import Definition](#import-defini
 
 ### Late Import
 
-The single import of an [Import Row Source](#import-row-source) table deferred from the ordinary table-transfer phase until after [Database Contributions](#database-contribution) and import-only pre-late hooks. It still runs before structural finalization. A late table has an explicit SQL or YAML asset in its Import Definition's `lateImportDir` and cannot also have an ordinary explicit import asset.
+The import of an [Import Row Source](#import-row-source) table postponed until after
+[Database Contribution](#database-contribution)s and import-only pre-late hooks, but before structural finalization.
 
 ### Standard Import Script
 
@@ -91,13 +95,13 @@ A table whose rows participate in [Database Import](#database-import). Runtime s
 
 ### Deployment Row Source
 
-A table whose rows are established by [Initial Fixtures](#initial-fixture), deployment hooks or other deployment mechanisms, or intentionally left empty. [Database Import](#database-import) does not delete, import, resume at, or emit a [Standard Import Script](#standard-import-script) for it.
+A table whose rows are established by [Initial Fixture](#initial-fixture)s, deployment hooks or other deployment mechanisms, or intentionally left empty. [Database Import](#database-import) does not delete, import, resume at, or emit a [Standard Import Script](#standard-import-script) for it.
 
 ## YAML row data
 
 ### Initial Fixture
 
-A table or sequence YAML file in the [Database Project's](#database-project) configured `fixtureDirName`. It is loaded during database creation and is valid only for deployment-owned table rows.
+A table or sequence YAML file in the [Database Project](#database-project)'s configured `fixtureDirName`. It is loaded during database creation and is valid only for deployment-owned table rows.
 
 ### Import Fixture
 
@@ -108,5 +112,5 @@ A per-table or per-sequence YAML file in an [Import Definition](#import-definiti
 A table or sequence YAML file under a named dataset. It is loaded only by an explicit dataset command and may target either [Row Source](#row-source) because datasets are operator-requested data, not lifecycle ownership.
 
 The durable behavior behind these terms is specified in [Database Imports](../specs/database-imports.md) and
-[Database Import Timing](../specs/database-import-timing.md). Migration behavior is specified in
+[Database Import Timing](../specs/database-import-timing.md). [Migration](#migration) behavior is specified in
 [Database Migrations](../specs/database-migrations.md).

@@ -14,6 +14,9 @@ The descriptor's `modules` value is a plain YAML map. Ordered-map tags and list-
 
 [Database Module](../glossary/README.md#database-module), table, column, and sequence order are significant. [Repository Metadata](../glossary/README.md#repository-metadata) is composed module-atomically in pre-artifact, local-project, then post-artifact order. [Database Artifact](../glossary/README.md#database-artifact) packaging must preserve the complete merged model.
 
+Changing only a table's [Row Source](../glossary/README.md#row-source) classification must not change jdbt's reported
+schema hash.
+
 ## Resource resolution
 
 Jdbt has one local [Resource Root](../glossary/README.md#resource-root). For a given logical path, local files take precedence over post-artifacts, which take precedence over pre-artifacts. Resolution produces a typed [Database Resource](../glossary/README.md#database-resource); downstream operations must not infer its origin by parsing a path string. Artifact indexes participate in ordering without changing that precedence.
@@ -28,7 +31,7 @@ An [Import Row Source](../glossary/README.md#import-row-source) table participat
 
 A [Deployment Row Source](../glossary/README.md#deployment-row-source) table is established by deployment assets, an external deployment mechanism, or deliberate absence of rows. Database Import must not delete it, import it, select it through `--resume-at`, or emit a Standard Import Script for it. A deployment asset is not required merely to justify this classification.
 
-[Dataset Fixtures](../glossary/README.md#dataset-fixture) are independent of [Row Source](../glossary/README.md#row-source). They load only after an operator explicitly selects a dataset and may target either Row Source.
+[Dataset Fixture](../glossary/README.md#dataset-fixture)s are independent of Row Source. They load only after an operator explicitly selects a dataset and may target either Row Source.
 
 ## Contradictory inputs
 
@@ -37,7 +40,7 @@ Before a create-by-import flow mutates a database, jdbt rejects selected-project
 - an [Initial Fixture](../glossary/README.md#initial-fixture) targeting an Import Row Source table;
 - an Import Fixture or Explicit Import SQL targeting a Deployment Row Source table;
 - both an Import Fixture and Explicit Import SQL targeting the same table;
-- ordinary and late import assets targeting the same table;
+- ordinary and [Late Import](../glossary/README.md#late-import) assets targeting the same table;
 - a configured required import file that is absent from the resolved import plan;
 - a normal Import Row Source table after a late table has started within the same Database Module; or
 - `--resume-at` naming a Deployment Row Source table.
@@ -51,13 +54,13 @@ Before opening the target connection, jdbt resolves the selected modules, tables
 `contributionDirs` is an optional ordered database-level list. Each directory contains [Database Contribution](../glossary/README.md#database-contribution) SQL and is independent of any Import Definition. Contributions execute:
 
 - after schema-up during fresh creation;
-- after dataset fixtures and post-dataset hooks during dataset-backed creation;
+- after Dataset Fixtures and post-dataset hooks during dataset-backed creation;
 - after ordinary imports and `postImportDirs` during import-backed creation; and
 - before structural finalizers.
 
-Migration never executes contributions.
+[Migration](../glossary/README.md#migration) never executes contributions.
 
-An Import Definition may set ordered `preLateImportDirs`, one `lateImportDir`, and `requiredFiles`. A table with an explicit SQL or YAML resource in `lateImportDir` is removed from the ordinary phase and imported exactly once in the late phase. Late tables retain Repository Descriptor order. Within each selected Database Module, late Import Row Source tables must form a suffix of that module's imported tables; this rejects an ordinary table that would be moved ahead of an earlier deferred predecessor without adding a second dependency model. Every path in `requiredFiles` must resolve to a hook, fixture, or SQL override selected by the immutable import plan; an absent required file rejects the import before the target connection opens. Assets not required by an Import Definition remain available to other definitions that share the same resource directories.
+An Import Definition may set ordered `preLateImportDirs`, one `lateImportDir`, and `requiredFiles`. A table with an explicit SQL or YAML resource in `lateImportDir` is removed from the ordinary phase and imported exactly once in the late phase. Late tables retain Repository Descriptor order. Within each selected Database Module, Import Row Source tables selected for Late Import must form a suffix of that module's imported tables; this rejects an ordinary table that would be moved ahead of an earlier deferred predecessor without adding a second dependency model. Every path in `requiredFiles` must resolve to a hook, fixture, or SQL override selected by the immutable import plan; an absent required file rejects the import before the target connection opens. Assets not required by an Import Definition remain available to other definitions that share the same resource directories.
 
 The import-backed phase order is:
 
@@ -67,7 +70,7 @@ The import-backed phase order is:
 4. Database Contributions;
 5. import-only pre-late hooks;
 6. Late Imports;
-7. database import maintenance; and
+7. Database Import maintenance; and
 8. structural finalizers and post-create hooks for create-by-import.
 
 Create-by-import is jdbt's only source-to-target import command. `--no-create` leaves the database itself in place but
@@ -108,6 +111,6 @@ It requires no database credentials. Without `--import`, it uses the configured 
 
 Table content is the driver's plain ordered `INSERT ... SELECT` using `__TARGET__` and `__SOURCE__`. Identity statements are deliberately absent because identity is determined from live target metadata when Database Import runs.
 
-The default output is `<database-project>/tmp/imports`. Relative custom output paths resolve from the Database Project. A non-empty custom output requires `--replace`. Jdbt validates the canonical destination before staging, rejects a symbolic-link destination, and forbids the filesystem root, Database Project, and all ancestors of the Database Project. It writes a complete staged tree before replacing the destination.
+The default output is `<database-project>/tmp/imports`. Relative custom output paths resolve from the Database Project. A non-empty custom output requires `--replace`. Jdbt validates the canonical destination before staging, rejects a symbolic-link destination, and forbids the filesystem root, [Database Project](../glossary/README.md#database-project), and all ancestors of the Database Project. It writes a complete staged tree before replacing the destination.
 
 The metadata ownership rationale is recorded in [ADR 0001](../adr/0001-repository-metadata-for-standard-imports.md).

@@ -20,7 +20,7 @@ This specification defines the versioned interoperability contract through which
 5. The SQL protocol version must remain independent of the public NDJSON schema version.
 6. Jdbt must recognize a protocol result regardless of its position among other JDBC results and update counts. A
    result whose first column is `Protocol` must have the complete allowlisted shape and `jdbt.timing.v1` value; other
-   result sets must be closed without reading row values. A database project may omit protocol results.
+   result sets must be closed without reading row values. A Database Project may omit protocol results.
 7. An unsupported protocol version, malformed shape or value, duplicate identity, non-contiguous ordinal, invalid
    kind, status, elapsed time, identity, or parent must fail the timed command.
 8. SQL timing rows must use terminal postorder and ordinals beginning at one within the emitting SQL batch.

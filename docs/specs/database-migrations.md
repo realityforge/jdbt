@@ -3,7 +3,7 @@
 ## Purpose
 
 This specification defines how a [Database Project](../glossary/README.md#database-project) identifies, bootstraps,
-executes, and records [Migrations](../glossary/README.md#migration) in a target database.
+executes, and records [Migration](../glossary/README.md#migration)s in a target database.
 
 ## Requirements
 
