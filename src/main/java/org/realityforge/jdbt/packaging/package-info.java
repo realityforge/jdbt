@@ -1,2 +1,4 @@
-@org.jspecify.annotations.NullMarked
+@NullMarked
 package org.realityforge.jdbt.packaging;
+
+import org.jspecify.annotations.NullMarked;
