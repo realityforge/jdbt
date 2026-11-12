@@ -676,7 +676,11 @@ public final class SqlServerDbDriver implements DbDriver {
 
     private static void executeSql(final Connection connection, final String sql) {
         try (var statement = connection.createStatement()) {
-            statement.execute(sql);
+            var hasResultSet = statement.execute(sql);
+            // SQL Server can report a later batch error only when advancing results.
+            while (hasResultSet || -1 != statement.getUpdateCount()) {
+                hasResultSet = statement.getMoreResults(Statement.CLOSE_CURRENT_RESULT);
+            }
         } catch (final SQLException sqle) {
             throw new DatabaseException("Failed to execute SQL", sqle);
         }

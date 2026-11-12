@@ -13,6 +13,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -25,6 +27,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.realityforge.jdbt.config.ImportConfig;
 import org.realityforge.jdbt.db.DatabaseConnection;
 import org.realityforge.jdbt.db.DatabaseException;
@@ -33,6 +38,13 @@ import org.realityforge.jdbt.db.ImportMaintenanceObserver;
 import org.realityforge.jdbt.db.QueryResult;
 import org.realityforge.jdbt.db.SqlTimingObservation;
 import org.realityforge.jdbt.db.SqlTimingObserver;
+import org.realityforge.jdbt.files.FileResolver;
+import org.realityforge.jdbt.repository.RepositoryConfig;
+import org.realityforge.jdbt.repository.RepositoryTable;
+import org.realityforge.jdbt.repository.RowSource;
+import org.realityforge.jdbt.runtime.RuntimeDatabase;
+import org.realityforge.jdbt.runtime.RuntimeEngine;
+import org.realityforge.jdbt.runtime.RuntimeExecutionException;
 
 final class SqlServerDbDriverTest {
     private final DatabaseConnection config = new DatabaseConnection("127.0.0.1", 1433, "DB", "sa", "secret");
@@ -53,7 +65,7 @@ final class SqlServerDbDriverTest {
     void executeUsesTargetSessionAndTemporarilySelectsControlCatalogWhenTargetIsOpen() throws Exception {
         final var target = mock(Connection.class);
         final var control = mock(Connection.class);
-        final var targetStatement = mock(Statement.class);
+        final var targetStatement = mockStatement();
         when(target.getCatalog()).thenReturn("DB");
         when(target.createStatement()).thenReturn(targetStatement);
         final var driver = new SqlServerDbDriver((connection, controlDatabase) -> controlDatabase ? control : target);
@@ -76,7 +88,7 @@ final class SqlServerDbDriverTest {
     void executeRestoresTargetCatalogWhenControlSqlFails() throws Exception {
         final var target = mock(Connection.class);
         final var control = mock(Connection.class);
-        final var statement = mock(Statement.class);
+        final var statement = mockStatement();
         when(target.getCatalog()).thenReturn("DB");
         when(target.createStatement()).thenReturn(statement);
         doThrow(new SQLException("boom")).when(statement).execute("FAIL");
@@ -97,9 +109,153 @@ final class SqlServerDbDriverTest {
     }
 
     @Test
+    void executeTraversesMixedResultsWithoutReadingRows() throws Exception {
+        final var target = mock(Connection.class);
+        final var statement = mockStatement();
+        when(target.createStatement()).thenReturn(statement);
+        when(statement.execute("MULTI")).thenReturn(false);
+        when(statement.getUpdateCount()).thenReturn(0, 3, -1);
+        when(statement.getMoreResults(Statement.CLOSE_CURRENT_RESULT)).thenReturn(true, false, true, false);
+        final var driver = new SqlServerDbDriver((connection, controlDatabase) -> target);
+        driver.open(config, false);
+
+        driver.execute("MULTI", false, SqlTimingObserver.NONE);
+
+        verify(statement, times(4)).getMoreResults(Statement.CLOSE_CURRENT_RESULT);
+        verify(statement, times(3)).getUpdateCount();
+        verify(statement, never()).getResultSet();
+        verify(statement).close();
+    }
+
+    @Test
+    void executePropagatesErrorAfterResultSetAndRestoresControlCatalog() throws Exception {
+        final var target = mock(Connection.class);
+        final var statement = mockStatement();
+        final var failure = new SQLException("import rejected", "S0001", 50000);
+        when(target.getCatalog()).thenReturn("DB");
+        when(target.createStatement()).thenReturn(statement);
+        when(statement.execute("SELECT 1; THROW 50000, 'import rejected', 1")).thenReturn(true);
+        when(statement.getMoreResults(Statement.CLOSE_CURRENT_RESULT)).thenThrow(failure);
+        final var driver = new SqlServerDbDriver((connection, controlDatabase) -> target);
+        driver.open(config, false);
+
+        assertThatThrownBy(() ->
+                        driver.execute("SELECT 1; THROW 50000, 'import rejected', 1", true, SqlTimingObserver.NONE))
+                .isInstanceOf(DatabaseException.class)
+                .hasCause(failure);
+
+        final var ordered = inOrder(target, statement);
+        ordered.verify(target).setCatalog("msdb");
+        ordered.verify(statement).getMoreResults(Statement.CLOSE_CURRENT_RESULT);
+        ordered.verify(statement).close();
+        ordered.verify(target).setCatalog("DB");
+    }
+
+    @Test
+    void executePropagatesErrorAfterUpdateCount() throws Exception {
+        final var target = mock(Connection.class);
+        final var statement = mockStatement();
+        final var failure = new SQLException("import rejected", "S0001", 50000);
+        when(target.createStatement()).thenReturn(statement);
+        when(statement.getUpdateCount()).thenReturn(1);
+        when(statement.getMoreResults(Statement.CLOSE_CURRENT_RESULT)).thenThrow(failure);
+        final var driver = new SqlServerDbDriver((connection, controlDatabase) -> target);
+        driver.open(config, false);
+
+        assertThatThrownBy(() -> driver.execute("INSERT; THROW", false, SqlTimingObserver.NONE))
+                .isInstanceOf(DatabaseException.class)
+                .hasCause(failure);
+
+        verify(statement).close();
+    }
+
+    @Test
+    void importStopsAfterDeferredSqlError(@TempDir final Path root) throws Exception {
+        final var importDir = Files.createDirectories(root.resolve("Core/import"));
+        final var sql = "SELECT 1; THROW 50000, 'import rejected', 1;";
+        Files.writeString(importDir.resolve("Core.first.sql"), sql + "\nGO\nLATER BATCH");
+        Files.writeString(importDir.resolve("Core.second.sql"), "LATER TABLE");
+        Files.writeString(Files.createDirectories(root.resolve("Core/finalize")).resolve("final.sql"), "FINALIZE");
+        final var repository = new RepositoryConfig(
+                List.of("Core"),
+                Map.of(),
+                Map.of(
+                        "Core",
+                        List.of(
+                                new RepositoryTable("[Core].[first]", List.of("[ID]"), RowSource.IMPORT),
+                                new RepositoryTable("[Core].[second]", List.of("[ID]"), RowSource.IMPORT))),
+                Map.of("Core", List.of()));
+        final var database = new RuntimeDatabase(
+                repository,
+                root,
+                List.of(),
+                List.of(),
+                "index.txt",
+                List.of("up"),
+                List.of("down"),
+                List.of("finalize"),
+                List.of(),
+                List.of(),
+                "fixtures",
+                "datasets",
+                List.of(),
+                List.of(),
+                List.of(),
+                "migrations",
+                null,
+                null,
+                null,
+                null,
+                false,
+                false,
+                true,
+                false,
+                Map.of(),
+                Map.of(
+                        "default",
+                        new ImportConfig(
+                                "default",
+                                List.of("Core"),
+                                "import",
+                                List.of(),
+                                List.of(),
+                                List.of(),
+                                null,
+                                List.of())),
+                List.of());
+        final var target = mock(Connection.class);
+        final var metadata = mock(PreparedStatement.class);
+        final var metadataResult = mock(ResultSet.class);
+        final var statement = mockStatement();
+        final var failure = new SQLException("import rejected", "S0001", 50000);
+        when(target.getCatalog()).thenReturn("DB");
+        when(target.prepareStatement(anyString())).thenReturn(metadata);
+        when(metadata.executeQuery()).thenReturn(metadataResult);
+        when(target.createStatement()).thenReturn(statement);
+        when(statement.execute(anyString()))
+                .thenAnswer(invocation ->
+                        sql.equals(invocation.<String>getArgument(0).trim()));
+        when(statement.getMoreResults(Statement.CLOSE_CURRENT_RESULT)).thenThrow(failure);
+        final var driver = new SqlServerDbDriver((connection, controlDatabase) -> target);
+        final var engine = new RuntimeEngine(driver, new FileResolver());
+
+        assertThatThrownBy(() -> engine.createByImport(database, "default", config, config, null, true, Map.of()))
+                .isInstanceOf(RuntimeExecutionException.class)
+                .hasMessageContaining("Core.first")
+                .hasRootCause(failure);
+
+        final var ordered = inOrder(statement, target);
+        ordered.verify(statement).execute("CREATE SCHEMA [Core]");
+        ordered.verify(statement).execute(sql + "\n");
+        ordered.verify(target).setCatalog("DB");
+        ordered.verify(target).close();
+        verify(statement, times(2)).execute(anyString());
+    }
+
+    @Test
     void importTimingUsesVersionedReadOnlySessionContext() throws Exception {
         final var target = mock(Connection.class);
-        final var statement = mock(Statement.class);
+        final var statement = mockStatement();
         when(target.createStatement()).thenReturn(statement);
         final var driver = new SqlServerDbDriver((connection, controlDatabase) -> target);
         driver.open(config, false);
@@ -114,12 +270,12 @@ final class SqlServerDbDriverTest {
     @Test
     void timedExecutionTraversesResultsAndReadsOnlyExactProtocolRows() throws Exception {
         final var target = mock(Connection.class);
-        final var statement = mock(Statement.class);
+        final var statement = mockStatement();
         final var arbitraryResult = mock(ResultSet.class);
         final var arbitraryMetadata = mock(ResultSetMetaData.class);
         final var timingResult = mock(ResultSet.class);
         final var timingMetadata = timingMetadata();
-        final var clearStatement = mock(Statement.class);
+        final var clearStatement = mockStatement();
         when(statement.execute("MULTI")).thenReturn(true);
         when(statement.getResultSet()).thenReturn(arbitraryResult, timingResult);
         when(statement.getMoreResults(Statement.CLOSE_CURRENT_RESULT)).thenReturn(false, true, false);
@@ -156,15 +312,25 @@ final class SqlServerDbDriverTest {
         verify(clearStatement).execute("TRUNCATE TABLE [DB].[dbo].[tblImportTiming]");
     }
 
-    @Test
-    void timedExecutionDrainsAndRetainsSinkAfterSqlFailure() throws Exception {
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void timedExecutionDrainsAndRetainsSinkAfterSqlFailure(final boolean deferred) throws Exception {
         final var target = mock(Connection.class);
-        final var failingStatement = mock(Statement.class);
-        final var drainStatement = mock(Statement.class);
+        final var failingStatement = mockStatement();
+        final var drainStatement = mockStatement();
         final var result = mock(ResultSet.class);
         final var metadata = timingMetadata();
         final var sqlFailure = new SQLException("primary database detail", "S0002", 208);
-        when(failingStatement.execute("FAIL")).thenThrow(sqlFailure);
+        if (deferred) {
+            final var diagnostic = mock(ResultSet.class);
+            when(diagnostic.getMetaData()).thenReturn(mock(ResultSetMetaData.class));
+            when(failingStatement.execute("FAIL")).thenReturn(true);
+            when(failingStatement.getResultSet()).thenReturn(diagnostic);
+            when(failingStatement.getMoreResults(Statement.CLOSE_CURRENT_RESULT))
+                    .thenThrow(sqlFailure);
+        } else {
+            when(failingStatement.execute("FAIL")).thenThrow(sqlFailure);
+        }
         when(drainStatement.execute(anyString())).thenReturn(true);
         when(drainStatement.getResultSet()).thenReturn(result);
         when(drainStatement.getMoreResults(Statement.CLOSE_CURRENT_RESULT)).thenReturn(false);
@@ -202,8 +368,8 @@ final class SqlServerDbDriverTest {
     @Test
     void timedExecutionKeepsSqlFailurePrimaryWhenDrainFails() throws Exception {
         final var target = mock(Connection.class);
-        final var failingStatement = mock(Statement.class);
-        final var drainStatement = mock(Statement.class);
+        final var failingStatement = mockStatement();
+        final var drainStatement = mockStatement();
         final var sqlFailure = new SQLException("primary secret", "S0002", 208);
         when(failingStatement.execute("FAIL")).thenThrow(sqlFailure);
         when(drainStatement.execute(anyString())).thenThrow(new SQLException("drain credential secret"));
@@ -230,7 +396,7 @@ final class SqlServerDbDriverTest {
     @Test
     void timedExecutionPropagatesObserverFailureWhenSqlSucceeded() throws Exception {
         final var target = mock(Connection.class);
-        final var statement = mock(Statement.class);
+        final var statement = mockStatement();
         final var result = mock(ResultSet.class);
         final var metadata = timingMetadata();
         final var observerFailure = new IllegalStateException("observer failure");
@@ -259,7 +425,7 @@ final class SqlServerDbDriverTest {
     @Test
     void timedExecutionRetainsSinkWhenObserverFails() throws Exception {
         final var target = mock(Connection.class);
-        final var statement = mock(Statement.class);
+        final var statement = mockStatement();
         final var result = mock(ResultSet.class);
         final var metadata = timingMetadata();
         final var observerFailure = new IllegalStateException("observer failure");
@@ -294,7 +460,7 @@ final class SqlServerDbDriverTest {
     @Test
     void timedExecutionRejectsUnsupportedProtocolWithoutReadingPayload() throws Exception {
         final var target = mock(Connection.class);
-        final var statement = mock(Statement.class);
+        final var statement = mockStatement();
         final var result = mock(ResultSet.class);
         final var metadata = timingMetadata();
         when(statement.execute("TIMING")).thenReturn(true);
@@ -315,7 +481,7 @@ final class SqlServerDbDriverTest {
     @Test
     void timedExecutionRejectsNullRequiredField() throws Exception {
         final var target = mock(Connection.class);
-        final var statement = mock(Statement.class);
+        final var statement = mockStatement();
         final var result = mock(ResultSet.class);
         final var metadata = timingMetadata();
         when(statement.execute("TIMING")).thenReturn(true);
@@ -338,7 +504,7 @@ final class SqlServerDbDriverTest {
     @Test
     void timedExecutionRejectsProtocolColumnTypeMismatchBeforeReadingRows() throws Exception {
         final var target = mock(Connection.class);
-        final var statement = mock(Statement.class);
+        final var statement = mockStatement();
         final var result = mock(ResultSet.class);
         final var metadata = timingMetadata();
         when(metadata.getColumnType(7)).thenReturn(Types.VARCHAR);
@@ -358,7 +524,7 @@ final class SqlServerDbDriverTest {
     @Test
     void timedExecutionRejectsIncompleteProtocolShapeBeforeReadingRows() throws Exception {
         final var target = mock(Connection.class);
-        final var statement = mock(Statement.class);
+        final var statement = mockStatement();
         final var result = mock(ResultSet.class);
         final var metadata = mock(ResultSetMetaData.class);
         when(statement.execute("TIMING")).thenReturn(true);
@@ -382,7 +548,7 @@ final class SqlServerDbDriverTest {
         final var control = mock(Connection.class);
         final var identityQuery = mock(PreparedStatement.class);
         final var identityResult = mock(ResultSet.class);
-        final var statement = mock(Statement.class);
+        final var statement = mockStatement();
         when(target.prepareStatement(contains("COLUMNPROPERTY"))).thenReturn(identityQuery);
         when(identityQuery.executeQuery()).thenReturn(identityResult);
         when(identityResult.next()).thenReturn(true, true);
@@ -416,9 +582,9 @@ final class SqlServerDbDriverTest {
     void createDatabaseUsesVersionedFilePathsAndVersionMetadata() throws Exception {
         final var control = mock(Connection.class);
         final var target = mock(Connection.class);
-        final var statement = mock(Statement.class);
+        final var statement = mockStatement();
         when(control.createStatement()).thenReturn(statement);
-        final var targetStatement = mock(Statement.class);
+        final var targetStatement = mockStatement();
         when(target.createStatement()).thenReturn(targetStatement);
 
         final var driver = new SqlServerDbDriver((connection, controlDatabase) -> controlDatabase ? control : target);
@@ -440,7 +606,7 @@ final class SqlServerDbDriverTest {
     @Test
     void dropDatabaseUsesRubyDefaultControlSql() throws Exception {
         final var control = mock(Connection.class);
-        final var statement = mock(Statement.class);
+        final var statement = mockStatement();
         when(control.createStatement()).thenReturn(statement);
         final var driver = new SqlServerDbDriver((connection, controlDatabase) -> control);
         driver.open(config, true);
@@ -458,7 +624,7 @@ final class SqlServerDbDriverTest {
     @Test
     void dropDatabaseHonorsForceDropAndBackupHistoryOptions() throws Exception {
         final var control = mock(Connection.class);
-        final var statement = mock(Statement.class);
+        final var statement = mockStatement();
         when(control.createStatement()).thenReturn(statement);
         final var driver = new SqlServerDbDriver((connection, controlDatabase) -> control);
         driver.open(config, true);
@@ -601,7 +767,7 @@ final class SqlServerDbDriverTest {
         when(identityResult.next()).thenReturn(true, true);
         when(identityResult.getLong(1)).thenReturn(1L, 1L);
 
-        final var statement = mock(Statement.class);
+        final var statement = mockStatement();
         when(target.createStatement()).thenReturn(statement);
 
         final var driver = new SqlServerDbDriver((connection, controlDatabase) -> target);
@@ -633,7 +799,7 @@ final class SqlServerDbDriverTest {
         when(identityQuery.executeQuery()).thenReturn(identityResult);
         when(identityResult.next()).thenReturn(true, true);
         when(identityResult.getLong(1)).thenReturn(0L, 0L);
-        final var statement = mock(Statement.class);
+        final var statement = mockStatement();
         when(target.createStatement()).thenReturn(statement);
         final var driver = new SqlServerDbDriver((connection, controlDatabase) -> target);
         driver.open(config, false);
@@ -647,7 +813,7 @@ final class SqlServerDbDriverTest {
     @Test
     void postImportMaintenanceHonorsReindexAndShrinkOptions() throws Exception {
         final var target = mock(Connection.class);
-        final var statement = mock(Statement.class);
+        final var statement = mockStatement();
         when(target.createStatement()).thenReturn(statement);
         final var driver = new SqlServerDbDriver((connection, controlDatabase) -> target);
         driver.open(config, false);
@@ -689,7 +855,7 @@ final class SqlServerDbDriverTest {
     @Test
     void postImportMaintenanceExposesEachStableOperationBoundary() throws Exception {
         final var target = mock(Connection.class);
-        final var statement = mock(Statement.class);
+        final var statement = mockStatement();
         final var identityQuery = mock(PreparedStatement.class);
         final var identityResult = mock(ResultSet.class);
         when(target.createStatement()).thenReturn(statement);
@@ -725,12 +891,18 @@ final class SqlServerDbDriverTest {
     }
 
     private SqlServerDbDriver timedDriver(final Connection target, final Statement... statements) throws Exception {
-        final var setupStatement = mock(Statement.class);
+        final var setupStatement = mockStatement();
         when(target.createStatement()).thenReturn(setupStatement, statements);
         final var driver = new SqlServerDbDriver((connection, controlDatabase) -> target);
         driver.open(config, false);
         driver.enableImportTiming();
         return driver;
+    }
+
+    private static Statement mockStatement() throws SQLException {
+        final var statement = mock(Statement.class);
+        when(statement.getUpdateCount()).thenReturn(-1);
+        return statement;
     }
 
     private static ResultSetMetaData timingMetadata() throws SQLException {
@@ -754,7 +926,7 @@ final class SqlServerDbDriverTest {
         final var tableExistsResult = mock(ResultSet.class);
         final var version = mock(PreparedStatement.class);
         final var versionResult = mock(ResultSet.class);
-        final var lock = mock(Statement.class);
+        final var lock = mockStatement();
         when(target.prepareStatement(anyString())).thenAnswer(invocation -> {
             final var sql = invocation.<String>getArgument(0);
             if (sql.contains("INFORMATION_SCHEMA.TABLES")) {
@@ -794,7 +966,8 @@ final class SqlServerDbDriverTest {
             final var sql = invocation.<String>getArgument(0);
             return sql.contains("INFORMATION_SCHEMA.TABLES") ? tableExists : columnExists;
         });
-        when(target.createStatement()).thenReturn(mock(Statement.class));
+        final var lock = mockStatement();
+        when(target.createStatement()).thenReturn(lock);
         when(tableExists.executeQuery()).thenReturn(tableExistsResult);
         when(tableExistsResult.next()).thenReturn(true);
         when(tableExistsResult.getLong(1)).thenReturn(1L);
@@ -812,7 +985,7 @@ final class SqlServerDbDriverTest {
     @Test
     void initializeMigrationStateCreatesChecksummedTableAtomically() throws Exception {
         final var target = mock(Connection.class);
-        final var createTable = mock(Statement.class);
+        final var createTable = mockStatement();
         final var insert = mock(PreparedStatement.class);
         when(target.getAutoCommit()).thenReturn(true);
         when(target.createStatement()).thenReturn(createTable);
@@ -875,7 +1048,7 @@ final class SqlServerDbDriverTest {
     @Test
     void applyMigrationCommitsSqlAndTrackingTogether() throws Exception {
         final var target = mock(Connection.class);
-        final var sql = mock(Statement.class);
+        final var sql = mockStatement();
         final var insert = mock(PreparedStatement.class);
         when(target.getAutoCommit()).thenReturn(true);
         when(target.createStatement()).thenReturn(sql);

@@ -89,9 +89,15 @@ lifecycle rather than being replayed by late recovery.
 
 All configured contribution, pre-late, and late resources participate in project hashing and Database Artifact packaging. Projects that omit these optional keys retain the ordinary import lifecycle.
 
+## SQL execution failures
+
+A SQL execution error must fail Database Import even when earlier statements in the same batch returned result sets
+or update counts. No subsequent import batch or lifecycle phase may run after that error. The failure must retain the
+original database error as its cause. A failed Database Import must close the target session.
+
 ## SQL Server identity behavior
 
-Identity preservation is runtime behavior, not Standard Import Script content. SQL Server queries live target metadata for each imported table. When that table has an identity column, jdbt enables `IDENTITY_INSERT` before insertion and disables it after a successful table import; a failed Database Import closes the target session.
+Identity preservation is runtime behavior, not Standard Import Script content. SQL Server queries live target metadata for each imported table. When that table has an identity column, jdbt enables `IDENTITY_INSERT` before insertion and disables it after a successful table import.
 
 The identity statements and imported rows execute on the same target JDBC session. Explicit Import SQL and Standard Import temporarily select the SQL Server control catalog on that session and restore the original target catalog after success or failure. Operations that cannot assume an existing target database retain a dedicated control connection.
 
